@@ -24,7 +24,15 @@ function App() {
   const handleReset = () => setDepth(INITIAL_DEPTH)
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#fafafa' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      bgcolor: '#fafafa' 
+    }}>
       {/* Sidebar */}
       <Box
         component={Paper}
@@ -41,7 +49,7 @@ function App() {
       >
         <Typography
           variant="h4"
-          sx={{ fontFamily: 'Caveat, cursive', mb: 4, mt: 2, fontWeight: 700 }}
+          sx={{ fontFamily: 'Roboto, Arial, sans-serif', mb: 4, mt: 2, fontWeight: 700 }}
         >
           FractalFlow
         </Typography>
@@ -62,9 +70,11 @@ function App() {
           alignItems: 'center',
           justifyContent: 'center',
           bgcolor: 'transparent',
+          width: '100%',
+          height: '100%',
         }}
       >
-        <FractalCanvas depth={depth} width={420} height={420} />
+        <FractalCanvas depth={depth} />
       </Box>
     </Box>
   )
