@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { createEngine, type Engine } from '$lib/engine/engine';
-	import type { BackendType } from '$lib/engine/types';
+	import type { BackendType, FractalRenderer, SceneState } from '$lib/engine/types';
 
 	interface Props {
+		renderer: FractalRenderer;
+		/** Pulled each frame so UI edits take effect live. */
+		getScene: () => SceneState;
 		prefer?: BackendType;
 		/** Reports the backend the engine actually initialised with. */
 		onbackend?: (type: BackendType) => void;
 	}
 
-	let { prefer, onbackend }: Props = $props();
+	let { renderer, getScene, prefer, onbackend }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let failed = $state(false);
@@ -19,7 +22,7 @@
 		let engine: Engine | null = null;
 		let disposed = false;
 
-		createEngine(canvas, { prefer, onBackend: onbackend })
+		createEngine(canvas, { renderer, getScene, prefer, onBackend: onbackend })
 			.then((created) => {
 				if (!created) {
 					failed = true;

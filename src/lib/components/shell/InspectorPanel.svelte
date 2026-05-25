@@ -2,27 +2,81 @@
 	import SidePanel from './SidePanel.svelte';
 	import { ART_STYLES } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { getSceneStore } from '$lib/stores/scene.svelte';
+	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
 
 	const ui = getUiStore();
+	const scene = getSceneStore();
+
 	const style = $derived(ART_STYLES.find((s) => s.id === ui.selectedStyle) ?? null);
+	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
+
+	function gradientFor(coeffs: PaletteCoeffs): string {
+		const stops: string[] = [];
+		for (let i = 0; i <= 6; i++) {
+			const t = i / 6;
+			const [r, g, b] = cosinePalette(coeffs, t);
+			const c = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+			stops.push(`${c} ${Math.round(t * 100)}%`);
+		}
+		return `linear-gradient(90deg, ${stops.join(', ')})`;
+	}
 </script>
 
 <SidePanel title="Inspector" side="right">
-	{#if style}
+	{#if isDeepZoom}
+		<section class="group">
+			<h3 class="group-label">Renderer</h3>
+			<p class="value">{style?.label}</p>
+			<p class="hint">{style?.blurb}</p>
+		</section>
+
+		<section class="group">
+			<h3 class="group-label">Iterations</h3>
+			<div class="row">
+				<input
+					type="range"
+					min="50"
+					max="1200"
+					step="10"
+					value={scene.maxIter}
+					oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}
+					aria-label="Maximum iterations"
+				/>
+				<span class="ff-num val">{scene.maxIter}</span>
+			</div>
+			<p class="hint">More iterations reveal finer detail at deep zoom (slower).</p>
+		</section>
+
+		<section class="group">
+			<h3 class="group-label">Palette</h3>
+			<div class="palettes">
+				{#each PALETTES as p, i (p.id)}
+					<button
+						type="button"
+						class="swatch"
+						class:active={scene.paletteIndex === i}
+						style="background: {gradientFor(p.coeffs)}"
+						onclick={() => scene.setPaletteIndex(i)}
+						aria-label={p.label}
+						aria-pressed={scene.paletteIndex === i}
+						title={p.label}
+					></button>
+				{/each}
+			</div>
+		</section>
+
+		<section class="group">
+			<button type="button" class="reset" onclick={() => scene.reset()}>Reset view</button>
+		</section>
+	{:else if style}
 		<section class="group">
 			<h3 class="group-label">Renderer</h3>
 			<p class="value">{style.label}</p>
 			<p class="hint">{style.blurb}</p>
 		</section>
 		<section class="group">
-			<h3 class="group-label">Parameters</h3>
-			<p class="empty">
-				Parameters appear here once this renderer ships. Building it is the next phase.
-			</p>
-		</section>
-		<section class="group">
-			<h3 class="group-label">Expedition log</h3>
-			<p class="empty">Your steps to this image will be recorded here.</p>
+			<p class="empty">This renderer arrives in a later phase. Pick Deep-Zoom 2D to explore now.</p>
 		</section>
 	{:else}
 		<div class="placeholder">
@@ -54,8 +108,52 @@
 	.hint {
 		font-size: var(--ff-text-sm);
 		color: var(--ff-text-muted);
-		margin-top: 2px;
+		margin-top: var(--ff-space-2);
 		line-height: var(--ff-leading-tight);
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-3);
+	}
+	input[type='range'] {
+		flex: 1;
+		accent-color: var(--ff-accent);
+	}
+	.val {
+		min-width: 38px;
+		text-align: right;
+		color: var(--ff-text-secondary);
+	}
+	.palettes {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--ff-space-2);
+	}
+	.swatch {
+		height: 28px;
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-md);
+		cursor: pointer;
+		padding: 0;
+	}
+	.swatch.active {
+		border-color: var(--ff-accent);
+		box-shadow: 0 0 0 1px var(--ff-accent);
+	}
+	.reset {
+		width: 100%;
+		height: 32px;
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-md);
+		background: var(--ff-surface-raised);
+		color: var(--ff-text-secondary);
+		font-size: var(--ff-text-sm);
+		cursor: pointer;
+	}
+	.reset:hover {
+		border-color: var(--ff-border-strong);
+		color: var(--ff-text);
 	}
 	.empty {
 		font-size: var(--ff-text-sm);

@@ -1,40 +1,14 @@
 /**
- * WebGPU primary backend. Renders the same calm test pattern as the WebGL2
- * fallback (visual parity) via a fullscreen triangle, validating device/context
- * setup, a uniform buffer, and the render-pass submit path. Async because
- * adapter/device acquisition is async; returns null if WebGPU is unavailable.
+ * WebGPU primary backend. Renders a FractalRenderer's WGSL module on a
+ * fullscreen triangle, uploading the shared uniform buffer each frame. Async
+ * because adapter/device acquisition is async; returns null if WebGPU is
+ * unavailable so the engine can fall back to WebGL2.
  */
-import type { FrameState, RenderBackend } from '../types';
-
-const WGSL = /* wgsl */ `
-struct Uniforms {
-	resolution: vec2f,
-	time: f32,
-	_pad: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-
-@vertex
-fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
-	let p = vec2f(f32((vi << 1u) & 2u), f32(vi & 2u));
-	return vec4f(p * 2.0 - 1.0, 0.0, 1.0);
-}
-
-@fragment
-fn fs(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-	let uv = fragCoord.xy / u.resolution;
-	let d = distance(uv, vec2f(0.5, 0.5));
-	let glow = smoothstep(0.95, 0.05, d);
-	let pulse = 0.5 + 0.5 * sin(u.time * 0.0006);
-	let base = vec3f(0.043, 0.055, 0.075);
-	let accent = vec3f(0.176, 0.831, 0.749);
-	let col = mix(base, accent * 0.16, glow * (0.55 + 0.25 * pulse));
-	return vec4f(col, 1.0);
-}
-`;
+import type { FractalRenderer, RenderInput, RenderBackend } from '../types';
 
 export async function createWebGPUBackend(
-	canvas: HTMLCanvasElement
+	canvas: HTMLCanvasElement,
+	renderer: FractalRenderer
 ): Promise<RenderBackend | null> {
 	if (typeof navigator === 'undefined' || !navigator.gpu) return null;
 
@@ -47,18 +21,16 @@ export async function createWebGPUBackend(
 	const format = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({ device, format, alphaMode: 'opaque' });
 
-	const shader = device.createShaderModule({ code: WGSL });
+	const module = device.createShaderModule({ code: renderer.wgsl });
 	const pipeline = device.createRenderPipeline({
 		layout: 'auto',
-		vertex: { module: shader, entryPoint: 'vs' },
-		fragment: { module: shader, entryPoint: 'fs', targets: [{ format }] },
+		vertex: { module, entryPoint: 'vs' },
+		fragment: { module, entryPoint: 'fs', targets: [{ format }] },
 		primitive: { topology: 'triangle-list' }
 	});
 
-	// std140-aligned: vec2f + f32 + pad = 16 bytes.
-	const uniformData = new Float32Array(4);
 	const uniformBuffer = device.createBuffer({
-		size: uniformData.byteLength,
+		size: renderer.uniformSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
 	});
 	const bindGroup = device.createBindGroup({
@@ -66,18 +38,17 @@ export async function createWebGPUBackend(
 		entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
 	});
 
+	const data = new ArrayBuffer(renderer.uniformSize);
+	const view = new DataView(data);
+
 	return {
 		type: 'webgpu',
 		resize() {
-			// The configured context tracks the canvas drawing-buffer size, so
-			// getCurrentTexture() already follows canvas.width/height — no-op.
+			// The configured context tracks the canvas drawing-buffer size.
 		},
-		render(frame: FrameState) {
-			uniformData[0] = frame.width;
-			uniformData[1] = frame.height;
-			uniformData[2] = frame.timeMs;
-			uniformData[3] = 0;
-			device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+		render(input: RenderInput) {
+			renderer.packUniforms(view, input);
+			device.queue.writeBuffer(uniformBuffer, 0, data);
 
 			const encoder = device.createCommandEncoder();
 			const pass = encoder.beginRenderPass({

@@ -1,9 +1,10 @@
 /**
  * Engine orchestrator: picks a backend (WebGPU preferred, WebGL2 fallback),
  * owns the canvas drawing-buffer size, and drives the requestAnimationFrame
- * loop. Framework-agnostic — a thin Svelte wrapper mounts it (GpuCanvas).
+ * loop — pulling the live scene each frame. Framework-agnostic; a thin Svelte
+ * wrapper mounts it (GpuCanvas).
  */
-import type { BackendType, EngineOptions, RenderBackend } from './types';
+import type { BackendType, EngineOptions, FractalRenderer, RenderBackend } from './types';
 import { chooseBackendType, detectSupport } from './capabilities';
 import { createWebGPUBackend } from './backends/webgpu';
 import { createWebGL2Backend } from './backends/webgl2';
@@ -41,9 +42,12 @@ export interface Engine {
 
 async function createBackend(
 	type: BackendType,
-	canvas: HTMLCanvasElement
+	canvas: HTMLCanvasElement,
+	renderer: FractalRenderer
 ): Promise<RenderBackend | null> {
-	return type === 'webgpu' ? createWebGPUBackend(canvas) : createWebGL2Backend(canvas);
+	return type === 'webgpu'
+		? createWebGPUBackend(canvas, renderer)
+		: createWebGL2Backend(canvas, renderer);
 }
 
 /**
@@ -52,17 +56,17 @@ async function createBackend(
  */
 export async function createEngine(
 	canvas: HTMLCanvasElement,
-	options: EngineOptions = {}
+	options: EngineOptions
 ): Promise<Engine | null> {
 	const maxDimension = options.maxDimension ?? DEFAULT_MAX_DIMENSION;
 	const support = detectSupport();
 	const chosen = chooseBackendType(support, options.prefer);
 	if (!chosen) return null;
 
-	let backend = await createBackend(chosen, canvas);
+	let backend = await createBackend(chosen, canvas, options.renderer);
 	if (!backend) {
 		const other: BackendType = chosen === 'webgpu' ? 'webgl2' : 'webgpu';
-		backend = await createBackend(other, canvas);
+		backend = await createBackend(other, canvas, options.renderer);
 	}
 	if (!backend) return null;
 
@@ -93,7 +97,8 @@ export async function createEngine(
 		active.render({
 			timeMs: performance.now() - startTime,
 			width: bufferWidth,
-			height: bufferHeight
+			height: bufferHeight,
+			scene: options.getScene()
 		});
 		rafId = requestAnimationFrame(frame);
 	}

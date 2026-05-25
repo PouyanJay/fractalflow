@@ -68,13 +68,13 @@ describe('pathForMode / modeFromPath', () => {
 });
 
 describe('ui state transitions (pure & immutable)', () => {
-	it('starts with both panels open, comfortable density, palette closed, no style', () => {
+	it('starts with both panels open, comfortable density, palette closed, deep-zoom selected', () => {
 		const s = createInitialUiState();
 		expect(s).toEqual({
 			panels: { library: true, inspector: true },
 			density: 'comfortable',
 			commandPaletteOpen: false,
-			selectedStyle: null
+			selectedStyle: 'deep-zoom-2d'
 		});
 	});
 

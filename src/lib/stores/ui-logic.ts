@@ -122,7 +122,8 @@ export function createInitialUiState(): UiState {
 		panels: { library: true, inspector: true },
 		density: 'comfortable',
 		commandPaletteOpen: false,
-		selectedStyle: null
+		// Deep-Zoom 2D is the implemented renderer, so it's selected by default.
+		selectedStyle: 'deep-zoom-2d'
 	};
 }
 
