@@ -182,6 +182,7 @@ fn pal(t: f32) -> vec3f {
 @fragment
 fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
 	let idx = u32(pos.y) * u32(u.resolution.x) + u32(pos.x);
+	if (idx >= arrayLength(&density)) { return vec4f(0.0, 0.0, 0.0, 1.0); }
 	let d = f32(atomicLoad(&density[idx]));
 	// Log-density tone mapping: attractors span a huge density range (Lorenz
 	// piles up near its fixed points), so log compresses the bright core and
