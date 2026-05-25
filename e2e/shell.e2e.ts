@@ -54,7 +54,26 @@ test('mode tabs navigate between modes', async ({ page }) => {
 	await page.goto('/explore');
 	await page.getByRole('link', { name: 'Compose' }).click();
 	await expect(page).toHaveURL(/\/compose$/);
-	await expect(page.getByRole('heading', { name: 'Compose' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Compose workspace' })).toBeVisible();
+});
+
+test('Compose node graph edits the shared scene and updates every mode', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Glowing Attractors/ }).click();
+	await page.getByRole('link', { name: 'Compose' }).click();
+	await expect(page).toHaveURL(/\/compose$/);
+	// The pipeline nodes render; the Inspector defers to the graph here.
+	await expect(page.getByText('Coloring')).toBeVisible();
+	await expect(page.getByText('Output')).toBeVisible();
+	await expect(page.getByText(/Edit this art style with the node graph/)).toBeVisible();
+	// Editing the Source node mutates the shared scene.
+	const family = page.getByLabel('Attractor family');
+	await expect(family).toHaveValue('clifford');
+	await family.selectOption('lorenz');
+	// Back in Explore, the same scene reflects the change (one scene, four lenses).
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
 });
 
 test('command palette opens with the keyboard and navigates', async ({ page }) => {

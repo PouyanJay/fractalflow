@@ -1,9 +1,10 @@
 <script lang="ts">
 	import SidePanel from './SidePanel.svelte';
-	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { page } from '$app/state';
+	import { ART_STYLES, modeFromPath } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
+	import { PALETTES, paletteCssGradient } from '$lib/fractals/palette';
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
 	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 	import { FLAMES } from '$lib/fractals/painterly-flames/flames';
@@ -15,6 +16,9 @@
 
 	const style = $derived(ART_STYLES.find((s) => s.id === ui.selectedStyle) ?? null);
 	const hasRenderer = $derived(getRenderer(ui.selectedStyle) !== null);
+	// In Compose the node graph is the editor, so the Inspector defers to it
+	// rather than duplicating the parameter controls.
+	const isCompose = $derived(modeFromPath(page.url.pathname) === 'compose');
 	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
 	const isAttractors = $derived(ui.selectedStyle === 'attractors');
 	const isFlames = $derived(ui.selectedStyle === 'flames');
@@ -26,16 +30,7 @@
 			: 'Higher values add more detail (slower).'
 	);
 
-	function gradientFor(coeffs: PaletteCoeffs): string {
-		const stops: string[] = [];
-		for (let i = 0; i <= 6; i++) {
-			const t = i / 6;
-			const [r, g, b] = cosinePalette(coeffs, t);
-			const c = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
-			stops.push(`${c} ${Math.round(t * 100)}%`);
-		}
-		return `linear-gradient(90deg, ${stops.join(', ')})`;
-	}
+	const gradientFor = paletteCssGradient;
 </script>
 
 <SidePanel title="Inspector" panelId="inspector" side="right">
@@ -46,122 +41,128 @@
 			<p class="hint">{style?.blurb}</p>
 		</section>
 
-		{#if isDeepZoom}
+		{#if isCompose}
 			<section class="group">
-				<h3 class="group-label">Formula</h3>
-				<select
-					class="select"
-					aria-label="Formula"
-					value={scene.formula}
-					onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
-				>
-					{#each FORMULAS as f (f.id)}
-						<option value={f.id}>{f.label}</option>
-					{/each}
-				</select>
+				<p class="empty">Edit this art style with the node graph — changes apply everywhere.</p>
 			</section>
-
-			{#if scene.formula === 'julia'}
+		{:else}
+			{#if isDeepZoom}
 				<section class="group">
-					<h3 class="group-label">Julia seed</h3>
-					<div class="seeds">
-						<label class="seed">
-							<span class="seed-label">Re</span>
-							<input
-								type="number"
-								step="0.01"
-								value={scene.juliaSeed.x}
-								oninput={(e) =>
-									scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
-								aria-label="Julia seed real part"
-							/>
-						</label>
-						<label class="seed">
-							<span class="seed-label">Im</span>
-							<input
-								type="number"
-								step="0.01"
-								value={scene.juliaSeed.y}
-								oninput={(e) =>
-									scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
-								aria-label="Julia seed imaginary part"
-							/>
-						</label>
-					</div>
+					<h3 class="group-label">Formula</h3>
+					<select
+						class="select"
+						aria-label="Formula"
+						value={scene.formula}
+						onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
+					>
+						{#each FORMULAS as f (f.id)}
+							<option value={f.id}>{f.label}</option>
+						{/each}
+					</select>
+				</section>
+
+				{#if scene.formula === 'julia'}
+					<section class="group">
+						<h3 class="group-label">Julia seed</h3>
+						<div class="seeds">
+							<label class="seed">
+								<span class="seed-label">Re</span>
+								<input
+									type="number"
+									step="0.01"
+									value={scene.juliaSeed.x}
+									oninput={(e) =>
+										scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
+									aria-label="Julia seed real part"
+								/>
+							</label>
+							<label class="seed">
+								<span class="seed-label">Im</span>
+								<input
+									type="number"
+									step="0.01"
+									value={scene.juliaSeed.y}
+									oninput={(e) =>
+										scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
+									aria-label="Julia seed imaginary part"
+								/>
+							</label>
+						</div>
+					</section>
+				{/if}
+			{/if}
+
+			{#if isAttractors}
+				<section class="group">
+					<h3 class="group-label">Attractor</h3>
+					<select
+						class="select"
+						aria-label="Attractor family"
+						value={scene.attractor}
+						onchange={(e) => scene.setAttractor(e.currentTarget.value)}
+					>
+						{#each ATTRACTORS as a (a.id)}
+							<option value={a.id}>{a.label}</option>
+						{/each}
+					</select>
 				</section>
 			{/if}
-		{/if}
 
-		{#if isAttractors}
+			{#if isFlames}
+				<section class="group">
+					<h3 class="group-label">Flame</h3>
+					<select
+						class="select"
+						aria-label="Flame"
+						value={scene.flame}
+						onchange={(e) => scene.setFlame(e.currentTarget.value)}
+					>
+						{#each FLAMES as fl (fl.id)}
+							<option value={fl.id}>{fl.label}</option>
+						{/each}
+					</select>
+				</section>
+			{/if}
+
 			<section class="group">
-				<h3 class="group-label">Attractor</h3>
-				<select
-					class="select"
-					aria-label="Attractor family"
-					value={scene.attractor}
-					onchange={(e) => scene.setAttractor(e.currentTarget.value)}
-				>
-					{#each ATTRACTORS as a (a.id)}
-						<option value={a.id}>{a.label}</option>
+				<h3 class="group-label">{detailLabel}</h3>
+				<div class="row">
+					<input
+						type="range"
+						min="50"
+						max="1200"
+						step="10"
+						value={scene.maxIter}
+						oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}
+						aria-label={detailLabel}
+					/>
+					<span class="ff-num val">{scene.maxIter}</span>
+				</div>
+				<p class="hint">{detailHint}</p>
+			</section>
+
+			<section class="group">
+				<h3 class="group-label">Palette</h3>
+				<div class="palettes">
+					{#each PALETTES as p, i (p.id)}
+						<button
+							type="button"
+							class="swatch"
+							class:active={scene.paletteIndex === i}
+							style="background: {gradientFor(p.coeffs)}"
+							onclick={() => scene.setPaletteIndex(i)}
+							aria-label={p.label}
+							aria-pressed={scene.paletteIndex === i}
+							title={p.label}
+						></button>
 					{/each}
-				</select>
+				</div>
+			</section>
+
+			<section class="group">
+				<button type="button" class="reset" onclick={() => scene.reset()}>Reset view</button>
 			</section>
 		{/if}
-
-		{#if isFlames}
-			<section class="group">
-				<h3 class="group-label">Flame</h3>
-				<select
-					class="select"
-					aria-label="Flame"
-					value={scene.flame}
-					onchange={(e) => scene.setFlame(e.currentTarget.value)}
-				>
-					{#each FLAMES as fl (fl.id)}
-						<option value={fl.id}>{fl.label}</option>
-					{/each}
-				</select>
-			</section>
-		{/if}
-
-		<section class="group">
-			<h3 class="group-label">{detailLabel}</h3>
-			<div class="row">
-				<input
-					type="range"
-					min="50"
-					max="1200"
-					step="10"
-					value={scene.maxIter}
-					oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}
-					aria-label={detailLabel}
-				/>
-				<span class="ff-num val">{scene.maxIter}</span>
-			</div>
-			<p class="hint">{detailHint}</p>
-		</section>
-
-		<section class="group">
-			<h3 class="group-label">Palette</h3>
-			<div class="palettes">
-				{#each PALETTES as p, i (p.id)}
-					<button
-						type="button"
-						class="swatch"
-						class:active={scene.paletteIndex === i}
-						style="background: {gradientFor(p.coeffs)}"
-						onclick={() => scene.setPaletteIndex(i)}
-						aria-label={p.label}
-						aria-pressed={scene.paletteIndex === i}
-						title={p.label}
-					></button>
-				{/each}
-			</div>
-		</section>
-
-		<section class="group">
-			<button type="button" class="reset" onclick={() => scene.reset()}>Reset view</button>
-		</section>
 	{:else if style}
 		<section class="group">
 			<h3 class="group-label">Renderer</h3>

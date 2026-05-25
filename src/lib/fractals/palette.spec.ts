@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cosinePalette, PALETTES } from './palette';
+import { cosinePalette, paletteCssGradient, PALETTES } from './palette';
 
 describe('cosinePalette', () => {
 	it('returns channel values within [0, 1]', () => {
@@ -19,6 +19,16 @@ describe('cosinePalette', () => {
 		);
 		// 0.5 + 0.5*cos(0) = 1 on every channel
 		expect(rgb).toEqual([1, 1, 1]);
+	});
+});
+
+describe('paletteCssGradient', () => {
+	it('builds a horizontal linear-gradient sampling the palette', () => {
+		const css = paletteCssGradient(PALETTES[0].coeffs);
+		expect(css.startsWith('linear-gradient(90deg,')).toBe(true);
+		expect(css).toContain('0%');
+		expect(css).toContain('100%');
+		expect(css.match(/rgb\(/g)?.length).toBe(7); // steps 0..6 inclusive
 	});
 });
 
