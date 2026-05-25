@@ -88,6 +88,30 @@ test('the library panel can be resized by dragging its handle', async ({ page })
 	expect(after).toBeGreaterThan(before + 50);
 });
 
+test('a deep link restores the scene', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByLabel('Formula').selectOption('julia');
+	await page.getByLabel('Maximum iterations').fill('800');
+	await page.waitForTimeout(400); // allow the debounced URL write
+	const url = page.url();
+	expect(url).toContain('s=');
+	await page.goto(url);
+	await waitForEngine(page);
+	await expect(page.getByLabel('Formula')).toHaveValue('julia');
+	await expect(page.getByLabel('Maximum iterations')).toHaveValue('800');
+});
+
+test('the copy-link button copies the deep link', async ({ page, context }) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Copy link to this view' }).click();
+	await expect(page.getByRole('button', { name: 'Link copied' })).toBeVisible();
+	const clip = await page.evaluate(() => navigator.clipboard.readText());
+	expect(clip).toContain('s=');
+});
+
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
