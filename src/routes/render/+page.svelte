@@ -1,19 +1,42 @@
 <script lang="ts">
-	import { ImageDown } from '@lucide/svelte';
+	import { ImageDown, Film } from '@lucide/svelte';
+	import { zipSync } from 'fflate';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { mandelbrotRenderer } from '$lib/fractals/deep-zoom-2d/renderer';
-	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
-	import { EXPORT_SIZES, captureScene, downloadBlob, exportFilename } from '$lib/engine/capture';
+	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { getTimelineStore } from '$lib/stores/timeline.svelte';
+	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { getRenderer } from '$lib/fractals/registry';
+	import {
+		EXPORT_SIZES,
+		captureScene,
+		captureSequence,
+		downloadBlob,
+		exportFilename
+	} from '$lib/engine/capture';
+	import { sequenceScenes, frameCountFor, frameFilename } from '$lib/render/sequence';
 
 	const sceneStore = getSceneStore();
+	const ui = getUiStore();
+	const timeline = getTimelineStore();
+
+	/** Keep sequence exports bounded regardless of duration × fps. */
+	const MAX_FRAMES = 300;
 
 	let sizeId = $state('fhd');
 	let busy = $state(false);
 	let failed = $state(false);
 
+	let fps = $state(24);
+	let seqBusy = $state(false);
+	let seqFailed = $state(false);
+	let seqDone = $state(0);
+
 	const size = $derived(EXPORT_SIZES.find((s) => s.id === sizeId) ?? EXPORT_SIZES[1]);
-	const formulaLabel = $derived(
-		FORMULAS.find((f) => f.id === sceneStore.formula)?.label ?? sceneStore.formula
+	const renderer = $derived(getRenderer(ui.selectedStyle));
+	const frameCount = $derived(Math.min(MAX_FRAMES, frameCountFor(timeline.durationMs, fps)));
+	const canSequence = $derived(timeline.keyframes.length >= 2 && !!renderer);
+	const styleLabel = $derived(
+		ART_STYLES.find((s) => s.id === ui.selectedStyle)?.label ?? 'Fractal'
 	);
 	const zoom = $derived.by(() => {
 		const mag = 3 / sceneStore.camera.scale;
@@ -21,26 +44,65 @@
 		if (mag >= 10) return `${Math.round(mag)}×`;
 		return `${mag.toFixed(1)}×`;
 	});
+	// A filename tag describing the active subject (style + its variant).
+	const exportTag = $derived(
+		ui.selectedStyle === 'deep-zoom-2d'
+			? sceneStore.formula
+			: ui.selectedStyle === 'attractors'
+				? `attractor-${sceneStore.attractor}`
+				: ui.selectedStyle === 'flames'
+					? `flame-${sceneStore.flame}`
+					: (ui.selectedStyle ?? 'fractal')
+	);
 
 	async function exportPng() {
+		if (!renderer) return;
 		busy = true;
 		failed = false;
 		try {
-			const blob = await captureScene(
-				mandelbrotRenderer,
-				sceneStore.scene,
-				size.width,
-				size.height
-			);
+			const blob = await captureScene(renderer, sceneStore.scene, size.width, size.height);
 			if (!blob) {
 				failed = true;
 				return;
 			}
-			downloadBlob(blob, exportFilename(sceneStore.formula));
+			downloadBlob(blob, exportFilename(exportTag));
 		} catch {
 			failed = true;
 		} finally {
 			busy = false;
+		}
+	}
+
+	async function exportSequence() {
+		if (!renderer || !canSequence) return;
+		seqBusy = true;
+		seqFailed = false;
+		seqDone = 0;
+		try {
+			const scenes = sequenceScenes(timeline.keyframes, frameCount);
+			const blobs = await captureSequence(
+				renderer,
+				scenes,
+				size.width,
+				size.height,
+				(done) => (seqDone = done)
+			);
+			if (!blobs) {
+				seqFailed = true;
+				return;
+			}
+			const files: Record<string, Uint8Array> = {};
+			for (let i = 0; i < blobs.length; i++) {
+				files[frameFilename(i, blobs.length)] = new Uint8Array(await blobs[i].arrayBuffer());
+			}
+			// PNGs are already compressed, so store (level 0) — fast, no extra CPU.
+			const zip = zipSync(files, { level: 0 });
+			const name = exportFilename(`${exportTag}-frames`).replace(/\.png$/, '.zip');
+			downloadBlob(new Blob([zip], { type: 'application/zip' }), name);
+		} catch {
+			seqFailed = true;
+		} finally {
+			seqBusy = false;
 		}
 	}
 </script>
@@ -53,8 +115,8 @@
 
 		<dl class="summary">
 			<div>
-				<dt>Fractal</dt>
-				<dd>{formulaLabel}</dd>
+				<dt>Art style</dt>
+				<dd>{styleLabel}</dd>
 			</div>
 			<div>
 				<dt>Zoom</dt>
@@ -75,13 +137,56 @@
 			</select>
 		</label>
 
-		<button class="export" type="button" onclick={exportPng} disabled={busy}>
+		<button class="export" type="button" onclick={exportPng} disabled={busy || !renderer}>
 			<ImageDown size={16} aria-hidden="true" />
 			{busy ? 'Rendering…' : 'Export PNG'}
 		</button>
 
-		{#if failed}
-			<p class="error" role="alert">Export failed — this browser may not support WebGL2.</p>
+		{#if !renderer}
+			<p class="error" role="alert">Pick an art style in the Library to render.</p>
+		{:else if failed}
+			<p class="error" role="alert">
+				Export failed — Painterly Flames and Glowing Attractors need WebGPU.
+			</p>
+		{/if}
+
+		<hr class="divider" />
+
+		<div class="anim-head">
+			<Film size={16} aria-hidden="true" />
+			<h2>Animation</h2>
+		</div>
+
+		{#if timeline.keyframes.length < 2}
+			<p class="note">
+				Add at least two keyframes in <strong>Animate</strong> to export a zoom movie as a frame sequence.
+			</p>
+		{:else}
+			<label class="field">
+				<span class="field-label">Frame rate</span>
+				<select bind:value={fps} aria-label="Frame rate">
+					<option value={12}>12 fps</option>
+					<option value={24}>24 fps</option>
+					<option value={30}>30 fps</option>
+				</select>
+			</label>
+			<p class="note">
+				{frameCount} frames at {size.width} × {size.height} ({(timeline.durationMs / 1000).toFixed(
+					1
+				)}s clip){frameCount === MAX_FRAMES ? ' · capped' : ''}
+			</p>
+			<button
+				class="export secondary"
+				type="button"
+				onclick={exportSequence}
+				disabled={seqBusy || !canSequence}
+			>
+				<Film size={16} aria-hidden="true" />
+				{seqBusy ? `Rendering ${seqDone}/${frameCount}…` : 'Export frames (.zip)'}
+			</button>
+			{#if seqFailed}
+				<p class="error" role="alert">Frame export failed — compute styles need WebGPU.</p>
+			{/if}
 		{/if}
 	</div>
 </section>
@@ -204,5 +309,43 @@
 	.error {
 		font-size: var(--ff-text-sm);
 		color: var(--ff-danger);
+	}
+	.divider {
+		width: 100%;
+		height: 1px;
+		margin: var(--ff-space-3) 0 0;
+		border: none;
+		background: var(--ff-border);
+	}
+	.anim-head {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-2);
+		align-self: flex-start;
+		color: var(--ff-text-secondary);
+	}
+	.anim-head h2 {
+		font-size: var(--ff-text-md);
+		font-weight: var(--ff-weight-semibold);
+		color: var(--ff-text);
+	}
+	.note {
+		font-size: var(--ff-text-sm);
+		color: var(--ff-text-muted);
+		line-height: var(--ff-leading-normal);
+		text-align: left;
+		align-self: flex-start;
+	}
+	.note strong {
+		color: var(--ff-text-secondary);
+		font-weight: var(--ff-weight-medium);
+	}
+	.export.secondary {
+		background: var(--ff-surface-raised);
+		color: var(--ff-text);
+		border: 1px solid var(--ff-border-strong);
+	}
+	.export.secondary:hover:not(:disabled) {
+		background: var(--ff-surface-hover);
 	}
 </style>

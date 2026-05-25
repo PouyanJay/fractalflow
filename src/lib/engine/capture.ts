@@ -4,8 +4,9 @@
  * reads it back via toBlob — reliable across browsers and identical math to the
  * live view. WebGL2 is used for capture even when the live view runs on WebGPU.
  */
-import type { FractalRenderer, SceneState } from './types';
+import type { ComputeRenderer, FractalRenderer, RenderBackend, SceneState } from './types';
 import { createWebGL2Backend } from './backends/webgl2';
+import { createWebGPUComputeBackend } from './backends/webgpu-compute';
 
 export interface ExportSize {
 	id: string;
@@ -27,13 +28,22 @@ export function exportFilename(formula: string, date = new Date()): string {
 	return `fractalflow-${formula}-${stamp}.png`;
 }
 
-/** Render the scene off-screen at width×height and return a PNG blob (or null). */
+const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
+
+/**
+ * Render the scene off-screen at width×height and return a PNG blob (or null).
+ * Fragment renderers capture via an off-screen WebGL2 context (preserved
+ * drawing buffer); compute renderers (WebGPU-only) capture via the WebGPU
+ * compute backend. Returns null if the required backend is unavailable.
+ */
 export async function captureScene(
 	renderer: FractalRenderer,
 	scene: SceneState,
 	width: number,
 	height: number
 ): Promise<Blob | null> {
+	if (renderer.pipeline === 'compute') return captureCompute(renderer, scene, width, height);
+
 	const canvas = document.createElement('canvas');
 	canvas.width = width;
 	canvas.height = height;
@@ -47,6 +57,75 @@ export async function captureScene(
 	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
 	backend.destroy();
 	return blob;
+}
+
+async function captureCompute(
+	renderer: ComputeRenderer,
+	scene: SceneState,
+	width: number,
+	height: number
+): Promise<Blob | null> {
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+
+	const backend = await createWebGPUComputeBackend(canvas, renderer);
+	if (!backend) return null;
+
+	backend.resize(width, height);
+	backend.render({ width, height, timeMs: 0, scene });
+	// Let the GPU finish the compute + tone-map passes and present before readback.
+	await nextFrame();
+	await nextFrame();
+
+	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+	backend.destroy();
+	return blob;
+}
+
+/**
+ * Render a list of scenes (e.g. an animation's frames) to PNG blobs, reusing a
+ * single off-screen backend. Reports progress per frame. Returns null if the
+ * backend is unavailable (compute styles need WebGPU).
+ */
+export async function captureSequence(
+	renderer: FractalRenderer,
+	scenes: readonly SceneState[],
+	width: number,
+	height: number,
+	onProgress?: (done: number, total: number) => void
+): Promise<Blob[] | null> {
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+
+	const compute = renderer.pipeline === 'compute';
+	let backend: RenderBackend | null;
+	if (renderer.pipeline === 'compute') {
+		backend = await createWebGPUComputeBackend(canvas, renderer);
+	} else {
+		backend = createWebGL2Backend(canvas, renderer, { preserveDrawingBuffer: true });
+	}
+	if (!backend) return null;
+
+	backend.resize(width, height);
+	const blobs: Blob[] = [];
+	for (let i = 0; i < scenes.length; i++) {
+		backend.render({ width, height, timeMs: 0, scene: scenes[i] });
+		if (compute) {
+			await nextFrame();
+			await nextFrame();
+		}
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		if (!blob) {
+			backend.destroy();
+			return null;
+		}
+		blobs.push(blob);
+		onProgress?.(i + 1, scenes.length);
+	}
+	backend.destroy();
+	return blobs;
 }
 
 /** Trigger a browser download of a blob. */
