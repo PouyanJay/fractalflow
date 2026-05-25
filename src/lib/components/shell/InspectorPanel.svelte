@@ -25,7 +25,7 @@
 	}
 </script>
 
-<SidePanel title="Inspector" side="right">
+<SidePanel title="Inspector" panelId="inspector" side="right">
 	{#if isDeepZoom}
 		<section class="group">
 			<h3 class="group-label">Renderer</h3>

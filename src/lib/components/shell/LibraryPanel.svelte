@@ -7,7 +7,7 @@
 	const ui = getUiStore();
 </script>
 
-<SidePanel title="Library">
+<SidePanel title="Library" panelId="library">
 	<section class="group">
 		<h3 class="group-label">Art style</h3>
 		<ul class="styles" role="listbox" aria-label="Art style">

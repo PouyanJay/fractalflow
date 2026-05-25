@@ -52,6 +52,17 @@ a {
 	background: color-mix(in srgb, var(--ff-primary) 35%, transparent);
 }
 
+/* Remove the native number-input spinners for a clean, consistent look. */
+input[type='number'] {
+	appearance: textfield;
+	-moz-appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
 /* Tabular numerals for coordinate / parameter readouts. */
 .ff-num {
 	font-family: var(--ff-font-mono);

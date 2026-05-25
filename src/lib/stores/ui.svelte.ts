@@ -11,6 +11,7 @@ import {
 	setCommandPalette,
 	toggleCommandPalette,
 	selectArtStyle,
+	setPanelWidth,
 	type ArtStyleId,
 	type Density,
 	type PanelId,
@@ -26,6 +27,9 @@ export function createUiStore() {
 		get panels() {
 			return state.panels;
 		},
+		get panelWidths() {
+			return state.panelWidths;
+		},
 		get density() {
 			return state.density;
 		},
@@ -37,6 +41,7 @@ export function createUiStore() {
 		},
 		togglePanel: (panel: PanelId) => (state = togglePanel(state, panel)),
 		setPanel: (panel: PanelId, visible: boolean) => (state = setPanel(state, panel, visible)),
+		setPanelWidth: (panel: PanelId, width: number) => (state = setPanelWidth(state, panel, width)),
 		setDensity: (density: Density) => (state = setDensity(state, density)),
 		cycleDensity: () =>
 			(state = setDensity(state, state.density === 'comfortable' ? 'compact' : 'comfortable')),
