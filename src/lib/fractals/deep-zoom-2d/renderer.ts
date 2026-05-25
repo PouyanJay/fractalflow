@@ -1,34 +1,38 @@
 /**
- * Deep-Zoom 2D (Mandelbrot) fractal renderer plugin.
- *
- * The WGSL and GLSL fragment shaders mirror the CPU reference in reference.ts
- * (escape-time iteration + smooth coloring) and the cosine palette in
- * palette.ts. f32 precision here bounds zoom to ~1e-5; perturbation-based deep
+ * Deep-Zoom 2D fractal renderer plugin (Mandelbrot / Julia / Burning Ship /
+ * Tricorn). The WGSL and GLSL fragment shaders mirror the CPU reference in
+ * reference.ts (escape-time iteration + smooth coloring) and the cosine palette
+ * in palette.ts. f32 precision bounds zoom to ~1e-5; perturbation-based deep
  * zoom is a later phase.
  *
- * Uniform layout (std140-compatible, 96 bytes):
- *   0  resolution : vec2f
- *   8  center     : vec2f
- *   16 scale      : f32
- *   20 maxIter    : f32
- *   24 time       : f32
- *   28 pad        : f32
- *   32 palA       : vec4f (xyz used)
- *   48 palB       : vec4f
- *   64 palC       : vec4f
- *   80 palD       : vec4f
+ * Uniform layout (std140-compatible, 112 bytes):
+ *   0   resolution : vec2f
+ *   8   center     : vec2f
+ *   16  scale      : f32
+ *   20  maxIter    : f32
+ *   24  time       : f32
+ *   28  formula    : f32  (FORMULA_CODES)
+ *   32  seed       : vec2f (Julia c)
+ *   40  pad        : vec2f
+ *   48  palA       : vec4f (xyz used)
+ *   64  palB       : vec4f
+ *   80  palC       : vec4f
+ *   96  palD       : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { FORMULA_CODES } from './reference';
 import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
-export const UNIFORM_SIZE = 96;
+export const UNIFORM_SIZE = 112;
 
 export function createDefaultScene(): SceneState {
 	return {
+		formula: 'mandelbrot',
 		camera: { centerX: -0.5, centerY: 0, scale: 3 },
 		maxIter: 300,
-		paletteIndex: 0
+		paletteIndex: 0,
+		juliaSeed: { x: -0.8, y: 0.156 }
 	};
 }
 
@@ -39,7 +43,9 @@ struct Uniforms {
 	scale: f32,
 	maxIter: f32,
 	time: f32,
-	pad0: f32,
+	formula: f32,
+	seed: vec2f,
+	pad: vec2f,
 	palA: vec4f,
 	palB: vec4f,
 	palC: vec4f,
@@ -64,15 +70,30 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		u.center.x + (frag.x - u.resolution.x * 0.5) * perPixel,
 		u.center.y - (frag.y - u.resolution.y * 0.5) * perPixel
 	);
-	var z = vec2f(0.0, 0.0);
+	let formula = i32(u.formula);
+	var z: vec2f;
+	var cparam: vec2f;
+	if (formula == 1) {
+		z = cc;
+		cparam = u.seed;
+	} else {
+		z = vec2f(0.0, 0.0);
+		cparam = cc;
+	}
 	let maxI = i32(u.maxIter);
 	var i = 0;
 	loop {
 		if (i >= maxI) { break; }
-		let x2 = z.x * z.x;
-		let y2 = z.y * z.y;
-		if (x2 + y2 > 65536.0) { break; }
-		z = vec2f(x2 - y2 + cc.x, 2.0 * z.x * z.y + cc.y);
+		if (z.x * z.x + z.y * z.y > 65536.0) { break; }
+		if (formula == 2) {
+			let ax = abs(z.x);
+			let ay = abs(z.y);
+			z = vec2f(ax * ax - ay * ay + cparam.x, 2.0 * ax * ay + cparam.y);
+		} else if (formula == 3) {
+			z = vec2f(z.x * z.x - z.y * z.y + cparam.x, -2.0 * z.x * z.y + cparam.y);
+		} else {
+			z = vec2f(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
+		}
 		i = i + 1;
 	}
 	if (i >= maxI) {
@@ -94,7 +115,9 @@ layout(std140) uniform Uniforms {
 	float uScale;
 	float uMaxIter;
 	float uTime;
-	float uPad0;
+	float uFormula;
+	vec2 uSeed;
+	vec2 uPad;
 	vec4 uPalA;
 	vec4 uPalB;
 	vec4 uPalC;
@@ -108,19 +131,33 @@ vec3 palette(float t) {
 
 void main() {
 	float perPixel = uScale / uResolution.y;
-	// gl_FragCoord origin is bottom-left (y up), so add to keep imag-up.
 	vec2 cc = vec2(
 		uCenter.x + (gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
 		uCenter.y + (gl_FragCoord.y - uResolution.y * 0.5) * perPixel
 	);
-	vec2 z = vec2(0.0);
+	int formula = int(uFormula);
+	vec2 z;
+	vec2 cparam;
+	if (formula == 1) {
+		z = cc;
+		cparam = uSeed;
+	} else {
+		z = vec2(0.0);
+		cparam = cc;
+	}
 	int maxI = int(uMaxIter);
 	int i = 0;
 	for (; i < maxI; i++) {
-		float x2 = z.x * z.x;
-		float y2 = z.y * z.y;
-		if (x2 + y2 > 65536.0) break;
-		z = vec2(x2 - y2 + cc.x, 2.0 * z.x * z.y + cc.y);
+		if (z.x * z.x + z.y * z.y > 65536.0) break;
+		if (formula == 2) {
+			float ax = abs(z.x);
+			float ay = abs(z.y);
+			z = vec2(ax * ax - ay * ay + cparam.x, 2.0 * ax * ay + cparam.y);
+		} else if (formula == 3) {
+			z = vec2(z.x * z.x - z.y * z.y + cparam.x, -2.0 * z.x * z.y + cparam.y);
+		} else {
+			z = vec2(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
+		}
 	}
 	if (i >= maxI) {
 		fragColor = vec4(0.02, 0.02, 0.03, 1.0);
@@ -148,18 +185,21 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(16, scene.camera.scale);
 		f(20, scene.maxIter);
 		f(24, timeMs);
+		f(28, FORMULA_CODES[scene.formula]);
+		f(32, scene.juliaSeed.x);
+		f(36, scene.juliaSeed.y);
 		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
-		f(32, c.a[0]);
-		f(36, c.a[1]);
-		f(40, c.a[2]);
-		f(48, c.b[0]);
-		f(52, c.b[1]);
-		f(56, c.b[2]);
-		f(64, c.c[0]);
-		f(68, c.c[1]);
-		f(72, c.c[2]);
-		f(80, c.d[0]);
-		f(84, c.d[1]);
-		f(88, c.d[2]);
+		f(48, c.a[0]);
+		f(52, c.a[1]);
+		f(56, c.a[2]);
+		f(64, c.b[0]);
+		f(68, c.b[1]);
+		f(72, c.b[2]);
+		f(80, c.c[0]);
+		f(84, c.c[1]);
+		f(88, c.c[2]);
+		f(96, c.d[0]);
+		f(100, c.d[1]);
+		f(104, c.d[2]);
 	}
 };
