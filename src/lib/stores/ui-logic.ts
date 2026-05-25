@@ -110,8 +110,13 @@ export function modeFromPath(pathname: string): ModeId {
 	return 'explore';
 }
 
+export const PANEL_MIN_WIDTH = 200;
+export const PANEL_MAX_WIDTH = 520;
+export const DEFAULT_PANEL_WIDTH = 264;
+
 export interface UiState {
 	panels: Record<PanelId, boolean>;
+	panelWidths: Record<PanelId, number>;
 	density: Density;
 	commandPaletteOpen: boolean;
 	selectedStyle: ArtStyleId | null;
@@ -120,11 +125,18 @@ export interface UiState {
 export function createInitialUiState(): UiState {
 	return {
 		panels: { library: true, inspector: true },
+		panelWidths: { library: DEFAULT_PANEL_WIDTH, inspector: DEFAULT_PANEL_WIDTH },
 		density: 'comfortable',
 		commandPaletteOpen: false,
 		// Deep-Zoom 2D is the implemented renderer, so it's selected by default.
 		selectedStyle: 'deep-zoom-2d'
 	};
+}
+
+/** Set a panel's width, clamped to [PANEL_MIN_WIDTH, PANEL_MAX_WIDTH] and rounded. */
+export function setPanelWidth(state: UiState, panel: PanelId, width: number): UiState {
+	const clamped = Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, Math.round(width)));
+	return { ...state, panelWidths: { ...state.panelWidths, [panel]: clamped } };
 }
 
 export function setPanel(state: UiState, panel: PanelId, visible: boolean): UiState {

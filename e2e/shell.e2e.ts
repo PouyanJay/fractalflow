@@ -74,6 +74,20 @@ test('toggling the library panel hides it', async ({ page }) => {
 	await expect(page.getByRole('complementary', { name: 'Library' })).toHaveCount(0);
 });
 
+test('the library panel can be resized by dragging its handle', async ({ page }) => {
+	await page.goto('/explore');
+	const library = page.getByRole('complementary', { name: 'Library' });
+	const before = (await library.boundingBox())!.width;
+	const handle = page.getByRole('button', { name: /Resize Library panel/ });
+	const box = (await handle.boundingBox())!;
+	await page.mouse.move(box.x + box.width / 2, box.y + 200);
+	await page.mouse.down();
+	await page.mouse.move(box.x + 120, box.y + 200, { steps: 8 });
+	await page.mouse.up();
+	const after = (await library.boundingBox())!.width;
+	expect(after).toBeGreaterThan(before + 50);
+});
+
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);

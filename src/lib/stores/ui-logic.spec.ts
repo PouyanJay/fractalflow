@@ -11,7 +11,10 @@ import {
 	setDensity,
 	toggleCommandPalette,
 	setCommandPalette,
-	selectArtStyle
+	selectArtStyle,
+	setPanelWidth,
+	PANEL_MIN_WIDTH,
+	PANEL_MAX_WIDTH
 } from './ui-logic';
 
 describe('mode metadata', () => {
@@ -72,6 +75,7 @@ describe('ui state transitions (pure & immutable)', () => {
 		const s = createInitialUiState();
 		expect(s).toEqual({
 			panels: { library: true, inspector: true },
+			panelWidths: { library: 264, inspector: 264 },
 			density: 'comfortable',
 			commandPaletteOpen: false,
 			selectedStyle: 'deep-zoom-2d'
@@ -103,5 +107,20 @@ describe('ui state transitions (pure & immutable)', () => {
 
 	it('selectArtStyle records the chosen style', () => {
 		expect(selectArtStyle(createInitialUiState(), 'flames').selectedStyle).toBe('flames');
+	});
+
+	it('setPanelWidth sets one panel, rounds, and leaves the other untouched', () => {
+		const next = setPanelWidth(createInitialUiState(), 'library', 311.6);
+		expect(next.panelWidths.library).toBe(312);
+		expect(next.panelWidths.inspector).toBe(264);
+	});
+
+	it('setPanelWidth clamps to the allowed range', () => {
+		expect(setPanelWidth(createInitialUiState(), 'library', 50).panelWidths.library).toBe(
+			PANEL_MIN_WIDTH
+		);
+		expect(setPanelWidth(createInitialUiState(), 'inspector', 9999).panelWidths.inspector).toBe(
+			PANEL_MAX_WIDTH
+		);
 	});
 });
