@@ -1,30 +1,32 @@
 /**
  * Deep-Zoom 2D fractal renderer plugin (Mandelbrot / Julia / Burning Ship /
- * Tricorn). The WGSL and GLSL fragment shaders mirror the CPU reference in
- * reference.ts (escape-time iteration + smooth coloring) and the cosine palette
- * in palette.ts. f32 precision bounds zoom to ~1e-5; perturbation-based deep
- * zoom is a later phase.
+ * Tricorn). The shaders mirror the CPU references (reference.ts + perturbation.ts)
+ * and the cosine palette (palette.ts).
+ *
+ * Mandelbrot uses **perturbation**: an f64 reference orbit at the view center
+ * (computed on the CPU, uploaded as f32) plus small per-pixel deltas, so it
+ * zooms far past the f32 ~1e-5 wall. The other formulas use direct f32
+ * iteration (no deep zoom yet). This is single-reference perturbation without
+ * glitch correction — deep views in some regions may show artifacts.
  *
  * Uniform layout (std140-compatible, 112 bytes):
- *   0   resolution : vec2f
- *   8   center     : vec2f
- *   16  scale      : f32
- *   20  maxIter    : f32
- *   24  time       : f32
- *   28  formula    : f32  (FORMULA_CODES)
- *   32  seed       : vec2f (Julia c)
- *   40  pad        : vec2f
- *   48  palA       : vec4f (xyz used)
- *   64  palB       : vec4f
- *   80  palC       : vec4f
- *   96  palD       : vec4f
+ *   0   resolution : vec2f      24  time        : f32
+ *   8   center     : vec2f      28  formula     : f32
+ *   16  scale      : f32        32  seed        : vec2f
+ *   20  maxIter    : f32        40  orbitLength : f32   44 pad : f32
+ *   48  palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
 import { FORMULA_CODES } from './reference';
+import { computeReferenceOrbit } from './perturbation';
 import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
 export const UNIFORM_SIZE = 112;
+
+const MAX_ITER_CAP = 1200;
+const MAX_ORBIT = MAX_ITER_CAP + 1;
+const DATA_BUFFER_SIZE = MAX_ORBIT * 2 * 4;
 
 export function createDefaultScene(): SceneState {
 	return {
@@ -36,6 +38,35 @@ export function createDefaultScene(): SceneState {
 	};
 }
 
+// One-entry memo so packUniforms and packData share a single orbit computation
+// per frame (they are called with the same input each frame).
+const EMPTY_DATA = new Float32Array(2);
+let memoKey = '';
+let memoData = new Float32Array(2);
+let memoLength = 0;
+
+function orbitFor(input: RenderInput): { data: Float32Array; length: number } {
+	const s = input.scene;
+	if (s.formula !== 'mandelbrot') {
+		// Other formulas use direct iteration; no reference orbit needed.
+		return { data: EMPTY_DATA, length: 0 };
+	}
+	const key = `${s.camera.centerX}|${s.camera.centerY}|${s.maxIter}`;
+	if (key !== memoKey) {
+		const iter = Math.min(s.maxIter, MAX_ITER_CAP);
+		const orbit = computeReferenceOrbit(s.camera.centerX, s.camera.centerY, iter);
+		const data = new Float32Array(orbit.length * 2);
+		for (let i = 0; i < orbit.length; i++) {
+			data[i * 2] = orbit.xs[i];
+			data[i * 2 + 1] = orbit.ys[i];
+		}
+		memoKey = key;
+		memoData = data;
+		memoLength = orbit.length;
+	}
+	return { data: memoData, length: memoLength };
+}
+
 const WGSL = /* wgsl */ `
 struct Uniforms {
 	resolution: vec2f,
@@ -45,13 +76,15 @@ struct Uniforms {
 	time: f32,
 	formula: f32,
 	seed: vec2f,
-	pad: vec2f,
+	orbitLength: f32,
+	pad0: f32,
 	palA: vec4f,
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var<storage, read> orbit: array<vec2f>;
 
 @vertex
 fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
@@ -63,14 +96,51 @@ fn palette(t: f32) -> vec3f {
 	return clamp(u.palA.xyz + u.palB.xyz * cos(6.2831853 * (u.palC.xyz * t + u.palD.xyz)), vec3f(0.0), vec3f(1.0));
 }
 
+fn color(n: f32, z: vec2f) -> vec4f {
+	let logZn = log(z.x * z.x + z.y * z.y) * 0.5;
+	let nu = log(logZn / 0.6931472) / 0.6931472;
+	return vec4f(palette(fract((n + 1.0 - nu) * 0.02)), 1.0);
+}
+
+const INTERIOR = vec4f(0.02, 0.02, 0.03, 1.0);
+
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let perPixel = u.scale / u.resolution.y;
-	let cc = vec2f(
-		u.center.x + (frag.x - u.resolution.x * 0.5) * perPixel,
-		u.center.y - (frag.y - u.resolution.y * 0.5) * perPixel
+	let offset = vec2f(
+		(frag.x - u.resolution.x * 0.5) * perPixel,
+		-(frag.y - u.resolution.y * 0.5) * perPixel
 	);
 	let formula = i32(u.formula);
+	let maxI = i32(u.maxIter);
+
+	if (formula == 0) {
+		// Mandelbrot via perturbation + rebasing around the reference orbit.
+		let lim = i32(u.orbitLength);
+		var dz = vec2f(0.0, 0.0);
+		var ref = 0;
+		var iter = 0;
+		loop {
+			if (iter >= maxI) { break; }
+			let Z = orbit[ref];
+			let twoZd = vec2f(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
+			let d2 = vec2f(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
+			dz = twoZd + d2 + offset;
+			ref = ref + 1;
+			let z = orbit[ref] + dz;
+			let zmag = z.x * z.x + z.y * z.y;
+			if (zmag > 65536.0) { return color(f32(iter + 1), z); }
+			if (zmag < dz.x * dz.x + dz.y * dz.y || ref >= lim - 1) {
+				dz = z;
+				ref = 0;
+			}
+			iter = iter + 1;
+		}
+		return INTERIOR;
+	}
+
+	// Julia / Burning Ship / Tricorn: direct f32 iteration.
+	let cc = u.center + offset;
 	var z: vec2f;
 	var cparam: vec2f;
 	if (formula == 1) {
@@ -80,11 +150,10 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		z = vec2f(0.0, 0.0);
 		cparam = cc;
 	}
-	let maxI = i32(u.maxIter);
 	var i = 0;
 	loop {
 		if (i >= maxI) { break; }
-		if (z.x * z.x + z.y * z.y > 65536.0) { break; }
+		if (z.x * z.x + z.y * z.y > 65536.0) { return color(f32(i), z); }
 		if (formula == 2) {
 			let ax = abs(z.x);
 			let ay = abs(z.y);
@@ -96,14 +165,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		}
 		i = i + 1;
 	}
-	if (i >= maxI) {
-		return vec4f(0.02, 0.02, 0.03, 1.0);
-	}
-	let logZn = log(z.x * z.x + z.y * z.y) * 0.5;
-	let nu = log(logZn / 0.6931472) / 0.6931472;
-	let sm = f32(i) + 1.0 - nu;
-	let t = fract(sm * 0.02);
-	return vec4f(palette(t), 1.0);
+	return INTERIOR;
 }
 `;
 
@@ -117,38 +179,67 @@ layout(std140) uniform Uniforms {
 	float uTime;
 	float uFormula;
 	vec2 uSeed;
-	vec2 uPad;
+	float uOrbitLength;
+	float uPad0;
 	vec4 uPalA;
 	vec4 uPalB;
 	vec4 uPalC;
 	vec4 uPalD;
 };
+uniform highp sampler2D uOrbit;
 out vec4 fragColor;
 
 vec3 palette(float t) {
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
 }
 
+vec4 colorOf(float n, vec2 z) {
+	float logZn = log(z.x * z.x + z.y * z.y) * 0.5;
+	float nu = log(logZn / 0.6931472) / 0.6931472;
+	return vec4(palette(fract((n + 1.0 - nu) * 0.02)), 1.0);
+}
+
+const vec4 INTERIOR = vec4(0.02, 0.02, 0.03, 1.0);
+
 void main() {
 	float perPixel = uScale / uResolution.y;
-	vec2 cc = vec2(
-		uCenter.x + (gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
-		uCenter.y + (gl_FragCoord.y - uResolution.y * 0.5) * perPixel
+	vec2 offset = vec2(
+		(gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
+		(gl_FragCoord.y - uResolution.y * 0.5) * perPixel
 	);
 	int formula = int(uFormula);
+	int maxI = int(uMaxIter);
+
+	if (formula == 0) {
+		int lim = int(uOrbitLength);
+		vec2 dz = vec2(0.0);
+		int ref = 0;
+		for (int iter = 0; iter < maxI; iter++) {
+			vec2 Z = texelFetch(uOrbit, ivec2(ref, 0), 0).rg;
+			vec2 twoZd = vec2(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
+			vec2 d2 = vec2(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
+			dz = twoZd + d2 + offset;
+			ref += 1;
+			vec2 z = texelFetch(uOrbit, ivec2(ref, 0), 0).rg + dz;
+			float zmag = z.x * z.x + z.y * z.y;
+			if (zmag > 65536.0) { fragColor = colorOf(float(iter + 1), z); return; }
+			if (zmag < dz.x * dz.x + dz.y * dz.y || ref >= lim - 1) {
+				dz = z;
+				ref = 0;
+			}
+		}
+		fragColor = INTERIOR;
+		return;
+	}
+
+	vec2 cc = uCenter + offset;
 	vec2 z;
 	vec2 cparam;
-	if (formula == 1) {
-		z = cc;
-		cparam = uSeed;
-	} else {
-		z = vec2(0.0);
-		cparam = cc;
-	}
-	int maxI = int(uMaxIter);
+	if (formula == 1) { z = cc; cparam = uSeed; }
+	else { z = vec2(0.0); cparam = cc; }
 	int i = 0;
 	for (; i < maxI; i++) {
-		if (z.x * z.x + z.y * z.y > 65536.0) break;
+		if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = colorOf(float(i), z); return; }
 		if (formula == 2) {
 			float ax = abs(z.x);
 			float ay = abs(z.y);
@@ -159,15 +250,7 @@ void main() {
 			z = vec2(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
 		}
 	}
-	if (i >= maxI) {
-		fragColor = vec4(0.02, 0.02, 0.03, 1.0);
-		return;
-	}
-	float logZn = log(z.x * z.x + z.y * z.y) * 0.5;
-	float nu = log(logZn / 0.6931472) / 0.6931472;
-	float sm = float(i) + 1.0 - nu;
-	float t = fract(sm * 0.02);
-	fragColor = vec4(palette(t), 1.0);
+	fragColor = INTERIOR;
 }`;
 
 export const mandelbrotRenderer: FractalRenderer = {
@@ -175,6 +258,10 @@ export const mandelbrotRenderer: FractalRenderer = {
 	wgsl: WGSL,
 	glsl: GLSL,
 	uniformSize: UNIFORM_SIZE,
+	dataBufferSize: DATA_BUFFER_SIZE,
+	packData(input: RenderInput) {
+		return orbitFor(input).data;
+	},
 	packUniforms(view: DataView, input: RenderInput) {
 		const { width, height, timeMs, scene } = input;
 		const f = (offset: number, value: number) => view.setFloat32(offset, value, true);
@@ -188,6 +275,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(28, FORMULA_CODES[scene.formula]);
 		f(32, scene.juliaSeed.x);
 		f(36, scene.juliaSeed.y);
+		f(40, orbitFor(input).length);
 		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
 		f(48, c.a[0]);
 		f(52, c.a[1]);
