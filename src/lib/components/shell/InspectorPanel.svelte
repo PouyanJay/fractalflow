@@ -50,9 +50,9 @@
 		{#if scene.formula === 'julia'}
 			<section class="group">
 				<h3 class="group-label">Julia seed</h3>
-				<div class="row">
+				<div class="seeds">
 					<label class="seed">
-						Re
+						<span class="seed-label">Re</span>
 						<input
 							type="number"
 							step="0.01"
@@ -62,7 +62,7 @@
 						/>
 					</label>
 					<label class="seed">
-						Im
+						<span class="seed-label">Im</span>
 						<input
 							type="number"
 							step="0.01"
@@ -171,17 +171,26 @@
 		align-items: center;
 		gap: var(--ff-space-3);
 	}
+	.seeds {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--ff-space-2);
+	}
 	.seed {
-		flex: 1;
 		display: flex;
 		align-items: center;
 		gap: var(--ff-space-2);
+		min-width: 0;
 		font-size: var(--ff-text-sm);
 		color: var(--ff-text-muted);
+	}
+	.seed-label {
+		flex: none;
 	}
 	.seed input {
 		flex: 1;
 		min-width: 0;
+		width: 100%;
 		padding: 5px 6px;
 		border: 1px solid var(--ff-border);
 		border-radius: var(--ff-radius-sm);
