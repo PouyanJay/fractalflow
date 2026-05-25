@@ -112,6 +112,23 @@ test('the copy-link button copies the deep link', async ({ page, context }) => {
 	expect(clip).toContain('s=');
 });
 
+test('loading a preset switches the scene', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Burning Ship' }).click();
+	await expect(page.getByLabel('Formula')).toHaveValue('burning-ship');
+});
+
+test('a bookmark can be saved and deleted', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Save view' }).click();
+	const del = page.getByRole('button', { name: /^Delete bookmark/ });
+	await expect(del).toBeVisible();
+	await del.click();
+	await expect(page.getByText('No bookmarks yet', { exact: false })).toBeVisible();
+});
+
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);

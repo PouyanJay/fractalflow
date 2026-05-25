@@ -1,10 +1,36 @@
 <script lang="ts">
 	import SidePanel from './SidePanel.svelte';
-	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { ART_STYLES, modeFromPath } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { getSceneStore } from '$lib/stores/scene.svelte';
+	import { getBookmarksStore } from '$lib/stores/bookmarks.svelte';
 	import { getIcon } from '$lib/components/icons';
+	import { PRESETS } from '$lib/scene/presets';
+	import { encodeScene, decodeScene } from '$lib/scene/codec';
+	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { X } from '@lucide/svelte';
+	import type { SceneState } from '$lib/engine/types';
 
 	const ui = getUiStore();
+	const sceneStore = getSceneStore();
+	const bookmarks = getBookmarksStore();
+
+	function loadScene(scene: SceneState) {
+		sceneStore.setScene(scene);
+		if (modeFromPath(page.url.pathname) !== 'explore') goto(resolve('/explore'));
+	}
+
+	function saveCurrent() {
+		const s = sceneStore.scene;
+		const formula = FORMULAS.find((f) => f.id === s.formula)?.label ?? s.formula;
+		const mag = 3 / s.camera.scale;
+		const magStr =
+			mag >= 1000 ? mag.toExponential(0) : mag >= 10 ? `${Math.round(mag)}` : mag.toFixed(1);
+		bookmarks.add(`${formula} · ${magStr}×`, encodeScene(s));
+	}
 </script>
 
 <SidePanel title="Library" panelId="library">
@@ -38,12 +64,47 @@
 
 	<section class="group">
 		<h3 class="group-label">Presets</h3>
-		<p class="empty">No presets yet — save a scene to start your gallery.</p>
+		<ul class="list">
+			{#each PRESETS as preset (preset.id)}
+				<li>
+					<button type="button" class="entry" onclick={() => loadScene(preset.scene)}>
+						{preset.label}
+					</button>
+				</li>
+			{/each}
+		</ul>
 	</section>
 
 	<section class="group">
-		<h3 class="group-label">Bookmarks</h3>
-		<p class="empty">Bookmark a location while exploring to pin it here.</p>
+		<div class="group-head">
+			<h3 class="group-label">Bookmarks</h3>
+			<button type="button" class="add" onclick={saveCurrent}>Save view</button>
+		</div>
+		{#if bookmarks.list.length === 0}
+			<p class="empty">No bookmarks yet — save a view to pin it here.</p>
+		{:else}
+			<ul class="list">
+				{#each bookmarks.list as bookmark (bookmark.id)}
+					<li class="bookmark">
+						<button
+							type="button"
+							class="entry"
+							onclick={() => loadScene(decodeScene(bookmark.token))}
+						>
+							{bookmark.label}
+						</button>
+						<button
+							type="button"
+							class="del"
+							onclick={() => bookmarks.remove(bookmark.id)}
+							aria-label="Delete bookmark {bookmark.label}"
+						>
+							<X size={14} aria-hidden="true" />
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</section>
 </SidePanel>
 
@@ -58,6 +119,28 @@
 		text-transform: uppercase;
 		color: var(--ff-text-muted);
 		margin-bottom: var(--ff-space-2);
+	}
+	.group-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--ff-space-2);
+	}
+	.group-head .group-label {
+		margin-bottom: 0;
+	}
+	.add {
+		border: none;
+		background: transparent;
+		color: var(--ff-accent);
+		font-size: var(--ff-text-xs);
+		font-weight: var(--ff-weight-medium);
+		padding: 2px 6px;
+		border-radius: var(--ff-radius-sm);
+		cursor: pointer;
+	}
+	.add:hover {
+		background: var(--ff-surface-hover);
 	}
 	.styles {
 		list-style: none;
@@ -119,6 +202,59 @@
 		font-size: var(--ff-text-sm);
 		color: var(--ff-text-muted);
 		line-height: var(--ff-leading-tight);
+	}
+	.list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.entry {
+		width: 100%;
+		padding: 6px var(--ff-space-3);
+		border: none;
+		border-radius: var(--ff-radius-md);
+		background: transparent;
+		text-align: left;
+		color: var(--ff-text-secondary);
+		font-size: var(--ff-text-sm);
+		cursor: pointer;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		transition: background var(--ff-dur-fast) var(--ff-ease);
+	}
+	.entry:hover {
+		background: var(--ff-surface-hover);
+		color: var(--ff-text);
+	}
+	.bookmark {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-1);
+	}
+	.bookmark .entry {
+		flex: 1;
+		min-width: 0;
+	}
+	.del {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		border: none;
+		border-radius: var(--ff-radius-sm);
+		background: transparent;
+		color: var(--ff-text-muted);
+		cursor: pointer;
+	}
+	.del:hover {
+		color: var(--ff-danger);
+		background: var(--ff-surface-hover);
 	}
 	.empty {
 		font-size: var(--ff-text-sm);
