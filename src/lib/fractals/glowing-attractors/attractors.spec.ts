@@ -43,21 +43,20 @@ describe('attractor step (CPU reference, matched by the WGSL integrator)', () =>
 		expect(p.z).toBe(0);
 	});
 
-	it('Lorenz advances one Euler step of its vector field', () => {
-		// deriv at (1,1,1): (σ(y−x), x(ρ−z)−y, xy−βz) = (0, 26, 1−8/3)
+	it('Lorenz steps in the direction of its vector field', () => {
+		// deriv at (1,1,1): (σ(y−x), x(ρ−z)−y, xy−βz) = (0, +26, 1−8/3 < 0)
 		const p = getAttractor('lorenz').step({ x: 1, y: 1, z: 1 });
-		const dt = p.y - 1; // dt·26
-		expect(dt).toBeGreaterThan(0);
-		expect(p.x).toBeCloseTo(1, 10); // dx = 0
-		expect((p.y - 1) / 26).toBeCloseTo((p.z - 1) / (1 - 8 / 3), 10);
+		expect(p.y).toBeGreaterThan(1); // strong +y motion (deriv.y = 26)
+		expect(p.z).toBeLessThan(1); // −z motion
+		expect(Math.abs(p.x - 1)).toBeLessThan(0.1); // x barely moves (deriv.x = 0)
 	});
 
-	it('Thomas advances one Euler step of its symmetric vector field', () => {
-		// deriv at (1,1,1) is symmetric: each = sin(1) − b
+	it('Thomas preserves its symmetry along the diagonal', () => {
+		// At (1,1,1) the symmetric vector field keeps x=y=z under RK4.
 		const p = getAttractor('thomas').step({ x: 1, y: 1, z: 1 });
 		expect(p.x).toBeCloseTo(p.y, 12);
 		expect(p.y).toBeCloseTo(p.z, 12);
-		expect(p.x).toBeGreaterThan(1); // sin(1) − b > 0
+		expect(p.x).toBeGreaterThan(1); // sin(1) − b·1 > 0
 	});
 });
 

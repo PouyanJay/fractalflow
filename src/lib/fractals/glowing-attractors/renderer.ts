@@ -26,8 +26,8 @@ export const GLOWING_ATTRACTORS_ID = 'attractors';
 const UNIFORM_SIZE = 112;
 const PARTICLE_COUNT = 1 << 16; // 65 536 particles per frame
 const STEPS_PER_PARTICLE = 256;
-// maxIter (50–1200) → exposure for the 1−exp(−d·exposure) tone curve.
-const EXPOSURE_SCALE = 7e-5;
+// maxIter (50–1200) → gain on the log-density tone curve.
+const EXPOSURE_SCALE = 4.5e-4;
 
 const FAMILY_INDEX: Record<string, number> = Object.fromEntries(
 	ATTRACTORS.map((a, i) => [a.id, i])
@@ -78,7 +78,31 @@ struct U {
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var<storage, read_write> density: array<atomic<u32>>;
 
-const SKIP: u32 = 24u;
+// Discrete maps (Clifford, de Jong) collapse onto the attractor within a few
+// iterations; the integrated flows (Lorenz, Thomas) need many small steps to
+// leave the transient and settle onto the manifold before we accumulate.
+fn skipFor(fam: u32) -> u32 {
+	return select(32u, 512u, fam >= 2u);
+}
+
+// Vector field of the 3D flows (Lorenz = family 2, Thomas = 3).
+fn flowDeriv(p: vec3f, fam: u32) -> vec3f {
+	if (fam == 2u) { // Lorenz
+		let s = 10.0; let r = 28.0; let be = 8.0 / 3.0;
+		return vec3f(s * (p.y - p.x), p.x * (r - p.z) - p.y, p.x * p.y - be * p.z);
+	}
+	// Thomas
+	let b = 0.208186;
+	return vec3f(sin(p.y) - b * p.x, sin(p.z) - b * p.y, sin(p.x) - b * p.z);
+}
+
+fn rk4(p: vec3f, dt: f32, fam: u32) -> vec3f {
+	let k1 = flowDeriv(p, fam);
+	let k2 = flowDeriv(p + 0.5 * dt * k1, fam);
+	let k3 = flowDeriv(p + 0.5 * dt * k2, fam);
+	let k4 = flowDeriv(p + dt * k3, fam);
+	return p + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+}
 
 // Mirrors the CPU reference in attractors.ts (identical constants and steps).
 fn stepAttractor(p: vec3f, fam: u32) -> vec3f {
@@ -89,12 +113,9 @@ fn stepAttractor(p: vec3f, fam: u32) -> vec3f {
 		let a = 1.4; let b = -2.3; let c = 2.4; let d = -2.1;
 		return vec3f(sin(a * p.y) - cos(b * p.x), sin(c * p.x) - cos(d * p.y), 0.0);
 	} else if (fam == 2u) { // Lorenz
-		let s = 10.0; let r = 28.0; let be = 8.0 / 3.0; let dt = 0.01;
-		return p + dt * vec3f(s * (p.y - p.x), p.x * (r - p.z) - p.y, p.x * p.y - be * p.z);
+		return rk4(p, 0.01, 2u);
 	}
-	// Thomas
-	let b = 0.208186; let dt = 0.05;
-	return p + dt * vec3f(sin(p.y) - b * p.x, sin(p.z) - b * p.y, sin(p.x) - b * p.z);
+	return rk4(p, 0.05, 3u); // Thomas
 }
 
 // Hash an invocation index into three [0,1) reals to scatter seed points.
@@ -133,7 +154,8 @@ fn project(p: vec3f) -> vec2f {
 fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let i = gid.x;
 	var p = seedFor(i);
-	for (var s = 0u; s < SKIP; s = s + 1u) { p = stepAttractor(p, u.family); }
+	let skip = skipFor(u.family);
+	for (var s = 0u; s < skip; s = s + 1u) { p = stepAttractor(p, u.family); }
 	let w = u32(u.resolution.x);
 	let h = u32(u.resolution.y);
 	for (var s = 0u; s < u.steps; s = s + 1u) {
@@ -161,7 +183,10 @@ fn pal(t: f32) -> vec3f {
 fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
 	let idx = u32(pos.y) * u32(u.resolution.x) + u32(pos.x);
 	let d = f32(atomicLoad(&density[idx]));
-	let t = 1.0 - exp(-d * u.exposure);
+	// Log-density tone mapping: attractors span a huge density range (Lorenz
+	// piles up near its fixed points), so log compresses the bright core and
+	// keeps the faint filaments visible. Exposure is the gain on the log.
+	let t = clamp(log(1.0 + d) * u.exposure, 0.0, 1.0);
 	return vec4f(pal(t) * t, 1.0); // multiply by t so empty space stays black
 }
 `;

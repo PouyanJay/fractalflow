@@ -114,9 +114,9 @@ export const PRESETS: Preset[] = [
 		styleId: 'attractors',
 		scene: {
 			formula: 'mandelbrot',
-			camera: { centerX: 0.6, centerY: 0.35, scale: 1 },
-			maxIter: 450,
-			paletteIndex: 2,
+			camera: { centerX: 0.7, centerY: 0.4, scale: 1 },
+			maxIter: 280,
+			paletteIndex: 0,
 			juliaSeed: DEFAULT_SEED,
 			attractor: 'lorenz'
 		}

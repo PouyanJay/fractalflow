@@ -3,17 +3,38 @@
  *
  * Each family is a pure step function `p → p'`. The 2D maps (Clifford, de Jong)
  * are discrete iterated functions; the 3D flows (Lorenz, Thomas) advance one
- * fixed-step Euler integration of their vector field. This module is the CPU
- * reference: the WGSL compute integrator mirrors these exact formulas, and the
- * default seeds/framing below feed the renderer. Euler (not RK4) is deliberate
- * — it is trivially reproducible point-for-point and, at the small steps used
- * here, traces each attractor's form faithfully for accumulation art.
+ * fixed step of classic RK4 over their vector field. RK4 (not Euler) matters:
+ * forward Euler diverges for Lorenz over a long transient, so particles never
+ * settle onto the manifold. This module is the CPU reference — the WGSL compute
+ * integrator mirrors these exact formulas, and the seeds/framing feed the
+ * renderer.
  */
 
 export interface Vec3 {
 	x: number;
 	y: number;
 	z: number;
+}
+
+/** One classic Runge-Kutta 4 step of the flow `deriv`. */
+function rk4(p: Vec3, dt: number, deriv: (q: Vec3) => Vec3): Vec3 {
+	const k1 = deriv(p);
+	const k2 = deriv({
+		x: p.x + (dt / 2) * k1.x,
+		y: p.y + (dt / 2) * k1.y,
+		z: p.z + (dt / 2) * k1.z
+	});
+	const k3 = deriv({
+		x: p.x + (dt / 2) * k2.x,
+		y: p.y + (dt / 2) * k2.y,
+		z: p.z + (dt / 2) * k2.z
+	});
+	const k4 = deriv({ x: p.x + dt * k3.x, y: p.y + dt * k3.y, z: p.z + dt * k3.z });
+	return {
+		x: p.x + (dt / 6) * (k1.x + 2 * k2.x + 2 * k3.x + k4.x),
+		y: p.y + (dt / 6) * (k1.y + 2 * k2.y + 2 * k3.y + k4.y),
+		z: p.z + (dt / 6) * (k1.z + 2 * k2.z + 2 * k3.z + k4.z)
+	};
 }
 
 export type AttractorId = 'clifford' | 'de-jong' | 'lorenz' | 'thomas';
@@ -29,10 +50,20 @@ export interface Attractor {
 	step(p: Vec3): Vec3;
 }
 
-// Lorenz integration step. Small enough that forward Euler tracks the flow.
 const LORENZ_DT = 0.01;
-// Thomas is a slow, smooth flow; a larger step still traces it cleanly.
 const THOMAS_DT = 0.05;
+
+const lorenzDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const sigma = 10,
+		rho = 28,
+		beta = 8 / 3;
+	return { x: sigma * (y - x), y: x * (rho - z) - y, z: x * y - beta * z };
+};
+
+const thomasDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const b = 0.208186;
+	return { x: Math.sin(y) - b * x, y: Math.sin(z) - b * y, z: Math.sin(x) - b * z };
+};
 
 export const ATTRACTORS: readonly Attractor[] = [
 	{
@@ -74,15 +105,8 @@ export const ATTRACTORS: readonly Attractor[] = [
 		label: 'Lorenz',
 		dims: 3,
 		seed: { x: 0.1, y: 0, z: 0 },
-		step({ x, y, z }) {
-			const sigma = 10,
-				rho = 28,
-				beta = 8 / 3;
-			return {
-				x: x + LORENZ_DT * (sigma * (y - x)),
-				y: y + LORENZ_DT * (x * (rho - z) - y),
-				z: z + LORENZ_DT * (x * y - beta * z)
-			};
+		step(p) {
+			return rk4(p, LORENZ_DT, lorenzDeriv);
 		}
 	},
 	{
@@ -90,13 +114,8 @@ export const ATTRACTORS: readonly Attractor[] = [
 		label: 'Thomas',
 		dims: 3,
 		seed: { x: 0.1, y: 0, z: 0 },
-		step({ x, y, z }) {
-			const b = 0.208186;
-			return {
-				x: x + THOMAS_DT * (Math.sin(y) - b * x),
-				y: y + THOMAS_DT * (Math.sin(z) - b * y),
-				z: z + THOMAS_DT * (Math.sin(x) - b * z)
-			};
+		step(p) {
+			return rk4(p, THOMAS_DT, thomasDeriv);
 		}
 	}
 ];
