@@ -4,6 +4,8 @@
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
+	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import type { FormulaId } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
@@ -30,6 +32,48 @@
 			<p class="value">{style?.label}</p>
 			<p class="hint">{style?.blurb}</p>
 		</section>
+
+		<section class="group">
+			<h3 class="group-label">Formula</h3>
+			<select
+				class="select"
+				aria-label="Formula"
+				value={scene.formula}
+				onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
+			>
+				{#each FORMULAS as f (f.id)}
+					<option value={f.id}>{f.label}</option>
+				{/each}
+			</select>
+		</section>
+
+		{#if scene.formula === 'julia'}
+			<section class="group">
+				<h3 class="group-label">Julia seed</h3>
+				<div class="row">
+					<label class="seed">
+						Re
+						<input
+							type="number"
+							step="0.01"
+							value={scene.juliaSeed.x}
+							oninput={(e) => scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
+							aria-label="Julia seed real part"
+						/>
+					</label>
+					<label class="seed">
+						Im
+						<input
+							type="number"
+							step="0.01"
+							value={scene.juliaSeed.y}
+							oninput={(e) => scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
+							aria-label="Julia seed imaginary part"
+						/>
+					</label>
+				</div>
+			</section>
+		{/if}
 
 		<section class="group">
 			<h3 class="group-label">Iterations</h3>
@@ -111,10 +155,40 @@
 		margin-top: var(--ff-space-2);
 		line-height: var(--ff-leading-tight);
 	}
+	.select {
+		width: 100%;
+		height: 32px;
+		padding: 0 var(--ff-space-2);
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-md);
+		background: var(--ff-surface-raised);
+		color: var(--ff-text);
+		font: inherit;
+		cursor: pointer;
+	}
 	.row {
 		display: flex;
 		align-items: center;
 		gap: var(--ff-space-3);
+	}
+	.seed {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-2);
+		font-size: var(--ff-text-sm);
+		color: var(--ff-text-muted);
+	}
+	.seed input {
+		flex: 1;
+		min-width: 0;
+		padding: 5px 6px;
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-sm);
+		background: var(--ff-surface-raised);
+		color: var(--ff-text);
+		font: inherit;
+		font-variant-numeric: tabular-nums;
 	}
 	input[type='range'] {
 		flex: 1;

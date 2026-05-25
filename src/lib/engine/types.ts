@@ -16,12 +16,17 @@ export interface Camera2D {
 	scale: number;
 }
 
+export type FormulaId = 'mandelbrot' | 'julia' | 'burning-ship' | 'tricorn';
+
 /** Mutable per-frame scene state the UI updates and the renderer consumes. */
 export interface SceneState {
+	formula: FormulaId;
 	camera: Camera2D;
 	maxIter: number;
 	/** Index into the palette presets. */
 	paletteIndex: number;
+	/** Seed `c` for the Julia formula. */
+	juliaSeed: { x: number; y: number };
 }
 
 export interface RenderInput {
