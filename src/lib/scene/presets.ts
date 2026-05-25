@@ -107,5 +107,18 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR
 		}
+	},
+	{
+		id: 'lorenz-butterfly',
+		label: 'Lorenz Butterfly',
+		styleId: 'attractors',
+		scene: {
+			formula: 'mandelbrot',
+			camera: { centerX: 0.6, centerY: 0.35, scale: 1 },
+			maxIter: 450,
+			paletteIndex: 2,
+			juliaSeed: DEFAULT_SEED,
+			attractor: 'lorenz'
+		}
 	}
 ];

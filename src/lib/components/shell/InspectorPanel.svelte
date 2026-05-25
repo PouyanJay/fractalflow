@@ -5,6 +5,7 @@
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 	import { getRenderer } from '$lib/fractals/registry';
 	import type { FormulaId } from '$lib/engine/types';
 
@@ -14,6 +15,13 @@
 	const style = $derived(ART_STYLES.find((s) => s.id === ui.selectedStyle) ?? null);
 	const hasRenderer = $derived(getRenderer(ui.selectedStyle) !== null);
 	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
+	const isAttractors = $derived(ui.selectedStyle === 'attractors');
+	const detailLabel = $derived(isDeepZoom ? 'Iterations' : isAttractors ? 'Exposure' : 'Detail');
+	const detailHint = $derived(
+		isAttractors
+			? 'Higher values brighten the accumulated density.'
+			: 'Higher values add more detail (slower).'
+	);
 
 	function gradientFor(coeffs: PaletteCoeffs): string {
 		const stops: string[] = [];
@@ -81,8 +89,24 @@
 			{/if}
 		{/if}
 
+		{#if isAttractors}
+			<section class="group">
+				<h3 class="group-label">Attractor</h3>
+				<select
+					class="select"
+					aria-label="Attractor family"
+					value={scene.attractor}
+					onchange={(e) => scene.setAttractor(e.currentTarget.value)}
+				>
+					{#each ATTRACTORS as a (a.id)}
+						<option value={a.id}>{a.label}</option>
+					{/each}
+				</select>
+			</section>
+		{/if}
+
 		<section class="group">
-			<h3 class="group-label">{isDeepZoom ? 'Iterations' : 'Detail'}</h3>
+			<h3 class="group-label">{detailLabel}</h3>
 			<div class="row">
 				<input
 					type="range"
@@ -91,11 +115,11 @@
 					step="10"
 					value={scene.maxIter}
 					oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}
-					aria-label="Maximum iterations"
+					aria-label={detailLabel}
 				/>
 				<span class="ff-num val">{scene.maxIter}</span>
 			</div>
-			<p class="hint">Higher values add more detail (slower).</p>
+			<p class="hint">{detailHint}</p>
 		</section>
 
 		<section class="group">
