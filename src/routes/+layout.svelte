@@ -5,6 +5,7 @@
 	import { provideEngineStore } from '$lib/stores/engine.svelte';
 	import { provideSceneStore } from '$lib/stores/scene.svelte';
 	import { provideBookmarksStore } from '$lib/stores/bookmarks.svelte';
+	import { provideTimelineStore } from '$lib/stores/timeline.svelte';
 	import TopBar from '$lib/components/shell/TopBar.svelte';
 	import LibraryPanel from '$lib/components/shell/LibraryPanel.svelte';
 	import InspectorPanel from '$lib/components/shell/InspectorPanel.svelte';
@@ -16,6 +17,7 @@
 	provideEngineStore();
 	provideSceneStore();
 	provideBookmarksStore();
+	provideTimelineStore();
 
 	// Reflect density on the root element so tokens can respond.
 	$effect(() => {
