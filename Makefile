@@ -13,6 +13,13 @@ RESET := $(shell tput sgr0    2>/dev/null)
 
 .DEFAULT_GOAL := help
 
+##@ Run
+.PHONY: run
+run: ## Bootstrap (install deps if missing) and launch the app
+	@[ -d node_modules ] || { printf "$(DIM)No dependencies found — installing…$(RESET)\n"; $(NPM) install; }
+	@printf "$(BOLD)Launching FractalFlow Studio…$(RESET) $(DIM)(Ctrl-C to stop)$(RESET)\n"
+	@$(NPM) run dev
+
 ##@ Setup
 .PHONY: install
 install: ## Install dependencies (clean, lockfile-exact)
