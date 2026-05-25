@@ -21,6 +21,12 @@
 	// engine can't initialise, so we explain that rather than claim "no GPU".
 	const needsWebGPU = $derived(failed && renderer.pipeline === 'compute');
 
+	// Serialize engine lifecycle across renderer changes. Engine creation and
+	// teardown both (re)configure the shared canvas context, so they must not
+	// overlap — otherwise a stale engine's teardown can unconfigure the context
+	// the next engine is rendering into (getCurrentTexture: not configured).
+	let lifecycle = Promise.resolve();
+
 	// (Re)create the engine whenever the canvas mounts or the renderer changes.
 	$effect(() => {
 		const el = canvas;
@@ -32,26 +38,29 @@
 		let engine: Engine | null = null;
 		let disposed = false;
 
-		createEngine(el, { renderer: activeRenderer, ...opts })
-			.then((created) => {
+		// Chain after any in-flight create/destroy so they run strictly in order.
+		lifecycle = lifecycle.then(async () => {
+			if (disposed) return;
+			try {
+				const created = await createEngine(el, { renderer: activeRenderer, ...opts });
+				if (disposed) {
+					created?.destroy();
+					return;
+				}
 				if (!created) {
 					failed = true;
 					return;
 				}
-				if (disposed) {
-					created.destroy();
-					return;
-				}
 				engine = created;
 				engine.start();
-			})
-			.catch(() => {
-				failed = true;
-			});
+			} catch {
+				if (!disposed) failed = true;
+			}
+		});
 
 		return () => {
 			disposed = true;
-			engine?.destroy();
+			lifecycle = lifecycle.then(() => engine?.destroy());
 		};
 	});
 </script>

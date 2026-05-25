@@ -12,10 +12,19 @@
  *   32 palA  48 palB  64 palC  80 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import {
+	POST_SIZE,
+	packPost,
+	POST_WGSL_FIELDS,
+	POST_WGSL_FN,
+	POST_GLSL_FIELDS,
+	POST_GLSL_FN
+} from '$lib/fractals/post';
 import type { FractalRenderer, RenderInput } from '$lib/engine/types';
 
 export const GEOMETRIC_3D_ID = 'geometric-3d';
-const UNIFORM_SIZE = 96;
+const POST_BASE = 96;
+const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 const POWER = 8;
 
 const WGSL = /* wgsl */ `
@@ -31,8 +40,10 @@ struct U {
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
+${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: U;
+${POST_WGSL_FN}
 
 @vertex
 fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
@@ -75,8 +86,13 @@ fn normalAt(p: vec3f) -> vec3f {
 
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
-	let uvx = (frag.x - 0.5 * u.resolution.x) / u.resolution.y;
-	let uvy = -(frag.y - 0.5 * u.resolution.y) / u.resolution.y;
+	let postUv = frag.xy / u.resolution;
+	let warped = ffWarp(vec2f(
+		(frag.x - 0.5 * u.resolution.x) / u.resolution.y,
+		-(frag.y - 0.5 * u.resolution.y) / u.resolution.y
+	));
+	let uvx = warped.x;
+	let uvy = warped.y;
 
 	let cp = cos(u.pitch);
 	let sp = sin(u.pitch);
@@ -107,7 +123,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 
 	if (!hit) {
 		let bg = mix(vec3f(0.02, 0.02, 0.03), vec3f(0.05, 0.06, 0.09), uvy + 0.5);
-		return vec4f(bg, 1.0);
+		return ffPost(vec4f(bg, 1.0), postUv);
 	}
 
 	let pos = ro + rd * t;
@@ -116,7 +132,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let diff = max(dot(n, lightDir), 0.0);
 	let amb = 0.25 + 0.2 * (0.5 + 0.5 * n.y);
 	let col = palette(fract(trap * 1.5 + 0.5)) * (amb + 0.85 * diff);
-	return vec4f(col, 1.0);
+	return ffPost(vec4f(col, 1.0), postUv);
 }
 `;
 
@@ -134,8 +150,10 @@ layout(std140) uniform Uniforms {
 	vec4 uPalB;
 	vec4 uPalC;
 	vec4 uPalD;
+${POST_GLSL_FIELDS}
 };
 out vec4 fragColor;
+${POST_GLSL_FN}
 
 vec3 palette(float t) {
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
@@ -170,8 +188,13 @@ vec3 normalAt(vec3 p) {
 }
 
 void main() {
-	float uvx = (gl_FragCoord.x - 0.5 * uResolution.x) / uResolution.y;
-	float uvy = (gl_FragCoord.y - 0.5 * uResolution.y) / uResolution.y;
+	vec2 postUv = gl_FragCoord.xy / uResolution;
+	vec2 warped = ffWarp(vec2(
+		(gl_FragCoord.x - 0.5 * uResolution.x) / uResolution.y,
+		(gl_FragCoord.y - 0.5 * uResolution.y) / uResolution.y
+	));
+	float uvx = warped.x;
+	float uvy = warped.y;
 
 	float cp = cos(uPitch);
 	float sp = sin(uPitch);
@@ -198,7 +221,7 @@ void main() {
 
 	if (!hit) {
 		vec3 bg = mix(vec3(0.02, 0.02, 0.03), vec3(0.05, 0.06, 0.09), uvy + 0.5);
-		fragColor = vec4(bg, 1.0);
+		fragColor = ffPost(vec4(bg, 1.0), postUv);
 		return;
 	}
 
@@ -208,7 +231,7 @@ void main() {
 	float diff = max(dot(n, lightDir), 0.0);
 	float amb = 0.25 + 0.2 * (0.5 + 0.5 * n.y);
 	vec3 col = palette(fract(trap * 1.5 + 0.5)) * (amb + 0.85 * diff);
-	fragColor = vec4(col, 1.0);
+	fragColor = ffPost(vec4(col, 1.0), postUv);
 }`;
 
 export const mandelbulbRenderer: FractalRenderer = {
@@ -241,5 +264,6 @@ export const mandelbulbRenderer: FractalRenderer = {
 		f(80, c.d[0]);
 		f(84, c.d[1]);
 		f(88, c.d[2]);
+		packPost(view, POST_BASE, scene.post);
 	}
 };

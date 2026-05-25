@@ -19,11 +19,13 @@
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { FLAMES, flameBounds, type VariationId } from './flames';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
 export const PAINTERLY_FLAMES_ID = 'flames';
-const UNIFORM_SIZE = 112;
+const POST_BASE = 112;
+const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 const PARTICLE_COUNT = 1 << 16;
 const STEPS_PER_PARTICLE = 256;
 // Colour coord in [0,1] → fixed-point u32 for atomic accumulation. 1024 keeps
@@ -128,9 +130,11 @@ struct U {
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
+${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var<storage, read_write> grid: array<atomic<u32>>;
+${POST_WGSL_FN}
 
 // Nonlinear variations — mirror VARIATIONS in flames.ts exactly.
 fn variation(vid: u32, x: f32, y: f32) -> vec2f {
@@ -202,13 +206,20 @@ fn pal(t: f32) -> vec3f {
 
 @fragment
 fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-	let base = (u32(pos.y) * u32(u.resolution.x) + u32(pos.x)) * 2u;
-	if (base + 1u >= arrayLength(&grid)) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+	let postUv = pos.xy / u.resolution;
+	let wp = ffWarp(pos.xy - u.resolution * 0.5) + u.resolution * 0.5;
+	let px = i32(floor(wp.x));
+	let py = i32(floor(wp.y));
+	if (px < 0 || py < 0 || px >= i32(u.resolution.x) || py >= i32(u.resolution.y)) {
+		return ffPost(vec4f(0.0, 0.0, 0.0, 1.0), postUv);
+	}
+	let base = (u32(py) * u32(u.resolution.x) + u32(px)) * 2u;
+	if (base + 1u >= arrayLength(&grid)) { return ffPost(vec4f(0.0, 0.0, 0.0, 1.0), postUv); }
 	let d = f32(atomicLoad(&grid[base]));
-	if (d < 1.0) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+	if (d < 1.0) { return ffPost(vec4f(0.0, 0.0, 0.0, 1.0), postUv); }
 	let avgC = (f32(atomicLoad(&grid[base + 1u])) / ${lit(COLOR_FIXED)}) / d;
 	let t = clamp(log(1.0 + d) * u.exposure, 0.0, 1.0);
-	return vec4f(pal(avgC) * t, 1.0); // hue from structure, brightness from density
+	return ffPost(vec4f(pal(avgC) * t, 1.0), postUv); // hue from structure, brightness from density
 }
 `;
 
@@ -251,5 +262,6 @@ export const flamesRenderer: ComputeRenderer = {
 		f(96, c.d[0]);
 		f(100, c.d[1]);
 		f(104, c.d[2]);
+		packPost(view, POST_BASE, scene.post);
 	}
 };
