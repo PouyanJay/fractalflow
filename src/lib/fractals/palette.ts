@@ -28,6 +28,19 @@ export function cosinePalette(p: PaletteCoeffs, t: number): Rgb {
 	) as Rgb;
 }
 
+/** A CSS `linear-gradient(...)` sampling the palette across [0,1] for swatches. */
+export function paletteCssGradient(p: PaletteCoeffs, steps = 6): string {
+	const stops: string[] = [];
+	for (let i = 0; i <= steps; i++) {
+		const t = i / steps;
+		const [r, g, b] = cosinePalette(p, t);
+		stops.push(
+			`rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${Math.round(t * 100)}%`
+		);
+	}
+	return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
 const BALANCED: Pick<PaletteCoeffs, 'a' | 'b' | 'c'> = {
 	a: [0.5, 0.5, 0.5],
 	b: [0.5, 0.5, 0.5],
