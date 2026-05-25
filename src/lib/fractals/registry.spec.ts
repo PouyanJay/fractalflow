@@ -14,8 +14,14 @@ describe('getRenderer', () => {
 		expect(r?.kind).toBe('3d');
 	});
 
+	it('returns the Glowing Attractors compute renderer for that style', () => {
+		const r = getRenderer('attractors');
+		expect(r?.id).toBe('attractors');
+		expect(r?.kind).toBe('3d');
+		expect(r?.pipeline).toBe('compute');
+	});
+
 	it('returns null for art styles that are not implemented yet', () => {
 		expect(getRenderer('flames')).toBeNull();
-		expect(getRenderer('attractors')).toBeNull();
 	});
 });
