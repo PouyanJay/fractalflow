@@ -64,14 +64,14 @@ describe('orbitCamera (3D: centerX=yaw, centerY=pitch, scale=distance)', () => {
 });
 
 describe('dollyCamera', () => {
-	const base: Camera2D = { centerX: 0, centerY: 0, scale: 3 };
+	const base: Camera2D = { centerX: 0, centerY: 0, scale: 1 };
 
-	it('scales the distance by the factor', () => {
-		expect(dollyCamera(base, 1.1).scale).toBeCloseTo(3.3);
+	it('scales the zoom by the factor', () => {
+		expect(dollyCamera(base, 0.5).scale).toBeCloseTo(0.5);
 	});
 
-	it('clamps the distance to a sane range', () => {
-		expect(dollyCamera(base, 100).scale).toBeLessThanOrEqual(8);
-		expect(dollyCamera(base, 0.001).scale).toBeGreaterThanOrEqual(1.3);
+	it('clamps the zoom to a sane range', () => {
+		expect(dollyCamera(base, 100).scale).toBeLessThanOrEqual(2);
+		expect(dollyCamera(base, 0.0000001).scale).toBeGreaterThanOrEqual(0.0005);
 	});
 });

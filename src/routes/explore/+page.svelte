@@ -25,8 +25,9 @@
 	const handleBackend = (type: BackendType) => engine.setBackend(type);
 
 	function defaultCameraFor(kind: '2d' | '3d') {
+		// 3D: centerX=yaw, centerY=pitch, scale=zoom (FOV factor; 1 = default).
 		return kind === '3d'
-			? { centerX: 0.7, centerY: 0.4, scale: 2.6 }
+			? { centerX: 0.7, centerY: 0.4, scale: 1 }
 			: { centerX: -0.5, centerY: 0, scale: 3 };
 	}
 
