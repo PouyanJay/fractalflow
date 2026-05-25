@@ -5,6 +5,7 @@
  * buffer at @binding(1)) each frame. Returns null if WebGPU is unavailable.
  */
 import type { FractalRenderer, RenderInput, RenderBackend } from '../types';
+import { createWebGPUComputeBackend } from './webgpu-compute';
 
 export async function createWebGPUBackend(
 	canvas: HTMLCanvasElement,
@@ -12,10 +13,10 @@ export async function createWebGPUBackend(
 ): Promise<RenderBackend | null> {
 	if (typeof navigator === 'undefined' || !navigator.gpu) return null;
 
-	// The compute-pipeline path (particle accumulation) is wired in a later step;
-	// until then a compute renderer reports no backend. Narrows `renderer` to a
-	// FragmentRenderer for the fullscreen-triangle path below.
-	if (renderer.pipeline === 'compute') return null;
+	// Particle-accumulation renderers use the compute pipeline; everything else
+	// is a fullscreen-triangle fragment shader. Narrows `renderer` to a
+	// FragmentRenderer for the path below.
+	if (renderer.pipeline === 'compute') return createWebGPUComputeBackend(canvas, renderer);
 
 	const adapter = await navigator.gpu.requestAdapter();
 	if (!adapter) return null;
