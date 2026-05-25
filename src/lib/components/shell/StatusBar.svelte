@@ -2,13 +2,25 @@
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { MODES, modeFromPath } from '$lib/stores/ui-logic';
+	import { getEngineStore } from '$lib/stores/engine.svelte';
+	import { chooseBackendType, detectSupport } from '$lib/engine/capabilities';
 
 	const activeMode = $derived(MODES.find((m) => m.id === modeFromPath(page.url.pathname)));
+	const engine = getEngineStore();
 
-	// The rendering backend the engine will use once it lands; resolved client-side.
-	const backend = $derived(
-		browser ? ('gpu' in navigator && navigator.gpu ? 'WebGPU' : 'WebGL2') : 'Detecting…'
-	);
+	function label(type: 'webgpu' | 'webgl2' | null): string {
+		if (type === 'webgpu') return 'WebGPU';
+		if (type === 'webgl2') return 'WebGL2';
+		return 'None';
+	}
+
+	// Show the backend the engine actually initialised with; before that, the
+	// one capability detection predicts for this device.
+	const backend = $derived.by(() => {
+		if (engine.backend) return label(engine.backend);
+		if (!browser) return 'Detecting…';
+		return label(chooseBackendType(detectSupport()));
+	});
 </script>
 
 <footer class="statusbar">

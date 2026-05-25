@@ -1,5 +1,8 @@
 <script lang="ts">
-	import ModeView from '$lib/components/shell/ModeView.svelte';
+	import GpuCanvas from '$lib/components/engine/GpuCanvas.svelte';
+	import { getEngineStore } from '$lib/stores/engine.svelte';
+
+	const engine = getEngineStore();
 </script>
 
-<ModeView mode="explore" />
+<GpuCanvas onbackend={(type) => engine.setBackend(type)} />
