@@ -34,19 +34,17 @@
 		if (!playing) return;
 		const dt = lastTs ? ts - lastTs : 0;
 		lastTs = ts;
+		// Loop the playhead so the animation previews continuously — and so
+		// pressing Play with the playhead already at the end still plays.
 		let next = playhead + dt / timeline.durationMs;
-		if (next >= 1) {
-			next = 1;
-			playing = false;
-		}
+		if (next >= 1) next -= Math.floor(next);
 		playhead = next;
 		applyAt(playhead);
-		if (playing) raf = requestAnimationFrame(tick);
+		raf = requestAnimationFrame(tick);
 	}
 
 	function play() {
 		if (!canPlay) return;
-		if (playhead >= 1) playhead = 0;
 		playing = true;
 		lastTs = 0;
 		raf = requestAnimationFrame(tick);
