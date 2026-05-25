@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { ImageDown } from '@lucide/svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { mandelbrotRenderer } from '$lib/fractals/deep-zoom-2d/renderer';
-	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { getRenderer } from '$lib/fractals/registry';
 	import { EXPORT_SIZES, captureScene, downloadBlob, exportFilename } from '$lib/engine/capture';
 
 	const sceneStore = getSceneStore();
+	const ui = getUiStore();
 
 	let sizeId = $state('fhd');
 	let busy = $state(false);
 	let failed = $state(false);
 
 	const size = $derived(EXPORT_SIZES.find((s) => s.id === sizeId) ?? EXPORT_SIZES[1]);
-	const formulaLabel = $derived(
-		FORMULAS.find((f) => f.id === sceneStore.formula)?.label ?? sceneStore.formula
+	const renderer = $derived(getRenderer(ui.selectedStyle));
+	const styleLabel = $derived(
+		ART_STYLES.find((s) => s.id === ui.selectedStyle)?.label ?? 'Fractal'
 	);
 	const zoom = $derived.by(() => {
 		const mag = 3 / sceneStore.camera.scale;
@@ -21,22 +24,28 @@
 		if (mag >= 10) return `${Math.round(mag)}×`;
 		return `${mag.toFixed(1)}×`;
 	});
+	// A filename tag describing the active subject (style + its variant).
+	const exportTag = $derived(
+		ui.selectedStyle === 'deep-zoom-2d'
+			? sceneStore.formula
+			: ui.selectedStyle === 'attractors'
+				? `attractor-${sceneStore.attractor}`
+				: ui.selectedStyle === 'flames'
+					? `flame-${sceneStore.flame}`
+					: (ui.selectedStyle ?? 'fractal')
+	);
 
 	async function exportPng() {
+		if (!renderer) return;
 		busy = true;
 		failed = false;
 		try {
-			const blob = await captureScene(
-				mandelbrotRenderer,
-				sceneStore.scene,
-				size.width,
-				size.height
-			);
+			const blob = await captureScene(renderer, sceneStore.scene, size.width, size.height);
 			if (!blob) {
 				failed = true;
 				return;
 			}
-			downloadBlob(blob, exportFilename(sceneStore.formula));
+			downloadBlob(blob, exportFilename(exportTag));
 		} catch {
 			failed = true;
 		} finally {
@@ -53,8 +62,8 @@
 
 		<dl class="summary">
 			<div>
-				<dt>Fractal</dt>
-				<dd>{formulaLabel}</dd>
+				<dt>Art style</dt>
+				<dd>{styleLabel}</dd>
 			</div>
 			<div>
 				<dt>Zoom</dt>
@@ -75,13 +84,17 @@
 			</select>
 		</label>
 
-		<button class="export" type="button" onclick={exportPng} disabled={busy}>
+		<button class="export" type="button" onclick={exportPng} disabled={busy || !renderer}>
 			<ImageDown size={16} aria-hidden="true" />
 			{busy ? 'Rendering…' : 'Export PNG'}
 		</button>
 
-		{#if failed}
-			<p class="error" role="alert">Export failed — this browser may not support WebGL2.</p>
+		{#if !renderer}
+			<p class="error" role="alert">Pick an art style in the Library to render.</p>
+		{:else if failed}
+			<p class="error" role="alert">
+				Export failed — Painterly Flames and Glowing Attractors need WebGPU.
+			</p>
 		{/if}
 	</div>
 </section>
