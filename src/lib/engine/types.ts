@@ -16,6 +16,8 @@ export interface Camera2D {
 	scale: number;
 }
 
+export type FormulaId = 'mandelbrot' | 'julia' | 'burning-ship' | 'tricorn';
+
 /** Mutable per-frame scene state the UI updates and the renderer consumes. */
 export interface SceneState {
 	camera: Camera2D;

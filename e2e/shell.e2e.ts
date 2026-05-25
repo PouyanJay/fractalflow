@@ -23,7 +23,9 @@ test('the engine initialises a backend (badge resolves)', async ({ page }) => {
 
 test('Inspector exposes live Deep-Zoom 2D controls', async ({ page }) => {
 	await page.goto('/explore');
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('Deep-Zoom 2D');
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Deep-Zoom 2D'
+	);
 	await expect(page.getByLabel('Maximum iterations')).toHaveValue('300');
 	await expect(page.getByRole('button', { name: 'Aurora' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
