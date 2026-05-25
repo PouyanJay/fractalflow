@@ -53,6 +53,10 @@ export function createWebGL2Backend(
 	renderer: FractalRenderer,
 	options: { preserveDrawingBuffer?: boolean } = {}
 ): RenderBackend | null {
+	// Compute-pipeline renderers (particle accumulation) are WebGPU-only; signal
+	// no support so the engine surfaces a "requires WebGPU" state.
+	if (renderer.pipeline === 'compute') return null;
+
 	const gl = canvas.getContext('webgl2', {
 		antialias: false,
 		alpha: false,

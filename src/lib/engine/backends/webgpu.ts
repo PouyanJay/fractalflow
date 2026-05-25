@@ -12,6 +12,11 @@ export async function createWebGPUBackend(
 ): Promise<RenderBackend | null> {
 	if (typeof navigator === 'undefined' || !navigator.gpu) return null;
 
+	// The compute-pipeline path (particle accumulation) is wired in a later step;
+	// until then a compute renderer reports no backend. Narrows `renderer` to a
+	// FragmentRenderer for the fullscreen-triangle path below.
+	if (renderer.pipeline === 'compute') return null;
+
 	const adapter = await navigator.gpu.requestAdapter();
 	if (!adapter) return null;
 	const device = await adapter.requestDevice();

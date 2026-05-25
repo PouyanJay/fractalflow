@@ -27,6 +27,9 @@ export interface SceneState {
 	paletteIndex: number;
 	/** Seed `c` for the Julia formula. */
 	juliaSeed: { x: number; y: number };
+	/** Strange-attractor family id (Glowing Attractors). Carried for every scene
+	 * like juliaSeed, unused unless the attractors renderer is active. */
+	attractor: string;
 }
 
 export interface RenderInput {
@@ -38,22 +41,28 @@ export interface RenderInput {
 	scene: SceneState;
 }
 
-/**
- * A pluggable fractal: shader sources for each backend plus a function that
- * packs the current input into a std140-compatible uniform buffer.
- */
-export interface FractalRenderer {
+/** Fields shared by every renderer regardless of pipeline. */
+interface RendererBase {
 	id: string;
 	/** Interaction model: 2D pan/zoom or 3D orbit/dolly. */
 	kind: '2d' | '3d';
-	/** WGSL module with `vs`/`fs` entry points and a `Uniforms` at @group(0)@binding(0). */
+	/** WGSL module supplying the entry points for this pipeline. */
 	wgsl: string;
-	/** GLSL ES 300 fragment shader with a std140 `Uniforms` block (engine supplies the vertex stage). */
-	glsl: string;
 	/** Uniform buffer size in bytes (std140-compatible, multiple of 16). */
 	uniformSize: number;
 	/** Fill the uniform buffer from the current input. */
 	packUniforms(view: DataView, input: RenderInput): void;
+}
+
+/**
+ * A fragment-pipeline fractal: a fullscreen-triangle shader for each backend.
+ * Runs on both WebGPU and WebGL2. The WGSL has `vs`/`fs` entry points and a
+ * `Uniforms` at @group(0)@binding(0).
+ */
+export interface FragmentRenderer extends RendererBase {
+	pipeline?: 'fragment';
+	/** GLSL ES 300 fragment shader with a std140 `Uniforms` block (engine supplies the vertex stage). */
+	glsl: string;
 	/**
 	 * Optional per-frame data buffer (e.g. a perturbation reference orbit),
 	 * exposed to the shader as a storage buffer (WebGPU) / data texture (WebGL2).
@@ -63,6 +72,23 @@ export interface FractalRenderer {
 	dataBufferSize?: number;
 	packData?(input: RenderInput): Float32Array;
 }
+
+/**
+ * A compute-pipeline fractal: a WebGPU-only particle accumulator. A compute
+ * pass integrates `particleCount` particles `stepsPerParticle` steps each,
+ * atomically accumulating a density grid; a render pass tone-maps it. The WGSL
+ * supplies `integrate` (compute), `vs` and `fs` (tone-map) entry points. No
+ * WebGL2 path — the engine shows a "requires WebGPU" state on fallback.
+ */
+export interface ComputeRenderer extends RendererBase {
+	pipeline: 'compute';
+	/** Particles seeded per frame. */
+	particleCount: number;
+	/** Iteration steps each particle walks, accumulating one sample per step. */
+	stepsPerParticle: number;
+}
+
+export type FractalRenderer = FragmentRenderer | ComputeRenderer;
 
 export interface RenderBackend {
 	readonly type: BackendType;
