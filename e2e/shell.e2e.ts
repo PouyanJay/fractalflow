@@ -27,8 +27,20 @@ test('Inspector exposes live Deep-Zoom 2D controls', async ({ page }) => {
 		'Deep-Zoom 2D'
 	);
 	await expect(page.getByLabel('Maximum iterations')).toHaveValue('300');
+	await expect(page.getByLabel('Formula')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Aurora' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
+});
+
+test('switching to Julia reveals the seed inputs', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByLabel('Formula').selectOption('julia');
+	await expect(page.getByLabel('Julia seed real part')).toBeVisible();
+	await expect(page.getByLabel('Julia seed imaginary part')).toBeVisible();
+	// Other formulas hide the seed inputs again.
+	await page.getByLabel('Formula').selectOption('burning-ship');
+	await expect(page.getByLabel('Julia seed real part')).toHaveCount(0);
 });
 
 test('changing iterations updates the status readout', async ({ page }) => {
@@ -67,6 +79,17 @@ test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await waitForEngine(page);
 	// The Mandelbrot is static for a fixed scene, so the full page is deterministic.
 	await expect(page).toHaveScreenshot('explore-mandelbrot.png', {
+		fullPage: true,
+		maxDiffPixelRatio: 0.02
+	});
+});
+
+test('visual: Julia set', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByLabel('Formula').selectOption('julia');
+	await page.waitForTimeout(300);
+	await expect(page).toHaveScreenshot('explore-julia.png', {
 		fullPage: true,
 		maxDiffPixelRatio: 0.02
 	});
