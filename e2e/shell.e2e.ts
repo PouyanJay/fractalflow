@@ -140,6 +140,17 @@ test('selecting Geometric 3D switches to the 3D renderer', async ({ page }) => {
 	await expect(page.locator('canvas')).toBeVisible();
 });
 
+test('loading a 2D preset while in 3D switches back to the 2D renderer', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Geometric 3D/ }).click();
+	// 3D has no Formula control; confirm we are in the 3D renderer first.
+	await expect(page.getByLabel('Formula')).toHaveCount(0);
+	// A 2D preset must pull the studio back to Deep-Zoom 2D, not feed a 2D scene to Mandelbulb.
+	await page.getByRole('button', { name: 'Burning Ship' }).click();
+	await expect(page.getByLabel('Formula')).toHaveValue('burning-ship');
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
