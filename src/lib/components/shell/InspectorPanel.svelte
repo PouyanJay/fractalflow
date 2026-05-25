@@ -5,12 +5,14 @@
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import { getRenderer } from '$lib/fractals/registry';
 	import type { FormulaId } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
 
 	const style = $derived(ART_STYLES.find((s) => s.id === ui.selectedStyle) ?? null);
+	const hasRenderer = $derived(getRenderer(ui.selectedStyle) !== null);
 	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
 
 	function gradientFor(coeffs: PaletteCoeffs): string {
@@ -26,57 +28,61 @@
 </script>
 
 <SidePanel title="Inspector" panelId="inspector" side="right">
-	{#if isDeepZoom}
+	{#if hasRenderer}
 		<section class="group">
 			<h3 class="group-label">Renderer</h3>
 			<p class="value">{style?.label}</p>
 			<p class="hint">{style?.blurb}</p>
 		</section>
 
-		<section class="group">
-			<h3 class="group-label">Formula</h3>
-			<select
-				class="select"
-				aria-label="Formula"
-				value={scene.formula}
-				onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
-			>
-				{#each FORMULAS as f (f.id)}
-					<option value={f.id}>{f.label}</option>
-				{/each}
-			</select>
-		</section>
-
-		{#if scene.formula === 'julia'}
+		{#if isDeepZoom}
 			<section class="group">
-				<h3 class="group-label">Julia seed</h3>
-				<div class="seeds">
-					<label class="seed">
-						<span class="seed-label">Re</span>
-						<input
-							type="number"
-							step="0.01"
-							value={scene.juliaSeed.x}
-							oninput={(e) => scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
-							aria-label="Julia seed real part"
-						/>
-					</label>
-					<label class="seed">
-						<span class="seed-label">Im</span>
-						<input
-							type="number"
-							step="0.01"
-							value={scene.juliaSeed.y}
-							oninput={(e) => scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
-							aria-label="Julia seed imaginary part"
-						/>
-					</label>
-				</div>
+				<h3 class="group-label">Formula</h3>
+				<select
+					class="select"
+					aria-label="Formula"
+					value={scene.formula}
+					onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
+				>
+					{#each FORMULAS as f (f.id)}
+						<option value={f.id}>{f.label}</option>
+					{/each}
+				</select>
 			</section>
+
+			{#if scene.formula === 'julia'}
+				<section class="group">
+					<h3 class="group-label">Julia seed</h3>
+					<div class="seeds">
+						<label class="seed">
+							<span class="seed-label">Re</span>
+							<input
+								type="number"
+								step="0.01"
+								value={scene.juliaSeed.x}
+								oninput={(e) =>
+									scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
+								aria-label="Julia seed real part"
+							/>
+						</label>
+						<label class="seed">
+							<span class="seed-label">Im</span>
+							<input
+								type="number"
+								step="0.01"
+								value={scene.juliaSeed.y}
+								oninput={(e) =>
+									scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
+								aria-label="Julia seed imaginary part"
+							/>
+						</label>
+					</div>
+				</section>
+			{/if}
 		{/if}
 
 		<section class="group">
-			<h3 class="group-label">Iterations</h3>
+			<h3 class="group-label">{isDeepZoom ? 'Iterations' : 'Detail'}</h3>
 			<div class="row">
 				<input
 					type="range"
@@ -89,7 +95,7 @@
 				/>
 				<span class="ff-num val">{scene.maxIter}</span>
 			</div>
-			<p class="hint">More iterations reveal finer detail at deep zoom (slower).</p>
+			<p class="hint">Higher values add more detail (slower).</p>
 		</section>
 
 		<section class="group">

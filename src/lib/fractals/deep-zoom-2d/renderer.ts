@@ -255,6 +255,7 @@ void main() {
 
 export const mandelbrotRenderer: FractalRenderer = {
 	id: DEEP_ZOOM_2D_ID,
+	kind: '2d',
 	wgsl: WGSL,
 	glsl: GLSL,
 	uniformSize: UNIFORM_SIZE,

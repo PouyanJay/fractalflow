@@ -44,6 +44,8 @@ export interface RenderInput {
  */
 export interface FractalRenderer {
 	id: string;
+	/** Interaction model: 2D pan/zoom or 3D orbit/dolly. */
+	kind: '2d' | '3d';
 	/** WGSL module with `vs`/`fs` entry points and a `Uniforms` at @group(0)@binding(0). */
 	wgsl: string;
 	/** GLSL ES 300 fragment shader with a std140 `Uniforms` block (engine supplies the vertex stage). */
