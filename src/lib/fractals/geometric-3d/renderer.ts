@@ -23,7 +23,7 @@ struct U {
 	resolution: vec2f,
 	yaw: f32,
 	pitch: f32,
-	dist: f32,
+	zoom: f32,
 	power: f32,
 	time: f32,
 	detail: f32,
@@ -82,11 +82,12 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let sp = sin(u.pitch);
 	let cy = cos(u.yaw);
 	let sy = sin(u.yaw);
-	let ro = u.dist * vec3f(cp * sy, sp, cp * cy);
+	let ro = 2.8 * vec3f(cp * sy, sp, cp * cy);
 	let forward = normalize(-ro);
 	let right = normalize(cross(forward, vec3f(0.0, 1.0, 0.0)));
 	let up = cross(right, forward);
-	let rd = normalize(forward + uvx * 1.2 * right + uvy * 1.2 * up);
+	let fov = 1.2 * u.zoom;
+	let rd = normalize(forward + uvx * fov * right + uvy * fov * up);
 
 	var t = 0.0;
 	var hit = false;
@@ -95,7 +96,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	for (var i = 0; i < maxSteps; i = i + 1) {
 		let pos = ro + rd * t;
 		let res = de(pos);
-		if (res.x < 0.0006 * t + 0.00002) {
+		if (res.x < max(0.0015 * u.zoom * t, 1e-6)) {
 			hit = true;
 			trap = res.y;
 			break;
@@ -125,7 +126,7 @@ layout(std140) uniform Uniforms {
 	vec2 uResolution;
 	float uYaw;
 	float uPitch;
-	float uDist;
+	float uZoom;
 	float uPower;
 	float uTime;
 	float uDetail;
@@ -176,11 +177,12 @@ void main() {
 	float sp = sin(uPitch);
 	float cy = cos(uYaw);
 	float sy = sin(uYaw);
-	vec3 ro = uDist * vec3(cp * sy, sp, cp * cy);
+	vec3 ro = 2.8 * vec3(cp * sy, sp, cp * cy);
 	vec3 forward = normalize(-ro);
 	vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
 	vec3 up = cross(right, forward);
-	vec3 rd = normalize(forward + uvx * 1.2 * right + uvy * 1.2 * up);
+	float fov = 1.2 * uZoom;
+	vec3 rd = normalize(forward + uvx * fov * right + uvy * fov * up);
 
 	float t = 0.0;
 	bool hit = false;
@@ -189,7 +191,7 @@ void main() {
 	for (int i = 0; i < maxSteps; i++) {
 		vec3 pos = ro + rd * t;
 		vec2 res = de(pos);
-		if (res.x < 0.0006 * t + 0.00002) { hit = true; trap = res.y; break; }
+		if (res.x < max(0.0015 * uZoom * t, 1e-6)) { hit = true; trap = res.y; break; }
 		t += res.x;
 		if (t > 8.0) break;
 	}

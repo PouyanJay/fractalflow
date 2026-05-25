@@ -7,29 +7,42 @@
 	import { getIcon } from '$lib/components/icons';
 	import { PRESETS } from '$lib/scene/presets';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
-	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
+	import { getRenderer, defaultCameraFor } from '$lib/fractals/registry';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { X } from '@lucide/svelte';
+	import type { ArtStyleId } from '$lib/stores/ui-logic';
 	import type { SceneState } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const sceneStore = getSceneStore();
 	const bookmarks = getBookmarksStore();
 
-	function loadScene(scene: SceneState) {
+	const currentStyle = $derived(ART_STYLES.find((s) => s.id === ui.selectedStyle) ?? null);
+
+	// User picks an art style: switch, and reframe the camera if the kind changed.
+	function selectStyle(id: ArtStyleId) {
+		const prevKind = getRenderer(ui.selectedStyle)?.kind;
+		ui.selectArtStyle(id);
+		const nextKind = getRenderer(id)?.kind;
+		if (nextKind && nextKind !== prevKind) sceneStore.setCamera(defaultCameraFor(nextKind));
+	}
+
+	// Load a preset/bookmark: switch to its art style and apply its exact scene.
+	function applyState(styleId: ArtStyleId, scene: SceneState) {
+		ui.selectArtStyle(styleId);
 		sceneStore.setScene(scene);
 		if (modeFromPath(page.url.pathname) !== 'explore') goto(resolve('/explore'));
 	}
 
 	function saveCurrent() {
 		const s = sceneStore.scene;
-		const formula = FORMULAS.find((f) => f.id === s.formula)?.label ?? s.formula;
 		const mag = 3 / s.camera.scale;
 		const magStr =
 			mag >= 1000 ? mag.toExponential(0) : mag >= 10 ? `${Math.round(mag)}` : mag.toFixed(1);
-		bookmarks.add(`${formula} · ${magStr}×`, encodeScene(s));
+		const label = `${currentStyle?.label ?? 'View'} · ${magStr}×`;
+		bookmarks.add(label, encodeScene(s), ui.selectedStyle ?? 'deep-zoom-2d');
 	}
 </script>
 
@@ -47,7 +60,7 @@
 						class:selected
 						role="option"
 						aria-selected={selected}
-						onclick={() => ui.selectArtStyle(style.id)}
+						onclick={() => selectStyle(style.id)}
 					>
 						<span class="style-icon" aria-hidden="true">
 							{#if Icon}<Icon size={18} />{/if}
@@ -67,7 +80,11 @@
 		<ul class="list">
 			{#each PRESETS as preset (preset.id)}
 				<li>
-					<button type="button" class="entry" onclick={() => loadScene(preset.scene)}>
+					<button
+						type="button"
+						class="entry"
+						onclick={() => applyState(preset.styleId, preset.scene)}
+					>
 						{preset.label}
 					</button>
 				</li>
@@ -89,7 +106,8 @@
 						<button
 							type="button"
 							class="entry"
-							onclick={() => loadScene(decodeScene(bookmark.token))}
+							onclick={() =>
+								applyState(bookmark.styleId as ArtStyleId, decodeScene(bookmark.token))}
 						>
 							{bookmark.label}
 						</button>

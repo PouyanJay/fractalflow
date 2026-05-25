@@ -10,6 +10,8 @@ export interface Bookmark {
 	label: string;
 	/** Encoded scene token (codec.encodeScene). */
 	token: string;
+	/** Art style this bookmark belongs to (which renderer to load). */
+	styleId: string;
 }
 
 let counter = 0;
@@ -19,8 +21,13 @@ function makeId(): string {
 }
 
 /** Add a bookmark to the front of the list (newest first). Does not mutate input. */
-export function addBookmark(list: Bookmark[], label: string, token: string): Bookmark[] {
-	return [{ id: makeId(), label, token }, ...list];
+export function addBookmark(
+	list: Bookmark[],
+	label: string,
+	token: string,
+	styleId: string
+): Bookmark[] {
+	return [{ id: makeId(), label, token, styleId }, ...list];
 }
 
 export function removeBookmark(list: Bookmark[], id: string): Bookmark[] {
@@ -35,14 +42,22 @@ export function parseBookmarks(raw: string): Bookmark[] {
 	try {
 		const data: unknown = JSON.parse(raw);
 		if (!Array.isArray(data)) return [];
-		return data.filter(
-			(b): b is Bookmark =>
-				!!b &&
-				typeof b === 'object' &&
-				typeof (b as Bookmark).id === 'string' &&
-				typeof (b as Bookmark).label === 'string' &&
-				typeof (b as Bookmark).token === 'string'
-		);
+		return data
+			.filter(
+				(b) =>
+					!!b &&
+					typeof b === 'object' &&
+					typeof b.id === 'string' &&
+					typeof b.label === 'string' &&
+					typeof b.token === 'string'
+			)
+			.map((b) => ({
+				id: b.id,
+				label: b.label,
+				token: b.token,
+				// Older bookmarks predate styleId; default them to Deep-Zoom 2D.
+				styleId: typeof b.styleId === 'string' ? b.styleId : 'deep-zoom-2d'
+			}));
 	} catch {
 		return [];
 	}

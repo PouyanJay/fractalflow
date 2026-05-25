@@ -28,8 +28,8 @@ export function createBookmarksStore() {
 		get list() {
 			return list;
 		},
-		add: (label: string, token: string) => {
-			list = addBookmark(list, label, token);
+		add: (label: string, token: string, styleId: string) => {
+			list = addBookmark(list, label, token, styleId);
 			persist();
 		},
 		remove: (id: string) => {

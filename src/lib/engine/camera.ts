@@ -29,8 +29,10 @@ export function panCamera(
 
 const ORBIT_SENSITIVITY = 0.01;
 const PITCH_LIMIT = 1.5;
-const MIN_DISTANCE = 1.3;
-const MAX_DISTANCE = 8;
+// 3D zoom is a telephoto FOV factor (smaller = magnified); a wide range allows
+// pushing deep into surface detail.
+const MIN_ZOOM = 0.0005;
+const MAX_ZOOM = 2;
 
 /**
  * Orbit a 3D camera by a pixel drag. For 3D renderers the shared Camera2D
@@ -46,10 +48,10 @@ export function orbitCamera(camera: Camera2D, dxPixels: number, dyPixels: number
 	return { centerX: yaw, centerY: pitch, scale: camera.scale };
 }
 
-/** Dolly a 3D camera in/out by a factor (<1 moves closer), clamped to a sane range. */
+/** Zoom a 3D camera by a factor (<1 magnifies via narrower FOV), clamped. */
 export function dollyCamera(camera: Camera2D, factor: number): Camera2D {
-	const distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, camera.scale * factor));
-	return { centerX: camera.centerX, centerY: camera.centerY, scale: distance };
+	const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.scale * factor));
+	return { centerX: camera.centerX, centerY: camera.centerY, scale: zoom };
 }
 
 /** Zoom by `factor` (<1 zooms in) while keeping the point under the cursor fixed. */
