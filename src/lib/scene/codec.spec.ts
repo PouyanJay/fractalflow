@@ -17,16 +17,28 @@ describe('encodeScene / decodeScene round-trip', () => {
 			paletteIndex: 2,
 			juliaSeed: { x: -0.8, y: 0.156 },
 			attractor: 'clifford',
-			flame: 'sierpinski'
+			flame: 'sierpinski',
+			post: { warp: 'none', warpAmount: 6, vignette: 0, gamma: 1, grain: 0 }
 		};
 		expect(decodeScene(encodeScene(s))).toEqual(s);
 	});
 
-	it('round-trips the selected attractor family and flame', () => {
-		const s = { ...createDefaultScene(), attractor: 'lorenz', flame: 'swirl' };
+	it('round-trips the attractor family, flame and post-processing', () => {
+		const s = {
+			...createDefaultScene(),
+			attractor: 'lorenz',
+			flame: 'swirl',
+			post: { warp: 'kaleido', warpAmount: 8, vignette: 0.5, gamma: 1.4, grain: 0.3 }
+		};
 		const out = decodeScene(encodeScene(s));
 		expect(out.attractor).toBe('lorenz');
 		expect(out.flame).toBe('swirl');
+		expect(out.post).toEqual(s.post);
+	});
+
+	it('defaults post to a no-op for legacy tokens', () => {
+		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 10).join('~');
+		expect(decodeScene(legacy).post).toEqual(createDefaultScene().post);
 	});
 });
 

@@ -3,7 +3,9 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { composeNodes, composeEdges } from '$lib/compose/graph';
 	import SourceNode from '$lib/components/compose/SourceNode.svelte';
+	import WarpNode from '$lib/components/compose/WarpNode.svelte';
 	import ColoringNode from '$lib/components/compose/ColoringNode.svelte';
+	import PostNode from '$lib/components/compose/PostNode.svelte';
 	import OutputNode from '$lib/components/compose/OutputNode.svelte';
 
 	// Fixed pipeline; nodes read/write the shared scene store, so editing here
@@ -15,7 +17,9 @@
 	// per-node `data` props, so we register them with a cast.
 	const nodeTypes = {
 		source: SourceNode,
+		warp: WarpNode,
 		coloring: ColoringNode,
+		post: PostNode,
 		output: OutputNode
 	} as unknown as NodeTypes;
 </script>

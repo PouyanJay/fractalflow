@@ -8,22 +8,32 @@
 import { ART_STYLES, type ArtStyleId } from '$lib/stores/ui-logic';
 import type { Node, Edge } from '@xyflow/svelte';
 
-export type ComposeNodeType = 'source' | 'coloring' | 'output';
+export type ComposeNodeType = 'source' | 'warp' | 'coloring' | 'post' | 'output';
 
-/** The three pipeline nodes, laid out left → right. */
+/** The pipeline nodes, laid out left → right. */
 export function composeNodes(): Node[] {
 	return [
-		{ id: 'source', type: 'source', position: { x: 0, y: 80 }, data: {} },
-		{ id: 'coloring', type: 'coloring', position: { x: 340, y: 80 }, data: {} },
-		{ id: 'output', type: 'output', position: { x: 680, y: 40 }, data: {} }
+		{ id: 'source', type: 'source', position: { x: 0, y: 120 }, data: {} },
+		{ id: 'warp', type: 'warp', position: { x: 280, y: 120 }, data: {} },
+		{ id: 'coloring', type: 'coloring', position: { x: 560, y: 120 }, data: {} },
+		{ id: 'post', type: 'post', position: { x: 840, y: 120 }, data: {} },
+		{ id: 'output', type: 'output', position: { x: 1120, y: 80 }, data: {} }
 	];
 }
 
-/** Source → Coloring → Output. */
+/** Source → Warp → Coloring → Post → Output. */
 export function composeEdges(): Edge[] {
+	const link = (source: string, target: string): Edge => ({
+		id: `${source}-${target}`,
+		source,
+		target,
+		animated: true
+	});
 	return [
-		{ id: 'source-coloring', source: 'source', target: 'coloring', animated: true },
-		{ id: 'coloring-output', source: 'coloring', target: 'output', animated: true }
+		link('source', 'warp'),
+		link('warp', 'coloring'),
+		link('coloring', 'post'),
+		link('post', 'output')
 	];
 }
 

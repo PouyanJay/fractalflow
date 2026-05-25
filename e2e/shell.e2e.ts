@@ -76,6 +76,19 @@ test('Compose node graph edits the shared scene and updates every mode', async (
 	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
 });
 
+test('Compose Warp/Post-FX nodes drive the shared post-processing', async ({ page }) => {
+	await page.goto('/compose');
+	// Svelte Flow renders hidden measurement copies, so target the visible control.
+	const warp = page.locator('select[aria-label="Warp"]:visible');
+	await expect(warp).toBeVisible();
+	await expect(warp).toHaveValue('none');
+	await warp.selectOption('kaleido');
+	await expect(warp).toHaveValue('kaleido');
+	// Post lives in the shared scene, so it's encoded into Explore's deep-link URL.
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('kaleido');
+});
+
 test('command palette opens with the keyboard and navigates', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);

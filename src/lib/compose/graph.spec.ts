@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { composeNodes, composeEdges, sourceLabel } from './graph';
 
 describe('compose graph', () => {
-	it('defines the source → coloring → output node chain', () => {
+	it('defines the source → warp → coloring → post → output node chain', () => {
 		const ids = composeNodes().map((n) => n.id);
-		expect(ids).toEqual(['source', 'coloring', 'output']);
+		expect(ids).toEqual(['source', 'warp', 'coloring', 'post', 'output']);
 		expect(new Set(ids).size).toBe(ids.length);
 		for (const n of composeNodes()) {
 			expect(typeof n.position.x).toBe('number');
@@ -20,8 +20,10 @@ describe('compose graph', () => {
 			expect(ids.has(e.target)).toBe(true);
 		}
 		expect(edges.map((e) => [e.source, e.target])).toEqual([
-			['source', 'coloring'],
-			['coloring', 'output']
+			['source', 'warp'],
+			['warp', 'coloring'],
+			['coloring', 'post'],
+			['post', 'output']
 		]);
 	});
 });

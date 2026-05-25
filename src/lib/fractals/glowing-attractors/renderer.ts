@@ -19,11 +19,13 @@
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { ATTRACTORS, orbit, boundsOf } from './attractors';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
 export const GLOWING_ATTRACTORS_ID = 'attractors';
-const UNIFORM_SIZE = 112;
+const POST_BASE = 112;
+const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 const PARTICLE_COUNT = 1 << 16; // 65 536 particles per frame
 const STEPS_PER_PARTICLE = 256;
 // maxIter (50–1200) → gain on the log-density tone curve.
@@ -74,9 +76,11 @@ struct U {
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
+${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var<storage, read_write> density: array<atomic<u32>>;
+${POST_WGSL_FN}
 
 // Discrete maps (Clifford, de Jong) collapse onto the attractor within a few
 // iterations; the integrated flows (Lorenz, Thomas) need many small steps to
@@ -181,14 +185,22 @@ fn pal(t: f32) -> vec3f {
 
 @fragment
 fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-	let idx = u32(pos.y) * u32(u.resolution.x) + u32(pos.x);
-	if (idx >= arrayLength(&density)) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+	let postUv = pos.xy / u.resolution;
+	// Warp the sample coordinate so kaleidoscope/mirror fold the cloud.
+	let wp = ffWarp(pos.xy - u.resolution * 0.5) + u.resolution * 0.5;
+	let px = i32(floor(wp.x));
+	let py = i32(floor(wp.y));
+	if (px < 0 || py < 0 || px >= i32(u.resolution.x) || py >= i32(u.resolution.y)) {
+		return ffPost(vec4f(0.0, 0.0, 0.0, 1.0), postUv);
+	}
+	let idx = u32(py) * u32(u.resolution.x) + u32(px);
+	if (idx >= arrayLength(&density)) { return ffPost(vec4f(0.0, 0.0, 0.0, 1.0), postUv); }
 	let d = f32(atomicLoad(&density[idx]));
 	// Log-density tone mapping: attractors span a huge density range (Lorenz
 	// piles up near its fixed points), so log compresses the bright core and
 	// keeps the faint filaments visible. Exposure is the gain on the log.
 	let t = clamp(log(1.0 + d) * u.exposure, 0.0, 1.0);
-	return vec4f(pal(t) * t, 1.0); // multiply by t so empty space stays black
+	return ffPost(vec4f(pal(t) * t, 1.0), postUv); // multiply by t so empty space stays black
 }
 `;
 
@@ -230,5 +242,6 @@ export const attractorsRenderer: ComputeRenderer = {
 		f(96, c.d[0]);
 		f(100, c.d[1]);
 		f(104, c.d[2]);
+		packPost(view, POST_BASE, scene.post);
 	}
 };

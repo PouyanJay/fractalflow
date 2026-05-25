@@ -18,6 +18,16 @@ export interface Camera2D {
 
 export type FormulaId = 'mandelbrot' | 'julia' | 'burning-ship' | 'tricorn';
 
+/** Screen-space post-processing applied at the end of every renderer. */
+export interface PostSettings {
+	/** Coordinate warp id ('none' | 'kaleido' | 'mirror'). */
+	warp: string;
+	warpAmount: number;
+	vignette: number;
+	gamma: number;
+	grain: number;
+}
+
 /** Mutable per-frame scene state the UI updates and the renderer consumes. */
 export interface SceneState {
 	formula: FormulaId;
@@ -33,6 +43,8 @@ export interface SceneState {
 	/** Fractal-flame id (Painterly Flames). Carried like attractor; unused
 	 * unless the flames renderer is active. */
 	flame: string;
+	/** Screen-space post-processing (warp + grade), edited in Compose. */
+	post: PostSettings;
 }
 
 export interface RenderInput {

@@ -4,6 +4,7 @@
  */
 import type { ArtStyleId } from '$lib/stores/ui-logic';
 import type { SceneState } from '$lib/engine/types';
+import { DEFAULT_POST } from '$lib/fractals/post';
 
 export interface Preset {
 	id: string;
@@ -29,7 +30,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 1,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -43,7 +45,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 0,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -57,7 +60,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 3,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -71,7 +75,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 2,
 			juliaSeed: { x: -0.8, y: 0.156 },
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -85,7 +90,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 1,
 			juliaSeed: { x: 0.285, y: 0.01 },
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -99,7 +105,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 3,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -113,7 +120,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 1,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -127,7 +135,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 0,
 			juliaSeed: DEFAULT_SEED,
 			attractor: 'lorenz',
-			flame: DEFAULT_FLAME
+			flame: DEFAULT_FLAME,
+			post: { ...DEFAULT_POST }
 		}
 	},
 	{
@@ -141,7 +150,8 @@ export const PRESETS: Preset[] = [
 			paletteIndex: 2,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: 'sinusoidal'
+			flame: 'sinusoidal',
+			post: { ...DEFAULT_POST }
 		}
 	}
 ];
