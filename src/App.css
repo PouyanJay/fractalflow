@@ -1,42 +1,86 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+@import './lib/styles/tokens.css';
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+html,
+body {
+	height: 100%;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+body {
+	margin: 0;
+	background: var(--ff-bg);
+	color: var(--ff-text);
+	font-family: var(--ff-font-sans);
+	font-size: var(--ff-text-base);
+	font-weight: var(--ff-weight-regular);
+	line-height: var(--ff-leading-normal);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+h1,
+h2,
+h3,
+h4,
+p {
+	margin: 0;
 }
 
-.card {
-  padding: 2em;
+button {
+	font: inherit;
+	color: inherit;
 }
 
-.read-the-docs {
-  color: #888;
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+/* Visible, on-brand focus ring — never rely on the unstyled browser default. */
+:focus-visible {
+	outline: 2px solid var(--ff-focus);
+	outline-offset: 2px;
+	border-radius: var(--ff-radius-sm);
+}
+
+::selection {
+	background: color-mix(in srgb, var(--ff-primary) 35%, transparent);
+}
+
+/* Tabular numerals for coordinate / parameter readouts. */
+.ff-num {
+	font-family: var(--ff-font-mono);
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: 'tnum' 1;
+}
+
+/* Scrollbars tuned for the dark chrome. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--ff-neutral-6) transparent;
+}
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+	background: var(--ff-neutral-6);
+	border-radius: var(--ff-radius-full);
+	border: 3px solid transparent;
+	background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }
