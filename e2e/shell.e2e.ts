@@ -129,6 +129,17 @@ test('a bookmark can be saved and deleted', async ({ page }) => {
 	await expect(page.getByText('No bookmarks yet', { exact: false })).toBeVisible();
 });
 
+test('selecting Geometric 3D switches to the 3D renderer', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Geometric 3D/ }).click();
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Geometric 3D'
+	);
+	await expect(page.getByRole('heading', { name: 'Detail' })).toBeVisible();
+	await expect(page.locator('canvas')).toBeVisible();
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
