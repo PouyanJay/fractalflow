@@ -3,10 +3,23 @@
 	import { browser } from '$app/environment';
 	import { MODES, modeFromPath } from '$lib/stores/ui-logic';
 	import { getEngineStore } from '$lib/stores/engine.svelte';
+	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { chooseBackendType, detectSupport } from '$lib/engine/capabilities';
 
 	const activeMode = $derived(MODES.find((m) => m.id === modeFromPath(page.url.pathname)));
 	const engine = getEngineStore();
+	const scene = getSceneStore();
+
+	const BASE_SCALE = 3;
+	const center = $derived(
+		`${scene.camera.centerX.toFixed(5)}, ${scene.camera.centerY.toFixed(5)}i`
+	);
+	const zoom = $derived.by(() => {
+		const mag = BASE_SCALE / scene.camera.scale;
+		if (mag >= 1000) return `${mag.toExponential(1)}×`;
+		if (mag >= 10) return `${Math.round(mag)}×`;
+		return `${mag.toFixed(1)}×`;
+	});
 
 	function label(type: 'webgpu' | 'webgl2' | null): string {
 		if (type === 'webgpu') return 'WebGPU';
@@ -30,9 +43,9 @@
 	</div>
 
 	<div class="readouts" aria-label="Viewport readouts">
-		<span class="readout">center <span class="ff-num">—</span></span>
-		<span class="readout">zoom <span class="ff-num">—</span></span>
-		<span class="readout">iters <span class="ff-num">—</span></span>
+		<span class="readout">center <span class="ff-num">{center}</span></span>
+		<span class="readout">zoom <span class="ff-num">{zoom}</span></span>
+		<span class="readout">iters <span class="ff-num">{scene.maxIter}</span></span>
 	</div>
 
 	<div class="right">

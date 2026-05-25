@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { provideUiStore } from '$lib/stores/ui.svelte';
 	import { provideEngineStore } from '$lib/stores/engine.svelte';
+	import { provideSceneStore } from '$lib/stores/scene.svelte';
 	import TopBar from '$lib/components/shell/TopBar.svelte';
 	import LibraryPanel from '$lib/components/shell/LibraryPanel.svelte';
 	import InspectorPanel from '$lib/components/shell/InspectorPanel.svelte';
@@ -12,6 +13,7 @@
 	let { children } = $props();
 	const ui = provideUiStore();
 	provideEngineStore();
+	provideSceneStore();
 
 	// Reflect density on the root element so tokens can respond.
 	$effect(() => {
