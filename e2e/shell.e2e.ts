@@ -26,7 +26,7 @@ test('Inspector exposes live Deep-Zoom 2D controls', async ({ page }) => {
 	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
 		'Deep-Zoom 2D'
 	);
-	await expect(page.getByLabel('Maximum iterations')).toHaveValue('300');
+	await expect(page.getByLabel('Iterations')).toHaveValue('300');
 	await expect(page.getByLabel('Formula')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Aurora' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
@@ -46,8 +46,8 @@ test('switching to Julia reveals the seed inputs', async ({ page }) => {
 test('changing iterations updates the status readout', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
-	await page.getByLabel('Maximum iterations').fill('600');
-	await expect(page.getByLabel('Maximum iterations')).toHaveValue('600');
+	await page.getByLabel('Iterations').fill('600');
+	await expect(page.getByLabel('Iterations')).toHaveValue('600');
 });
 
 test('mode tabs navigate between modes', async ({ page }) => {
@@ -92,14 +92,14 @@ test('a deep link restores the scene', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByLabel('Formula').selectOption('julia');
-	await page.getByLabel('Maximum iterations').fill('800');
+	await page.getByLabel('Iterations').fill('800');
 	await page.waitForTimeout(400); // allow the debounced URL write
 	const url = page.url();
 	expect(url).toContain('s=');
 	await page.goto(url);
 	await waitForEngine(page);
 	await expect(page.getByLabel('Formula')).toHaveValue('julia');
-	await expect(page.getByLabel('Maximum iterations')).toHaveValue('800');
+	await expect(page.getByLabel('Iterations')).toHaveValue('800');
 });
 
 test('the copy-link button copies the deep link', async ({ page, context }) => {
@@ -149,6 +149,41 @@ test('loading a 2D preset while in 3D switches back to the 2D renderer', async (
 	// A 2D preset must pull the studio back to Deep-Zoom 2D, not feed a 2D scene to Mandelbulb.
 	await page.getByRole('button', { name: 'Burning Ship' }).click();
 	await expect(page.getByLabel('Formula')).toHaveValue('burning-ship');
+});
+
+test('selecting Glowing Attractors exposes the family selector and exposure control', async ({
+	page
+}) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Glowing Attractors/ }).click();
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Glowing Attractors'
+	);
+	// Family selector with all four strange attractors, and an Exposure (not Iterations) control.
+	const family = page.getByLabel('Attractor family');
+	await expect(family).toBeVisible();
+	await expect(family.getByRole('option')).toHaveText(['Clifford', 'de Jong', 'Lorenz', 'Thomas']);
+	await expect(page.getByRole('heading', { name: 'Exposure' })).toBeVisible();
+	await family.selectOption('lorenz');
+	await expect(family).toHaveValue('lorenz');
+	// The art style is WebGPU-only: the viewport is either a live canvas or the
+	// designed "needs WebGPU" state — never a crash or blank.
+	const canvasOrNotice = page
+		.locator('canvas')
+		.or(page.getByText(/needs WebGPU/i))
+		.first();
+	await expect(canvasOrNotice).toBeVisible();
+});
+
+test('loading the Lorenz preset switches to the attractors renderer', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Lorenz Butterfly' }).click();
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Glowing Attractors'
+	);
+	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
 });
 
 test('Render mode exports a PNG download', async ({ page }) => {
