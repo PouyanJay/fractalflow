@@ -86,6 +86,12 @@ export interface ComputeRenderer extends RendererBase {
 	particleCount: number;
 	/** Iteration steps each particle walks, accumulating one sample per step. */
 	stepsPerParticle: number;
+	/**
+	 * u32 accumulators per pixel (default 1 = density only). Flames use more to
+	 * accumulate colour alongside density; the WGSL must index with the same
+	 * stride. The backend sizes and clears the grid accordingly.
+	 */
+	accumulationChannels?: number;
 }
 
 export type FractalRenderer = FragmentRenderer | ComputeRenderer;
