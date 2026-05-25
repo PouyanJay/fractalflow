@@ -5,7 +5,7 @@
 	import { getEngineStore } from '$lib/stores/engine.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
-	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { ART_STYLES, isValidArtStyle } from '$lib/stores/ui-logic';
 	import { getRenderer } from '$lib/fractals/registry';
 	import { panCamera, zoomCameraAt, orbitCamera, dollyCamera } from '$lib/engine/camera';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
@@ -24,40 +24,28 @@
 	const getScene = () => sceneStore.scene;
 	const handleBackend = (type: BackendType) => engine.setBackend(type);
 
-	function defaultCameraFor(kind: '2d' | '3d') {
-		// 3D: centerX=yaw, centerY=pitch, scale=zoom (FOV factor; 1 = default).
-		return kind === '3d'
-			? { centerX: 0.7, centerY: 0.4, scale: 1 }
-			: { centerX: -0.5, centerY: 0, scale: 3 };
-	}
-
-	// When switching between 2D and 3D, reset to a camera that frames that renderer.
-	let previousKind: '2d' | '3d' | undefined;
-	$effect(() => {
-		const kind = activeRenderer?.kind;
-		if (!kind) return;
-		if (previousKind !== undefined && previousKind !== kind) {
-			sceneStore.setCamera(defaultCameraFor(kind));
-		}
-		previousKind = kind;
-	});
-
 	let hydrated = $state(false);
 	let urlTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(() => {
-		const token = page.url.searchParams.get('s');
+		// Restore a shared view: art style (?r=) then scene (?s=).
+		const params = page.url.searchParams;
+		const styleParam = params.get('r');
+		if (styleParam && isValidArtStyle(styleParam)) ui.selectArtStyle(styleParam);
+		const token = params.get('s');
 		if (token) sceneStore.setScene(decodeScene(token));
 		hydrated = true;
 	});
 
 	$effect(() => {
 		const token = encodeScene(sceneStore.scene);
+		const styleId = ui.selectedStyle ?? 'deep-zoom-2d';
 		if (!hydrated) return;
 		clearTimeout(urlTimer);
 		urlTimer = setTimeout(() => {
 			const url = new URL(window.location.href);
 			url.searchParams.set('s', token);
+			url.searchParams.set('r', styleId);
 			history.replaceState(history.state, '', url);
 		}, 250);
 	});

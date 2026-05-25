@@ -10,6 +10,7 @@ describe('PRESETS', () => {
 		for (const p of PRESETS) {
 			expect(p.id.length).toBeGreaterThan(0);
 			expect(p.label.length).toBeGreaterThan(0);
+			expect(p.styleId.length).toBeGreaterThan(0);
 		}
 	});
 

@@ -86,6 +86,12 @@ export const ART_STYLES: readonly ArtStyleMeta[] = [
 	}
 ] as const;
 
+const ART_STYLE_IDS = new Set<string>(ART_STYLES.map((s) => s.id));
+
+export function isValidArtStyle(id: string): id is ArtStyleId {
+	return ART_STYLE_IDS.has(id);
+}
+
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 
 export function isValidMode(id: string): id is ModeId {
