@@ -17,13 +17,22 @@
  *   48  palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
-import { DEFAULT_POST } from '$lib/fractals/post';
+import {
+	DEFAULT_POST,
+	POST_SIZE,
+	packPost,
+	POST_WGSL_FIELDS,
+	POST_WGSL_FN,
+	POST_GLSL_FIELDS,
+	POST_GLSL_FN
+} from '$lib/fractals/post';
 import { FORMULA_CODES } from './reference';
 import { computeReferenceOrbit } from './perturbation';
 import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
-export const UNIFORM_SIZE = 112;
+const POST_BASE = 112;
+export const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 
 const MAX_ITER_CAP = 1200;
 const MAX_ORBIT = MAX_ITER_CAP + 1;
@@ -86,9 +95,11 @@ struct Uniforms {
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
+${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> orbit: array<vec2f>;
+${POST_WGSL_FN}
 
 @vertex
 fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
@@ -110,11 +121,12 @@ const INTERIOR = vec4f(0.02, 0.02, 0.03, 1.0);
 
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
+	let uv = frag.xy / u.resolution;
 	let perPixel = u.scale / u.resolution.y;
-	let offset = vec2f(
+	let offset = ffWarp(vec2f(
 		(frag.x - u.resolution.x * 0.5) * perPixel,
 		-(frag.y - u.resolution.y * 0.5) * perPixel
-	);
+	));
 	let formula = i32(u.formula);
 	let maxI = i32(u.maxIter);
 
@@ -133,14 +145,14 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 			refIdx = refIdx + 1;
 			let z = orbit[refIdx] + dz;
 			let zmag = z.x * z.x + z.y * z.y;
-			if (zmag > 65536.0) { return color(f32(iter + 1), z); }
+			if (zmag > 65536.0) { return ffPost(color(f32(iter + 1), z), uv); }
 			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 				dz = z;
 				refIdx = 0;
 			}
 			iter = iter + 1;
 		}
-		return INTERIOR;
+		return ffPost(INTERIOR, uv);
 	}
 
 	// Julia / Burning Ship / Tricorn: direct f32 iteration.
@@ -157,7 +169,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	var i = 0;
 	loop {
 		if (i >= maxI) { break; }
-		if (z.x * z.x + z.y * z.y > 65536.0) { return color(f32(i), z); }
+		if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(color(f32(i), z), uv); }
 		if (formula == 2) {
 			let ax = abs(z.x);
 			let ay = abs(z.y);
@@ -169,7 +181,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		}
 		i = i + 1;
 	}
-	return INTERIOR;
+	return ffPost(INTERIOR, uv);
 }
 `;
 
@@ -189,9 +201,11 @@ layout(std140) uniform Uniforms {
 	vec4 uPalB;
 	vec4 uPalC;
 	vec4 uPalD;
+${POST_GLSL_FIELDS}
 };
 uniform highp sampler2D uOrbit;
 out vec4 fragColor;
+${POST_GLSL_FN}
 
 vec3 palette(float t) {
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
@@ -206,11 +220,12 @@ vec4 colorOf(float n, vec2 z) {
 const vec4 INTERIOR = vec4(0.02, 0.02, 0.03, 1.0);
 
 void main() {
+	vec2 uv = gl_FragCoord.xy / uResolution;
 	float perPixel = uScale / uResolution.y;
-	vec2 offset = vec2(
+	vec2 offset = ffWarp(vec2(
 		(gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
 		(gl_FragCoord.y - uResolution.y * 0.5) * perPixel
-	);
+	));
 	int formula = int(uFormula);
 	int maxI = int(uMaxIter);
 
@@ -226,13 +241,13 @@ void main() {
 			refIdx += 1;
 			vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
 			float zmag = z.x * z.x + z.y * z.y;
-			if (zmag > 65536.0) { fragColor = colorOf(float(iter + 1), z); return; }
+			if (zmag > 65536.0) { fragColor = ffPost(colorOf(float(iter + 1), z), uv); return; }
 			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 				dz = z;
 				refIdx = 0;
 			}
 		}
-		fragColor = INTERIOR;
+		fragColor = ffPost(INTERIOR, uv);
 		return;
 	}
 
@@ -243,7 +258,7 @@ void main() {
 	else { z = vec2(0.0); cparam = cc; }
 	int i = 0;
 	for (; i < maxI; i++) {
-		if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = colorOf(float(i), z); return; }
+		if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
 		if (formula == 2) {
 			float ax = abs(z.x);
 			float ay = abs(z.y);
@@ -254,7 +269,7 @@ void main() {
 			z = vec2(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
 		}
 	}
-	fragColor = INTERIOR;
+	fragColor = ffPost(INTERIOR, uv);
 }`;
 
 export const mandelbrotRenderer: FractalRenderer = {
@@ -294,5 +309,6 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(96, c.d[0]);
 		f(100, c.d[1]);
 		f(104, c.d[2]);
+		packPost(view, POST_BASE, scene.post);
 	}
 };
