@@ -3,31 +3,67 @@
  *
  * The engine core is framework-free (no Svelte imports). A concrete backend
  * (WebGPU primary, WebGL2 fallback) implements RenderBackend; the orchestrator
- * in engine.ts selects one, drives the frame loop, and handles resizing.
+ * in engine.ts selects one, drives the frame loop, and handles resizing. A
+ * FractalRenderer supplies the shaders + uniform packing for both backends.
  */
 
 export type BackendType = 'webgpu' | 'webgl2';
 
-/** Per-frame inputs handed to a backend's render(). Grows as renderers land. */
-export interface FrameState {
-	/** Milliseconds since the engine started — drives any time-based motion. */
-	timeMs: number;
+export interface Camera2D {
+	centerX: number;
+	centerY: number;
+	/** Vertical extent of the view in complex units (smaller = deeper zoom). */
+	scale: number;
+}
+
+/** Mutable per-frame scene state the UI updates and the renderer consumes. */
+export interface SceneState {
+	camera: Camera2D;
+	maxIter: number;
+	/** Index into the palette presets. */
+	paletteIndex: number;
+}
+
+export interface RenderInput {
 	/** Drawing-buffer size in device pixels. */
 	width: number;
 	height: number;
+	/** Milliseconds since the engine started. */
+	timeMs: number;
+	scene: SceneState;
+}
+
+/**
+ * A pluggable fractal: shader sources for each backend plus a function that
+ * packs the current input into a std140-compatible uniform buffer.
+ */
+export interface FractalRenderer {
+	id: string;
+	/** WGSL module with `vs`/`fs` entry points and a `Uniforms` at @group(0)@binding(0). */
+	wgsl: string;
+	/** GLSL ES 300 fragment shader with a std140 `Uniforms` block (engine supplies the vertex stage). */
+	glsl: string;
+	/** Uniform buffer size in bytes (std140-compatible, multiple of 16). */
+	uniformSize: number;
+	/** Fill the uniform buffer from the current input. */
+	packUniforms(view: DataView, input: RenderInput): void;
 }
 
 export interface RenderBackend {
 	readonly type: BackendType;
-	/** Resize the drawing buffer / reconfigure the swap chain (device pixels). */
+	/** Reconfigure for a new drawing-buffer size (device pixels). */
 	resize(width: number, height: number): void;
 	/** Draw a single frame. */
-	render(frame: FrameState): void;
+	render(input: RenderInput): void;
 	/** Release all GPU resources. */
 	destroy(): void;
 }
 
 export interface EngineOptions {
+	/** The fractal to render. */
+	renderer: FractalRenderer;
+	/** Pulled once per frame so UI edits (pan/zoom/params) take effect live. */
+	getScene: () => SceneState;
 	/** Preferred backend; the engine falls back to the other if unavailable. */
 	prefer?: BackendType;
 	/** Cap on drawing-buffer dimension (device pixels) to bound GPU cost. */
