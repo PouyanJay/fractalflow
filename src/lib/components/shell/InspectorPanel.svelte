@@ -6,6 +6,7 @@
 	import { PALETTES, cosinePalette, type PaletteCoeffs } from '$lib/fractals/palette';
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
 	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
+	import { FLAMES } from '$lib/fractals/painterly-flames/flames';
 	import { getRenderer } from '$lib/fractals/registry';
 	import type { FormulaId } from '$lib/engine/types';
 
@@ -16,9 +17,11 @@
 	const hasRenderer = $derived(getRenderer(ui.selectedStyle) !== null);
 	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
 	const isAttractors = $derived(ui.selectedStyle === 'attractors');
-	const detailLabel = $derived(isDeepZoom ? 'Iterations' : isAttractors ? 'Exposure' : 'Detail');
+	const isFlames = $derived(ui.selectedStyle === 'flames');
+	const isParticle = $derived(isAttractors || isFlames);
+	const detailLabel = $derived(isDeepZoom ? 'Iterations' : isParticle ? 'Exposure' : 'Detail');
 	const detailHint = $derived(
-		isAttractors
+		isParticle
 			? 'Higher values brighten the accumulated density.'
 			: 'Higher values add more detail (slower).'
 	);
@@ -100,6 +103,22 @@
 				>
 					{#each ATTRACTORS as a (a.id)}
 						<option value={a.id}>{a.label}</option>
+					{/each}
+				</select>
+			</section>
+		{/if}
+
+		{#if isFlames}
+			<section class="group">
+				<h3 class="group-label">Flame</h3>
+				<select
+					class="select"
+					aria-label="Flame"
+					value={scene.flame}
+					onchange={(e) => scene.setFlame(e.currentTarget.value)}
+				>
+					{#each FLAMES as fl (fl.id)}
+						<option value={fl.id}>{fl.label}</option>
 					{/each}
 				</select>
 			</section>

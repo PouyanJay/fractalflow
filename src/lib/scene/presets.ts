@@ -131,17 +131,17 @@ export const PRESETS: Preset[] = [
 		}
 	},
 	{
-		id: 'swirl-bloom',
-		label: 'Swirl Bloom',
+		id: 'sinusoidal-web',
+		label: 'Sinusoidal Web',
 		styleId: 'flames',
 		scene: {
 			formula: 'mandelbrot',
 			camera: { centerX: 0, centerY: 0, scale: 2.5 },
-			maxIter: 320,
+			maxIter: 520,
 			paletteIndex: 2,
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
-			flame: 'swirl'
+			flame: 'sinusoidal'
 		}
 	}
 ];

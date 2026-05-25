@@ -34,12 +34,16 @@ export function createSceneStore() {
 		get attractor() {
 			return scene.attractor;
 		},
+		get flame() {
+			return scene.flame;
+		},
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
 		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
 		setAttractor: (id: string) => (scene.attractor = id),
+		setFlame: (id: string) => (scene.flame = id),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};
