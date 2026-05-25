@@ -296,6 +296,30 @@ test('Animate builds a keyframe timeline and scrubbing interpolates the scene', 
 	expect(midZoom).toBeLessThan(endZoom);
 });
 
+test('Animate playback advances the playhead (loops, even from the end)', async ({ page }) => {
+	await page.goto('/animate');
+	await expect(page.locator('canvas')).toBeVisible();
+	const add = page.getByRole('button', { name: 'Add keyframe' });
+	const track = page.getByRole('slider', { name: 'Playhead' });
+	const readout = () => page.getByText(/s \/ /).textContent();
+
+	await add.click();
+	// Leave the playhead at the very end (as building a clip naturally does).
+	const box = (await track.boundingBox())!;
+	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
+	const stage = page.getByRole('application');
+	const sb = (await stage.boundingBox())!;
+	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+	for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120);
+	await add.click();
+	const before = await readout();
+
+	// Play must advance the playhead even though it sits at the end.
+	await page.getByRole('button', { name: 'Play' }).click();
+	await page.waitForTimeout(900);
+	await expect.poll(readout).not.toBe(before);
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
