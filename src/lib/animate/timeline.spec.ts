@@ -74,6 +74,16 @@ describe('addKeyframe / removeKeyframe', () => {
 		expect(next[0].id.length).toBeGreaterThan(0);
 	});
 
+	it('snapshots the scene so later mutations do not change the keyframe', () => {
+		const live = scene({ camera: { centerX: 0, centerY: 0, scale: 3 } });
+		const [kf] = addKeyframe([], 0, live);
+		// Mutating the source scene (as the live store does on zoom) must not leak in.
+		live.camera.scale = 0.001;
+		live.formula = 'julia';
+		expect(kf.scene.camera.scale).toBe(3);
+		expect(kf.scene.formula).toBe('mandelbrot');
+	});
+
 	it('removes by id', () => {
 		const list = addKeyframe(addKeyframe([], 0, A.scene), 1, B.scene);
 		const next = removeKeyframe(list, list[0].id);

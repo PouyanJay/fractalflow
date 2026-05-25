@@ -62,9 +62,22 @@ export function interpolateScene(keyframes: readonly Keyframe[], t: number): Sce
 let counter = 0;
 const newId = (): string => `kf-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
-/** Append a keyframe at time `t` capturing `scene`. Immutable. */
+/** Deep copy so a keyframe is a snapshot, not a live reference to the scene store. */
+function snapshot(scene: SceneState): SceneState {
+	return {
+		formula: scene.formula,
+		camera: { ...scene.camera },
+		maxIter: scene.maxIter,
+		paletteIndex: scene.paletteIndex,
+		juliaSeed: { ...scene.juliaSeed },
+		attractor: scene.attractor,
+		flame: scene.flame
+	};
+}
+
+/** Append a keyframe at time `t` capturing a snapshot of `scene`. Immutable. */
 export function addKeyframe(list: readonly Keyframe[], t: number, scene: SceneState): Keyframe[] {
-	return [...list, { id: newId(), t: Math.max(0, Math.min(1, t)), scene }];
+	return [...list, { id: newId(), t: Math.max(0, Math.min(1, t)), scene: snapshot(scene) }];
 }
 
 export function removeKeyframe(list: readonly Keyframe[], id: string): Keyframe[] {
