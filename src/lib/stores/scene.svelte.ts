@@ -36,6 +36,7 @@ export function createSceneStore() {
 		setMaxIter: (n: number) => (scene.maxIter = n),
 		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
+		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};
 }

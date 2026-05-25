@@ -1,12 +1,40 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/state';
 	import GpuCanvas from '$lib/components/engine/GpuCanvas.svelte';
 	import { getEngineStore } from '$lib/stores/engine.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { mandelbrotRenderer } from '$lib/fractals/deep-zoom-2d/renderer';
 	import { panCamera, zoomCameraAt } from '$lib/engine/camera';
+	import { encodeScene, decodeScene } from '$lib/scene/codec';
 
 	const engine = getEngineStore();
 	const sceneStore = getSceneStore();
+
+	let hydrated = $state(false);
+	let urlTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onMount(() => {
+		// Restore a shared view from the URL (?s=...) before we start syncing back.
+		const token = page.url.searchParams.get('s');
+		if (token) sceneStore.setScene(decodeScene(token));
+		hydrated = true;
+	});
+
+	// Reflect the live scene in the URL (debounced, replaceState — no history spam).
+	$effect(() => {
+		const token = encodeScene(sceneStore.scene);
+		if (!hydrated) return;
+		clearTimeout(urlTimer);
+		urlTimer = setTimeout(() => {
+			const url = new URL(window.location.href);
+			url.searchParams.set('s', token);
+			// Pure address-bar update (for reload/share); not a route navigation.
+			history.replaceState(history.state, '', url);
+		}, 250);
+	});
+
+	onDestroy(() => clearTimeout(urlTimer));
 
 	let stage = $state<HTMLDivElement | null>(null);
 	let dragging = $state(false);

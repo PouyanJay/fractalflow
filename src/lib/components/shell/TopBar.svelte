@@ -5,10 +5,21 @@
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getIcon } from '$lib/components/icons';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import { Command, PanelLeft, PanelRight, Rows3 } from '@lucide/svelte';
+	import { Command, PanelLeft, PanelRight, Rows3, Share2, Check } from '@lucide/svelte';
 
 	const ui = getUiStore();
 	const activeMode = $derived(modeFromPath(page.url.pathname));
+
+	let copied = $state(false);
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(window.location.href);
+			copied = true;
+			setTimeout(() => (copied = false), 1500);
+		} catch {
+			// Clipboard may be unavailable (e.g. insecure context); ignore.
+		}
+	}
 </script>
 
 <header class="topbar">
@@ -51,6 +62,17 @@
 			<span>Search</span>
 			<kbd>⌘K</kbd>
 		</button>
+		<IconButton
+			label={copied ? 'Link copied' : 'Copy link to this view'}
+			active={copied}
+			onclick={copyLink}
+		>
+			{#if copied}
+				<Check size={16} aria-hidden="true" />
+			{:else}
+				<Share2 size={16} aria-hidden="true" />
+			{/if}
+		</IconButton>
 		<div class="divider" aria-hidden="true"></div>
 		<IconButton
 			label="Toggle library panel"
