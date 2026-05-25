@@ -129,6 +129,15 @@ test('a bookmark can be saved and deleted', async ({ page }) => {
 	await expect(page.getByText('No bookmarks yet', { exact: false })).toBeVisible();
 });
 
+test('Render mode exports a PNG download', async ({ page }) => {
+	await page.goto('/render');
+	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
+	const downloadPromise = page.waitForEvent('download');
+	await page.getByRole('button', { name: /Export PNG/ }).click();
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.png$/);
+});
+
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);

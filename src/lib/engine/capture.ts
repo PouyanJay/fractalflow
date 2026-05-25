@@ -1,0 +1,62 @@
+/**
+ * Export the current scene to a high-resolution PNG. Renders the fractal once
+ * to an off-screen WebGL2 canvas (preserveDrawingBuffer so it's readable) and
+ * reads it back via toBlob — reliable across browsers and identical math to the
+ * live view. WebGL2 is used for capture even when the live view runs on WebGPU.
+ */
+import type { FractalRenderer, SceneState } from './types';
+import { createWebGL2Backend } from './backends/webgl2';
+
+export interface ExportSize {
+	id: string;
+	label: string;
+	width: number;
+	height: number;
+}
+
+export const EXPORT_SIZES: ExportSize[] = [
+	{ id: 'hd', label: 'HD · 1280 × 720', width: 1280, height: 720 },
+	{ id: 'fhd', label: 'Full HD · 1920 × 1080', width: 1920, height: 1080 },
+	{ id: 'qhd', label: 'QHD · 2560 × 1440', width: 2560, height: 1440 },
+	{ id: 'uhd', label: '4K · 3840 × 2160', width: 3840, height: 2160 }
+];
+
+/** A timestamped, formula-tagged filename, e.g. fractalflow-mandelbrot-2026-05-25T01-02-03.png */
+export function exportFilename(formula: string, date = new Date()): string {
+	const stamp = date.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+	return `fractalflow-${formula}-${stamp}.png`;
+}
+
+/** Render the scene off-screen at width×height and return a PNG blob (or null). */
+export async function captureScene(
+	renderer: FractalRenderer,
+	scene: SceneState,
+	width: number,
+	height: number
+): Promise<Blob | null> {
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+
+	const backend = createWebGL2Backend(canvas, renderer, { preserveDrawingBuffer: true });
+	if (!backend) return null;
+
+	backend.resize(width, height);
+	backend.render({ width, height, timeMs: 0, scene });
+
+	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+	backend.destroy();
+	return blob;
+}
+
+/** Trigger a browser download of a blob. */
+export function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = filename;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+	URL.revokeObjectURL(url);
+}
