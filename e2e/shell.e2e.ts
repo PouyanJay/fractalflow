@@ -292,6 +292,39 @@ test('Render mode exports a PNG download', async ({ page }) => {
 	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.png$/);
 });
 
+test('Render gates the frame-sequence export on having keyframes', async ({ page }) => {
+	await page.goto('/render');
+	// No keyframes yet → the Animation section prompts the user, no export button.
+	await expect(page.getByText(/at least two keyframes/)).toBeVisible();
+	await expect(page.getByRole('button', { name: /Export frames/ })).toHaveCount(0);
+});
+
+test('Render exports an animation as a zip of frames', async ({ page }) => {
+	// Build a short two-keyframe clip in Animate.
+	await page.goto('/animate');
+	await expect(page.locator('canvas')).toBeVisible();
+	const add = page.getByRole('button', { name: 'Add keyframe' });
+	const track = page.getByRole('slider', { name: 'Playhead' });
+	await add.click();
+	const tb = (await track.boundingBox())!;
+	await page.mouse.click(tb.x + tb.width - 4, tb.y + tb.height / 2);
+	const stage = page.getByRole('application');
+	const sb = (await stage.boundingBox())!;
+	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+	for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120);
+	await add.click();
+	await page.getByLabel('Duration in seconds').fill('1');
+
+	await page.getByRole('link', { name: 'Render' }).click();
+	await page.getByLabel('Export resolution').selectOption('hd');
+	await page.getByLabel('Frame rate').selectOption('12'); // 1s × 12 = 12 frames, quick
+	await expect(page.getByText(/12 frames/)).toBeVisible();
+	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+	await page.getByRole('button', { name: /Export frames/ }).click();
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*-frames-.*\.zip$/);
+});
+
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
