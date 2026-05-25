@@ -118,21 +118,21 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		// Mandelbrot via perturbation + rebasing around the reference orbit.
 		let lim = i32(u.orbitLength);
 		var dz = vec2f(0.0, 0.0);
-		var ref = 0;
+		var refIdx = 0;
 		var iter = 0;
 		loop {
 			if (iter >= maxI) { break; }
-			let Z = orbit[ref];
+			let Z = orbit[refIdx];
 			let twoZd = vec2f(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
 			let d2 = vec2f(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
 			dz = twoZd + d2 + offset;
-			ref = ref + 1;
-			let z = orbit[ref] + dz;
+			refIdx = refIdx + 1;
+			let z = orbit[refIdx] + dz;
 			let zmag = z.x * z.x + z.y * z.y;
 			if (zmag > 65536.0) { return color(f32(iter + 1), z); }
-			if (zmag < dz.x * dz.x + dz.y * dz.y || ref >= lim - 1) {
+			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 				dz = z;
-				ref = 0;
+				refIdx = 0;
 			}
 			iter = iter + 1;
 		}
@@ -213,19 +213,19 @@ void main() {
 	if (formula == 0) {
 		int lim = int(uOrbitLength);
 		vec2 dz = vec2(0.0);
-		int ref = 0;
+		int refIdx = 0;
 		for (int iter = 0; iter < maxI; iter++) {
-			vec2 Z = texelFetch(uOrbit, ivec2(ref, 0), 0).rg;
+			vec2 Z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg;
 			vec2 twoZd = vec2(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
 			vec2 d2 = vec2(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
 			dz = twoZd + d2 + offset;
-			ref += 1;
-			vec2 z = texelFetch(uOrbit, ivec2(ref, 0), 0).rg + dz;
+			refIdx += 1;
+			vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
 			float zmag = z.x * z.x + z.y * z.y;
 			if (zmag > 65536.0) { fragColor = colorOf(float(iter + 1), z); return; }
-			if (zmag < dz.x * dz.x + dz.y * dz.y || ref >= lim - 1) {
+			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 				dz = z;
-				ref = 0;
+				refIdx = 0;
 			}
 		}
 		fragColor = INTERIOR;
