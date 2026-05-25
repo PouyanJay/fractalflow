@@ -26,7 +26,10 @@ export const PAINTERLY_FLAMES_ID = 'flames';
 const UNIFORM_SIZE = 112;
 const PARTICLE_COUNT = 1 << 16;
 const STEPS_PER_PARTICLE = 256;
-const COLOR_FIXED = 4096; // colour coord in [0,1] → fixed-point u32 for atomics
+// Colour coord in [0,1] → fixed-point u32 for atomic accumulation. 1024 keeps
+// ~10-bit colour precision while leaving headroom before the u32 colour-sum
+// accumulator could overflow on a very hot pixel (~4.2M hits).
+const COLOR_FIXED = 1024;
 const EXPOSURE_SCALE = 4.5e-4; // maxIter (50–1200) → log-density gain
 const TRANSIENT = 20;
 

@@ -54,7 +54,11 @@ export interface Transform {
 	variation: VariationId;
 	/** Colour coordinate this transform pulls the orbit toward. */
 	color: number;
-	/** Relative selection probability. */
+	/**
+	 * Relative selection probability. The GPU chaos game currently selects
+	 * transforms uniformly, so keep weights equal within a flame for the GPU
+	 * render to match this reference; weighted GPU selection is a future step.
+	 */
 	weight: number;
 }
 
@@ -105,7 +109,7 @@ export const FLAMES: readonly Flame[] = [
 		id: 'swirl',
 		label: 'Swirl Bloom',
 		transforms: [
-			{ affine: rot(0.92, 30, 0.1, 0.0), variation: 'swirl', color: 0.15, weight: 1.3 },
+			{ affine: rot(0.92, 30, 0.1, 0.0), variation: 'swirl', color: 0.15, weight: 1 },
 			{ affine: rot(0.78, -95, -0.2, 0.25), variation: 'swirl', color: 0.8, weight: 1 }
 		]
 	},
@@ -115,7 +119,7 @@ export const FLAMES: readonly Flame[] = [
 		transforms: [
 			{ affine: rot(0.9, 40, 0.0, 0.0), variation: 'horseshoe', color: 0.2, weight: 1 },
 			{ affine: rot(0.7, 160, 0.6, 0.1), variation: 'horseshoe', color: 0.65, weight: 1 },
-			{ affine: rot(0.6, -70, -0.4, 0.5), variation: 'sinusoidal', color: 1.0, weight: 0.8 }
+			{ affine: rot(0.6, -70, -0.4, 0.5), variation: 'sinusoidal', color: 1.0, weight: 1 }
 		]
 	}
 ];
