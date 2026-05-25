@@ -52,7 +52,13 @@ export function computeReferenceOrbit(
 	return { xs, ys, length: n };
 }
 
-/** Iterate the per-pixel delta against a reference orbit. */
+/**
+ * Iterate the per-pixel delta against a reference orbit, with **rebasing**
+ * (Zhuoran's method): whenever the true |z| drops below |δ| — or the reference
+ * is exhausted — restart the reference at index 0 with δ := z. This keeps δ
+ * small relative to the reference and lets a single reference render the whole
+ * view without glitches, including exterior regions and very deep zooms.
+ */
 export function perturbEscape(
 	orbit: ReferenceOrbit,
 	dcx: number,
@@ -63,23 +69,29 @@ export function perturbEscape(
 	const r2 = bailoutRadius * bailoutRadius;
 	let dx = 0;
 	let dy = 0;
-	const limit = Math.min(orbit.length, maxIter + 1);
-	for (let n = 0; n < limit; n++) {
-		const zx = orbit.xs[n] + dx;
-		const zy = orbit.ys[n] + dy;
-		if (zx * zx + zy * zy > r2) {
-			const logZn = Math.log(zx * zx + zy * zy) / 2;
-			const nu = Math.log(logZn / Math.LN2) / Math.LN2;
-			return { escaped: true, iter: n, smooth: n + 1 - nu };
-		}
-		if (n >= maxIter) break;
-		const Zx = orbit.xs[n];
-		const Zy = orbit.ys[n];
+	let ref = 0;
+	for (let iter = 0; iter < maxIter; iter++) {
+		const Zx = orbit.xs[ref];
+		const Zy = orbit.ys[ref];
 		// δ' = 2·Z·δ + δ² + δc  (complex)
 		const ndx = 2 * (Zx * dx - Zy * dy) + (dx * dx - dy * dy) + dcx;
 		const ndy = 2 * (Zx * dy + Zy * dx) + 2 * dx * dy + dcy;
 		dx = ndx;
 		dy = ndy;
+		ref++;
+		const zx = orbit.xs[ref] + dx;
+		const zy = orbit.ys[ref] + dy;
+		const zmag = zx * zx + zy * zy;
+		if (zmag > r2) {
+			const logZn = Math.log(zmag) / 2;
+			const nu = Math.log(logZn / Math.LN2) / Math.LN2;
+			return { escaped: true, iter: iter + 1, smooth: iter + 2 - nu };
+		}
+		if (zmag < dx * dx + dy * dy || ref >= orbit.length - 1) {
+			dx = zx;
+			dy = zy;
+			ref = 0;
+		}
 	}
 	return { escaped: false, iter: maxIter, smooth: maxIter };
 }

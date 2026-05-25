@@ -1,8 +1,8 @@
 /**
  * WebGPU primary backend. Renders a FractalRenderer's WGSL module on a
- * fullscreen triangle, uploading the shared uniform buffer each frame. Async
- * because adapter/device acquisition is async; returns null if WebGPU is
- * unavailable so the engine can fall back to WebGL2.
+ * fullscreen triangle, uploading the shared uniform buffer (and an optional
+ * data buffer — e.g. the perturbation reference orbit — as a read-only storage
+ * buffer at @binding(1)) each frame. Returns null if WebGPU is unavailable.
  */
 import type { FractalRenderer, RenderInput, RenderBackend } from '../types';
 
@@ -33,13 +33,21 @@ export async function createWebGPUBackend(
 		size: renderer.uniformSize,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
 	});
-	const bindGroup = device.createBindGroup({
-		layout: pipeline.getBindGroupLayout(0),
-		entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
-	});
+	const entries: GPUBindGroupEntry[] = [{ binding: 0, resource: { buffer: uniformBuffer } }];
 
-	const data = new ArrayBuffer(renderer.uniformSize);
-	const view = new DataView(data);
+	let dataBuffer: GPUBuffer | null = null;
+	if (renderer.dataBufferSize) {
+		dataBuffer = device.createBuffer({
+			size: renderer.dataBufferSize,
+			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+		});
+		entries.push({ binding: 1, resource: { buffer: dataBuffer } });
+	}
+
+	const bindGroup = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries });
+
+	const uniformData = new ArrayBuffer(renderer.uniformSize);
+	const view = new DataView(uniformData);
 
 	return {
 		type: 'webgpu',
@@ -48,7 +56,12 @@ export async function createWebGPUBackend(
 		},
 		render(input: RenderInput) {
 			renderer.packUniforms(view, input);
-			device.queue.writeBuffer(uniformBuffer, 0, data);
+			device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+			if (dataBuffer && renderer.packData) {
+				const data = renderer.packData(input);
+				if (data.byteLength > 0) device.queue.writeBuffer(dataBuffer, 0, data);
+			}
 
 			const encoder = device.createCommandEncoder();
 			const pass = encoder.beginRenderPass({
@@ -69,6 +82,7 @@ export async function createWebGPUBackend(
 		},
 		destroy() {
 			uniformBuffer.destroy();
+			dataBuffer?.destroy();
 			context.unconfigure();
 			device.destroy();
 		}

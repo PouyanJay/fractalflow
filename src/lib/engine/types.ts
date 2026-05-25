@@ -52,6 +52,14 @@ export interface FractalRenderer {
 	uniformSize: number;
 	/** Fill the uniform buffer from the current input. */
 	packUniforms(view: DataView, input: RenderInput): void;
+	/**
+	 * Optional per-frame data buffer (e.g. a perturbation reference orbit),
+	 * exposed to the shader as a storage buffer (WebGPU) / data texture (WebGL2).
+	 * `dataBufferSize` is the max byte capacity; `packData` returns this frame's
+	 * data (interleaved RG f32, length ≤ capacity).
+	 */
+	dataBufferSize?: number;
+	packData?(input: RenderInput): Float32Array;
 }
 
 export interface RenderBackend {
