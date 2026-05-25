@@ -4,7 +4,7 @@
  * its camera. Provided via context by the root layout.
  */
 import { getContext, setContext } from 'svelte';
-import type { Camera2D, FormulaId, SceneState } from '$lib/engine/types';
+import type { Camera2D, FormulaId, PostSettings, SceneState } from '$lib/engine/types';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 
 const KEY = Symbol('ff-scene-store');
@@ -37,6 +37,9 @@ export function createSceneStore() {
 		get flame() {
 			return scene.flame;
 		},
+		get post() {
+			return scene.post;
+		},
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
@@ -44,6 +47,7 @@ export function createSceneStore() {
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
 		setAttractor: (id: string) => (scene.attractor = id),
 		setFlame: (id: string) => (scene.flame = id),
+		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};
