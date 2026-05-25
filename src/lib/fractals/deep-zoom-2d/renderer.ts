@@ -34,7 +34,8 @@ export function createDefaultScene(): SceneState {
 		camera: { centerX: -0.5, centerY: 0, scale: 3 },
 		maxIter: 300,
 		paletteIndex: 0,
-		juliaSeed: { x: -0.8, y: 0.156 }
+		juliaSeed: { x: -0.8, y: 0.156 },
+		attractor: 'clifford'
 	};
 }
 

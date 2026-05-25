@@ -31,11 +31,15 @@ export function createSceneStore() {
 		get juliaSeed() {
 			return scene.juliaSeed;
 		},
+		get attractor() {
+			return scene.attractor;
+		},
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
 		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
+		setAttractor: (id: string) => (scene.attractor = id),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};
