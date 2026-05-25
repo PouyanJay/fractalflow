@@ -4,7 +4,7 @@
  * reads it back via toBlob — reliable across browsers and identical math to the
  * live view. WebGL2 is used for capture even when the live view runs on WebGPU.
  */
-import type { ComputeRenderer, FractalRenderer, SceneState } from './types';
+import type { ComputeRenderer, FractalRenderer, RenderBackend, SceneState } from './types';
 import { createWebGL2Backend } from './backends/webgl2';
 import { createWebGPUComputeBackend } from './backends/webgpu-compute';
 
@@ -81,6 +81,51 @@ async function captureCompute(
 	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
 	backend.destroy();
 	return blob;
+}
+
+/**
+ * Render a list of scenes (e.g. an animation's frames) to PNG blobs, reusing a
+ * single off-screen backend. Reports progress per frame. Returns null if the
+ * backend is unavailable (compute styles need WebGPU).
+ */
+export async function captureSequence(
+	renderer: FractalRenderer,
+	scenes: readonly SceneState[],
+	width: number,
+	height: number,
+	onProgress?: (done: number, total: number) => void
+): Promise<Blob[] | null> {
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+
+	const compute = renderer.pipeline === 'compute';
+	let backend: RenderBackend | null;
+	if (renderer.pipeline === 'compute') {
+		backend = await createWebGPUComputeBackend(canvas, renderer);
+	} else {
+		backend = createWebGL2Backend(canvas, renderer, { preserveDrawingBuffer: true });
+	}
+	if (!backend) return null;
+
+	backend.resize(width, height);
+	const blobs: Blob[] = [];
+	for (let i = 0; i < scenes.length; i++) {
+		backend.render({ width, height, timeMs: 0, scene: scenes[i] });
+		if (compute) {
+			await nextFrame();
+			await nextFrame();
+		}
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		if (!blob) {
+			backend.destroy();
+			return null;
+		}
+		blobs.push(blob);
+		onProgress?.(i + 1, scenes.length);
+	}
+	backend.destroy();
+	return blobs;
 }
 
 /** Trigger a browser download of a blob. */
