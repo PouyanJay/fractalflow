@@ -15,6 +15,7 @@ export interface Preset {
 const DEEP_ZOOM: ArtStyleId = 'deep-zoom-2d';
 const DEFAULT_SEED = { x: -0.8, y: 0.156 };
 const DEFAULT_ATTRACTOR = 'clifford';
+const DEFAULT_FLAME = 'sierpinski';
 
 export const PRESETS: Preset[] = [
 	{
@@ -27,7 +28,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 600,
 			paletteIndex: 1,
 			juliaSeed: DEFAULT_SEED,
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -40,7 +42,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 500,
 			paletteIndex: 0,
 			juliaSeed: DEFAULT_SEED,
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -53,7 +56,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 800,
 			paletteIndex: 3,
 			juliaSeed: DEFAULT_SEED,
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -66,7 +70,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 400,
 			paletteIndex: 2,
 			juliaSeed: { x: -0.8, y: 0.156 },
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -79,7 +84,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 400,
 			paletteIndex: 1,
 			juliaSeed: { x: 0.285, y: 0.01 },
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -92,7 +98,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 500,
 			paletteIndex: 3,
 			juliaSeed: DEFAULT_SEED,
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -105,7 +112,8 @@ export const PRESETS: Preset[] = [
 			maxIter: 200,
 			paletteIndex: 1,
 			juliaSeed: DEFAULT_SEED,
-			attractor: DEFAULT_ATTRACTOR
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME
 		}
 	},
 	{
@@ -118,7 +126,22 @@ export const PRESETS: Preset[] = [
 			maxIter: 280,
 			paletteIndex: 0,
 			juliaSeed: DEFAULT_SEED,
-			attractor: 'lorenz'
+			attractor: 'lorenz',
+			flame: DEFAULT_FLAME
+		}
+	},
+	{
+		id: 'swirl-bloom',
+		label: 'Swirl Bloom',
+		styleId: 'flames',
+		scene: {
+			formula: 'mandelbrot',
+			camera: { centerX: 0, centerY: 0, scale: 2.5 },
+			maxIter: 320,
+			paletteIndex: 2,
+			juliaSeed: DEFAULT_SEED,
+			attractor: DEFAULT_ATTRACTOR,
+			flame: 'swirl'
 		}
 	}
 ];

@@ -21,7 +21,14 @@ describe('getRenderer', () => {
 		expect(r?.pipeline).toBe('compute');
 	});
 
-	it('returns null for art styles that are not implemented yet', () => {
-		expect(getRenderer('flames')).toBeNull();
+	it('returns the Painterly Flames compute renderer for that style', () => {
+		const r = getRenderer('flames');
+		expect(r?.id).toBe('flames');
+		expect(r?.kind).toBe('2d');
+		expect(r?.pipeline).toBe('compute');
+	});
+
+	it('returns null for an unknown art style', () => {
+		expect(getRenderer('nonexistent' as Parameters<typeof getRenderer>[0])).toBeNull();
 	});
 });

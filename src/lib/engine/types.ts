@@ -30,6 +30,9 @@ export interface SceneState {
 	/** Strange-attractor family id (Glowing Attractors). Carried for every scene
 	 * like juliaSeed, unused unless the attractors renderer is active. */
 	attractor: string;
+	/** Fractal-flame id (Painterly Flames). Carried like attractor; unused
+	 * unless the flames renderer is active. */
+	flame: string;
 }
 
 export interface RenderInput {

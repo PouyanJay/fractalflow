@@ -7,11 +7,13 @@ import type { Camera2D, FractalRenderer } from '$lib/engine/types';
 import { mandelbrotRenderer } from './deep-zoom-2d/renderer';
 import { mandelbulbRenderer } from './geometric-3d/renderer';
 import { attractorsRenderer } from './glowing-attractors/renderer';
+import { flamesRenderer } from './painterly-flames/renderer';
 
 const RENDERERS: Partial<Record<ArtStyleId, FractalRenderer>> = {
 	'deep-zoom-2d': mandelbrotRenderer,
 	'geometric-3d': mandelbulbRenderer,
-	attractors: attractorsRenderer
+	attractors: attractorsRenderer,
+	flames: flamesRenderer
 };
 
 export function getRenderer(styleId: ArtStyleId | null): FractalRenderer | null {

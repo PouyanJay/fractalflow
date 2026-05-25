@@ -35,7 +35,8 @@ export function createDefaultScene(): SceneState {
 		maxIter: 300,
 		paletteIndex: 0,
 		juliaSeed: { x: -0.8, y: 0.156 },
-		attractor: 'clifford'
+		attractor: 'clifford',
+		flame: 'sierpinski'
 	};
 }
 
