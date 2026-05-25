@@ -1,5 +1,18 @@
 <script lang="ts">
-	import ModeView from '$lib/components/shell/ModeView.svelte';
+	import FractalStage from '$lib/components/engine/FractalStage.svelte';
+	import TimelineDock from '$lib/components/animate/TimelineDock.svelte';
 </script>
 
-<ModeView mode="animate" />
+<div class="animate" aria-label="Animate workspace">
+	<FractalStage />
+	<TimelineDock />
+</div>
+
+<style>
+	.animate {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+</style>

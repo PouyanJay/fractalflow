@@ -243,6 +243,46 @@ test('loading the Sinusoidal Web preset switches to the flames renderer', async 
 	await expect(page.getByLabel('Flame')).toHaveValue('sinusoidal');
 });
 
+test('Animate builds a keyframe timeline and scrubbing interpolates the scene', async ({
+	page
+}) => {
+	await page.goto('/animate');
+	await expect(page.locator('canvas')).toBeVisible();
+	const play = page.getByRole('button', { name: 'Play' });
+	await expect(play).toBeDisabled(); // needs two keyframes
+
+	const add = page.getByRole('button', { name: 'Add keyframe' });
+	const track = page.getByRole('slider', { name: 'Playhead' });
+
+	// Keyframe at the start (wide view).
+	await add.click();
+	// Move the playhead to the end, zoom in, and keyframe again.
+	let box = (await track.boundingBox())!;
+	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
+	const stage = page.getByRole('application');
+	const sb = (await stage.boundingBox())!;
+	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+	for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -120);
+	await add.click();
+
+	// Two keyframes → playback is now possible.
+	await expect(play).toBeEnabled();
+
+	// Scrubbing to the middle lands the status zoom between the two keyframes.
+	const zoomAt = async () => {
+		const txt = (await page.getByText(/zoom/).last().textContent()) ?? '';
+		return Number(txt.match(/zoom\s*([\d.]+)/)?.[1] ?? '0');
+	};
+	box = (await track.boundingBox())!;
+	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
+	const endZoom = await zoomAt();
+	box = (await track.boundingBox())!;
+	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+	const midZoom = await zoomAt();
+	expect(midZoom).toBeGreaterThan(1);
+	expect(midZoom).toBeLessThan(endZoom);
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
