@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { createEngine, type Engine } from '$lib/engine/engine';
 	import type { BackendType, FractalRenderer, SceneState } from '$lib/engine/types';
 
@@ -17,12 +17,18 @@
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let failed = $state(false);
 
-	onMount(() => {
-		if (!canvas) return;
+	// (Re)create the engine whenever the canvas mounts or the renderer changes.
+	$effect(() => {
+		const el = canvas;
+		const activeRenderer = renderer;
+		if (!el) return;
+
+		const opts = untrack(() => ({ getScene, prefer, onBackend: onbackend }));
+		failed = false;
 		let engine: Engine | null = null;
 		let disposed = false;
 
-		createEngine(canvas, { renderer, getScene, prefer, onBackend: onbackend })
+		createEngine(el, { renderer: activeRenderer, ...opts })
 			.then((created) => {
 				if (!created) {
 					failed = true;

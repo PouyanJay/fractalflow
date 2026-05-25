@@ -4,24 +4,35 @@
 	import GpuCanvas from '$lib/components/engine/GpuCanvas.svelte';
 	import { getEngineStore } from '$lib/stores/engine.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { mandelbrotRenderer } from '$lib/fractals/deep-zoom-2d/renderer';
+	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { ART_STYLES } from '$lib/stores/ui-logic';
+	import { getRenderer } from '$lib/fractals/registry';
 	import { panCamera, zoomCameraAt } from '$lib/engine/camera';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
+	import type { BackendType } from '$lib/engine/types';
 
 	const engine = getEngineStore();
 	const sceneStore = getSceneStore();
+	const ui = getUiStore();
+
+	const activeRenderer = $derived(getRenderer(ui.selectedStyle));
+	const comingSoonLabel = $derived(
+		ART_STYLES.find((s) => s.id === ui.selectedStyle)?.label ?? 'This art style'
+	);
+
+	// Stable callbacks so GpuCanvas doesn't recreate the engine spuriously.
+	const getScene = () => sceneStore.scene;
+	const handleBackend = (type: BackendType) => engine.setBackend(type);
 
 	let hydrated = $state(false);
 	let urlTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(() => {
-		// Restore a shared view from the URL (?s=...) before we start syncing back.
 		const token = page.url.searchParams.get('s');
 		if (token) sceneStore.setScene(decodeScene(token));
 		hydrated = true;
 	});
 
-	// Reflect the live scene in the URL (debounced, replaceState — no history spam).
 	$effect(() => {
 		const token = encodeScene(sceneStore.scene);
 		if (!hydrated) return;
@@ -29,7 +40,6 @@
 		urlTimer = setTimeout(() => {
 			const url = new URL(window.location.href);
 			url.searchParams.set('s', token);
-			// Pure address-bar update (for reload/share); not a route navigation.
 			history.replaceState(history.state, '', url);
 		}, 250);
 	});
@@ -72,23 +82,30 @@
 	}
 </script>
 
-<div
-	class="stage"
-	class:dragging
-	bind:this={stage}
-	role="application"
-	aria-label="Mandelbrot viewport — drag to pan, scroll to zoom"
-	{onpointerdown}
-	{onpointermove}
-	{onpointerup}
-	{onwheel}
->
-	<GpuCanvas
-		renderer={mandelbrotRenderer}
-		getScene={() => sceneStore.scene}
-		onbackend={(type) => engine.setBackend(type)}
-	/>
-</div>
+{#if activeRenderer}
+	<div
+		class="stage"
+		class:dragging
+		bind:this={stage}
+		role="application"
+		aria-label="Fractal viewport — drag to pan, scroll to zoom"
+		{onpointerdown}
+		{onpointermove}
+		{onpointerup}
+		{onwheel}
+	>
+		<GpuCanvas renderer={activeRenderer} {getScene} onbackend={handleBackend} />
+	</div>
+{:else}
+	<section class="coming-soon" aria-label="{comingSoonLabel} workspace">
+		<div class="message">
+			<h1>{comingSoonLabel}</h1>
+			<p>
+				This art style is coming soon. Pick <strong>Deep-Zoom 2D</strong> in the Library to explore now.
+			</p>
+		</div>
+	</section>
+{/if}
 
 <style>
 	.stage {
@@ -100,5 +117,35 @@
 	}
 	.stage.dragging {
 		cursor: grabbing;
+	}
+	.coming-soon {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--ff-space-8);
+		background: radial-gradient(circle at 50% 40%, var(--ff-neutral-1), var(--ff-bg) 70%);
+	}
+	.message {
+		max-width: 360px;
+		text-align: center;
+		display: flex;
+		flex-direction: column;
+		gap: var(--ff-space-2);
+	}
+	.message h1 {
+		font-size: var(--ff-text-xl);
+		font-weight: var(--ff-weight-semibold);
+		color: var(--ff-text);
+	}
+	.message p {
+		font-size: var(--ff-text-md);
+		color: var(--ff-text-secondary);
+		line-height: var(--ff-leading-normal);
+	}
+	.message strong {
+		color: var(--ff-text);
+		font-weight: var(--ff-weight-medium);
 	}
 </style>
