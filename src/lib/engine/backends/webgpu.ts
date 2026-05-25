@@ -21,6 +21,10 @@ export async function createWebGPUBackend(
 	const format = navigator.gpu.getPreferredCanvasFormat();
 	context.configure({ device, format, alphaMode: 'opaque' });
 
+	// Validate shader + pipeline creation (WebGPU reports these asynchronously,
+	// not by throwing). If anything is invalid, tear down and return null so the
+	// engine falls back to WebGL2 instead of rendering nothing.
+	device.pushErrorScope('validation');
 	const module = device.createShaderModule({ code: renderer.wgsl });
 	const pipeline = device.createRenderPipeline({
 		layout: 'auto',
@@ -28,6 +32,12 @@ export async function createWebGPUBackend(
 		fragment: { module, entryPoint: 'fs', targets: [{ format }] },
 		primitive: { topology: 'triangle-list' }
 	});
+	const pipelineError = await device.popErrorScope();
+	if (pipelineError) {
+		console.warn('[webgpu] pipeline invalid, falling back to WebGL2:', pipelineError.message);
+		device.destroy();
+		return null;
+	}
 
 	const uniformBuffer = device.createBuffer({
 		size: renderer.uniformSize,
