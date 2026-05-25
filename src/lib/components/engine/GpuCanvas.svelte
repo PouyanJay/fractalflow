@@ -17,6 +17,10 @@
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let failed = $state(false);
 
+	// Compute-pipeline art styles are WebGPU-only; on a WebGL2-only browser the
+	// engine can't initialise, so we explain that rather than claim "no GPU".
+	const needsWebGPU = $derived(failed && renderer.pipeline === 'compute');
+
 	// (Re)create the engine whenever the canvas mounts or the renderer changes.
 	$effect(() => {
 		const el = canvas;
@@ -54,7 +58,15 @@
 
 <div class="gpu">
 	<canvas bind:this={canvas} aria-label="Fractal viewport" data-testid="fractal-viewport"></canvas>
-	{#if failed}
+	{#if needsWebGPU}
+		<div class="error" role="alert">
+			<p class="error-title">This art style needs WebGPU</p>
+			<p class="error-body">
+				Glowing Attractors renders on the GPU compute pipeline, which your browser doesn't expose.
+				Try a recent Chrome, Edge, or Safari — or pick Deep-Zoom 2D, which runs on WebGL2.
+			</p>
+		</div>
+	{:else if failed}
 		<div class="error" role="alert">
 			<p class="error-title">GPU unavailable</p>
 			<p class="error-body">
