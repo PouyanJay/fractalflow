@@ -11,10 +11,12 @@ import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
+import { WARP_CODE } from '$lib/fractals/post';
 
 const FORMULA_IDS: readonly FormulaId[] = ['mandelbrot', 'julia', 'burning-ship', 'tricorn'];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
+const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 50;
 const MAX_ITER = 1200;
 const SEPARATOR = '~';
@@ -34,7 +36,12 @@ export function encodeScene(scene: SceneState): string {
 		scene.juliaSeed.x,
 		scene.juliaSeed.y,
 		scene.attractor,
-		scene.flame
+		scene.flame,
+		scene.post.warp,
+		scene.post.warpAmount,
+		scene.post.vignette,
+		scene.post.gamma,
+		scene.post.grain
 	].join(SEPARATOR);
 }
 
@@ -67,6 +74,13 @@ export function decodeScene(token: string): SceneState {
 			y: num(parts[7], fallback.juliaSeed.y)
 		},
 		attractor: ATTRACTOR_IDS.includes(parts[8]) ? parts[8] : fallback.attractor,
-		flame: FLAME_IDS.includes(parts[9]) ? parts[9] : fallback.flame
+		flame: FLAME_IDS.includes(parts[9]) ? parts[9] : fallback.flame,
+		post: {
+			warp: WARP_IDS.includes(parts[10]) ? parts[10] : fallback.post.warp,
+			warpAmount: num(parts[11], fallback.post.warpAmount),
+			vignette: num(parts[12], fallback.post.vignette),
+			gamma: num(parts[13], fallback.post.gamma),
+			grain: num(parts[14], fallback.post.grain)
+		}
 	};
 }

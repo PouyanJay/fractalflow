@@ -38,6 +38,14 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 		juliaSeed: {
 			x: lerp(a.juliaSeed.x, b.juliaSeed.x, u),
 			y: lerp(a.juliaSeed.y, b.juliaSeed.y, u)
+		},
+		// Warp snaps to the earlier keyframe; the grade amounts interpolate.
+		post: {
+			warp: a.post.warp,
+			warpAmount: lerp(a.post.warpAmount, b.post.warpAmount, u),
+			vignette: lerp(a.post.vignette, b.post.vignette, u),
+			gamma: lerp(a.post.gamma, b.post.gamma, u),
+			grain: lerp(a.post.grain, b.post.grain, u)
 		}
 	};
 }
@@ -71,7 +79,8 @@ function snapshot(scene: SceneState): SceneState {
 		paletteIndex: scene.paletteIndex,
 		juliaSeed: { ...scene.juliaSeed },
 		attractor: scene.attractor,
-		flame: scene.flame
+		flame: scene.flame,
+		post: { ...scene.post }
 	};
 }
 

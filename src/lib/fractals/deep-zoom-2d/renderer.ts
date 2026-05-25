@@ -17,6 +17,7 @@
  *   48  palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { DEFAULT_POST } from '$lib/fractals/post';
 import { FORMULA_CODES } from './reference';
 import { computeReferenceOrbit } from './perturbation';
 import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
@@ -36,7 +37,8 @@ export function createDefaultScene(): SceneState {
 		paletteIndex: 0,
 		juliaSeed: { x: -0.8, y: 0.156 },
 		attractor: 'clifford',
-		flame: 'sierpinski'
+		flame: 'sierpinski',
+		post: { ...DEFAULT_POST }
 	};
 }
 
