@@ -7,20 +7,29 @@ import type { Camera2D, FractalRenderer } from '$lib/engine/types';
 import { mandelbrotRenderer } from './deep-zoom-2d/renderer';
 import { mandelbulbRenderer } from './geometric-3d/renderer';
 import { attractorsRenderer } from './glowing-attractors/renderer';
+import { flamesRenderer } from './painterly-flames/renderer';
 
 const RENDERERS: Partial<Record<ArtStyleId, FractalRenderer>> = {
 	'deep-zoom-2d': mandelbrotRenderer,
 	'geometric-3d': mandelbulbRenderer,
-	attractors: attractorsRenderer
+	attractors: attractorsRenderer,
+	flames: flamesRenderer
 };
 
 export function getRenderer(styleId: ArtStyleId | null): FractalRenderer | null {
 	return (styleId && RENDERERS[styleId]) ?? null;
 }
 
-/** A camera that frames a renderer of the given kind (2D pan/zoom or 3D orbit). */
-export function defaultCameraFor(kind: '2d' | '3d'): Camera2D {
-	return kind === '3d'
-		? { centerX: 0.7, centerY: 0.4, scale: 1 }
-		: { centerX: -0.5, centerY: 0, scale: 3 };
+/** A camera that frames the given art style's renderer. 3D styles orbit; 2D
+ * styles differ (the Mandelbrot sits left of origin, a flame is centred). */
+export function defaultCameraFor(styleId: ArtStyleId | null): Camera2D {
+	switch (styleId) {
+		case 'flames':
+			return { centerX: 0, centerY: 0, scale: 2.5 };
+		case 'geometric-3d':
+		case 'attractors':
+			return { centerX: 0.7, centerY: 0.4, scale: 1 };
+		default:
+			return { centerX: -0.5, centerY: 0, scale: 3 };
+	}
 }

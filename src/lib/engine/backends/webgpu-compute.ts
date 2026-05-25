@@ -57,6 +57,11 @@ export async function createWebGPUComputeBackend(
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
 	});
 
+	// Each pixel owns `channels` consecutive u32 accumulators (e.g. attractors
+	// use 1 = density; flames use density + colour). The renderer's WGSL must
+	// index with the same stride.
+	const channels = Math.max(1, renderer.accumulationChannels ?? 1);
+
 	let densityBuffer: GPUBuffer | null = null;
 	let computeBindGroup: GPUBindGroup | null = null;
 	let renderBindGroup: GPUBindGroup | null = null;
@@ -66,7 +71,7 @@ export async function createWebGPUComputeBackend(
 	function allocateGrid(width: number, height: number) {
 		densityBuffer?.destroy();
 		densityBuffer = device.createBuffer({
-			size: Math.max(1, width * height) * 4,
+			size: Math.max(1, width * height * channels) * 4,
 			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 		});
 		const uniform: GPUBindGroupEntry = { binding: 0, resource: { buffer: uniformBuffer } };

@@ -7,7 +7,7 @@
 	import { getIcon } from '$lib/components/icons';
 	import { PRESETS } from '$lib/scene/presets';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
-	import { getRenderer, defaultCameraFor } from '$lib/fractals/registry';
+	import { defaultCameraFor } from '$lib/fractals/registry';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -23,10 +23,10 @@
 
 	// User picks an art style: switch, and reframe the camera if the kind changed.
 	function selectStyle(id: ArtStyleId) {
-		const prevKind = getRenderer(ui.selectedStyle)?.kind;
+		// Reframe to the new style's natural view whenever the style changes
+		// (2D styles share a kind but want different frames, e.g. flames vs Mandelbrot).
+		if (id !== ui.selectedStyle) sceneStore.setCamera(defaultCameraFor(id));
 		ui.selectArtStyle(id);
-		const nextKind = getRenderer(id)?.kind;
-		if (nextKind && nextKind !== prevKind) sceneStore.setCamera(defaultCameraFor(nextKind));
 	}
 
 	// Load a preset/bookmark: switch to its art style and apply its exact scene.

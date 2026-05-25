@@ -10,9 +10,11 @@ import type { FormulaId, SceneState } from '$lib/engine/types';
 import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
+import { FLAMES } from '$lib/fractals/painterly-flames/flames';
 
 const FORMULA_IDS: readonly FormulaId[] = ['mandelbrot', 'julia', 'burning-ship', 'tricorn'];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
+const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const MIN_ITER = 50;
 const MAX_ITER = 1200;
 const SEPARATOR = '~';
@@ -31,7 +33,8 @@ export function encodeScene(scene: SceneState): string {
 		scene.paletteIndex,
 		scene.juliaSeed.x,
 		scene.juliaSeed.y,
-		scene.attractor
+		scene.attractor,
+		scene.flame
 	].join(SEPARATOR);
 }
 
@@ -63,6 +66,7 @@ export function decodeScene(token: string): SceneState {
 			x: num(parts[6], fallback.juliaSeed.x),
 			y: num(parts[7], fallback.juliaSeed.y)
 		},
-		attractor: ATTRACTOR_IDS.includes(parts[8]) ? parts[8] : fallback.attractor
+		attractor: ATTRACTOR_IDS.includes(parts[8]) ? parts[8] : fallback.attractor,
+		flame: FLAME_IDS.includes(parts[9]) ? parts[9] : fallback.flame
 	};
 }

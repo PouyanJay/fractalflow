@@ -16,14 +16,17 @@ describe('encodeScene / decodeScene round-trip', () => {
 			maxIter: 900,
 			paletteIndex: 2,
 			juliaSeed: { x: -0.8, y: 0.156 },
-			attractor: 'clifford'
+			attractor: 'clifford',
+			flame: 'sierpinski'
 		};
 		expect(decodeScene(encodeScene(s))).toEqual(s);
 	});
 
-	it('round-trips the selected attractor family', () => {
-		const s = { ...createDefaultScene(), attractor: 'lorenz' };
-		expect(decodeScene(encodeScene(s)).attractor).toBe('lorenz');
+	it('round-trips the selected attractor family and flame', () => {
+		const s = { ...createDefaultScene(), attractor: 'lorenz', flame: 'swirl' };
+		const out = decodeScene(encodeScene(s));
+		expect(out.attractor).toBe('lorenz');
+		expect(out.flame).toBe('swirl');
 	});
 });
 
@@ -40,12 +43,14 @@ describe('decodeScene resilience', () => {
 		expect(decodeScene(token).formula).toBe('mandelbrot');
 	});
 
-	it('defaults the attractor family for legacy tokens and unknown ids', () => {
+	it('defaults the attractor family and flame for legacy tokens and unknown ids', () => {
 		// A pre-attractor token has only the original 8 fields.
 		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 8).join('~');
 		expect(decodeScene(legacy).attractor).toBe('clifford');
-		const bogus = encodeScene({ ...createDefaultScene(), attractor: 'nope' });
+		expect(decodeScene(legacy).flame).toBe('sierpinski');
+		const bogus = encodeScene({ ...createDefaultScene(), attractor: 'nope', flame: 'nope' });
 		expect(decodeScene(bogus).attractor).toBe('clifford');
+		expect(decodeScene(bogus).flame).toBe('sierpinski');
 	});
 
 	it('clamps maxIter and paletteIndex into range', () => {

@@ -186,6 +186,44 @@ test('loading the Lorenz preset switches to the attractors renderer', async ({ p
 	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
 });
 
+test('selecting Painterly Flames exposes the flame selector and exposure control', async ({
+	page
+}) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Painterly Flames/ }).click();
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Painterly Flames'
+	);
+	const flame = page.getByLabel('Flame');
+	await expect(flame).toBeVisible();
+	await expect(flame.getByRole('option')).toHaveText([
+		'Sierpinski',
+		'Sinusoidal Web',
+		'Swirl Bloom',
+		'Horseshoe'
+	]);
+	await expect(page.getByRole('heading', { name: 'Exposure' })).toBeVisible();
+	await flame.selectOption('swirl');
+	await expect(flame).toHaveValue('swirl');
+	// WebGPU-only: a live canvas or the designed "needs WebGPU" notice, never a crash.
+	const canvasOrNotice = page
+		.locator('canvas')
+		.or(page.getByText(/needs WebGPU/i))
+		.first();
+	await expect(canvasOrNotice).toBeVisible();
+});
+
+test('loading the Sinusoidal Web preset switches to the flames renderer', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Sinusoidal Web' }).click();
+	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
+		'Painterly Flames'
+	);
+	await expect(page.getByLabel('Flame')).toHaveValue('sinusoidal');
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
