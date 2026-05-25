@@ -50,9 +50,15 @@ function compileProgram(gl: WebGL2RenderingContext, fragmentSource: string): Web
 
 export function createWebGL2Backend(
 	canvas: HTMLCanvasElement,
-	renderer: FractalRenderer
+	renderer: FractalRenderer,
+	options: { preserveDrawingBuffer?: boolean } = {}
 ): RenderBackend | null {
-	const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+	const gl = canvas.getContext('webgl2', {
+		antialias: false,
+		alpha: false,
+		// Off-screen export keeps the buffer readable for toBlob().
+		preserveDrawingBuffer: options.preserveDrawingBuffer ?? false
+	});
 	if (!gl) return null;
 
 	const program = compileProgram(gl, renderer.glsl);
