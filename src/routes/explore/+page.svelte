@@ -24,6 +24,23 @@
 	const getScene = () => sceneStore.scene;
 	const handleBackend = (type: BackendType) => engine.setBackend(type);
 
+	function defaultCameraFor(kind: '2d' | '3d') {
+		return kind === '3d'
+			? { centerX: 0.7, centerY: 0.4, scale: 2.6 }
+			: { centerX: -0.5, centerY: 0, scale: 3 };
+	}
+
+	// When switching between 2D and 3D, reset to a camera that frames that renderer.
+	let previousKind: '2d' | '3d' | undefined;
+	$effect(() => {
+		const kind = activeRenderer?.kind;
+		if (!kind) return;
+		if (previousKind !== undefined && previousKind !== kind) {
+			sceneStore.setCamera(defaultCameraFor(kind));
+		}
+		previousKind = kind;
+	});
+
 	let hydrated = $state(false);
 	let urlTimer: ReturnType<typeof setTimeout> | undefined;
 

@@ -5,9 +5,11 @@
 import type { ArtStyleId } from '$lib/stores/ui-logic';
 import type { FractalRenderer } from '$lib/engine/types';
 import { mandelbrotRenderer } from './deep-zoom-2d/renderer';
+import { mandelbulbRenderer } from './geometric-3d/renderer';
 
 const RENDERERS: Partial<Record<ArtStyleId, FractalRenderer>> = {
-	'deep-zoom-2d': mandelbrotRenderer
+	'deep-zoom-2d': mandelbrotRenderer,
+	'geometric-3d': mandelbulbRenderer
 };
 
 export function getRenderer(styleId: ArtStyleId | null): FractalRenderer | null {
