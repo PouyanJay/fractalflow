@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { panCamera, zoomCameraAt } from './camera';
+import { panCamera, zoomCameraAt, orbitCamera, dollyCamera } from './camera';
 import type { Camera2D } from './types';
 
 const base: Camera2D = { centerX: -0.5, centerY: 0, scale: 3 };
@@ -44,5 +44,34 @@ describe('zoomCameraAt', () => {
 		};
 		expect(after.x).toBeCloseTo(before.x);
 		expect(after.y).toBeCloseTo(before.y);
+	});
+});
+
+describe('orbitCamera (3D: centerX=yaw, centerY=pitch, scale=distance)', () => {
+	const base: Camera2D = { centerX: 0.5, centerY: 0.2, scale: 3 };
+
+	it('rotates yaw and pitch by the drag and keeps the distance', () => {
+		const c = orbitCamera(base, 10, 5);
+		expect(c.centerX).not.toBe(base.centerX);
+		expect(c.centerY).not.toBe(base.centerY);
+		expect(c.scale).toBe(3);
+	});
+
+	it('clamps pitch to avoid the poles', () => {
+		expect(orbitCamera(base, 0, 100000).centerY).toBeLessThanOrEqual(1.5);
+		expect(orbitCamera(base, 0, -100000).centerY).toBeGreaterThanOrEqual(-1.5);
+	});
+});
+
+describe('dollyCamera', () => {
+	const base: Camera2D = { centerX: 0, centerY: 0, scale: 3 };
+
+	it('scales the distance by the factor', () => {
+		expect(dollyCamera(base, 1.1).scale).toBeCloseTo(3.3);
+	});
+
+	it('clamps the distance to a sane range', () => {
+		expect(dollyCamera(base, 100).scale).toBeLessThanOrEqual(8);
+		expect(dollyCamera(base, 0.001).scale).toBeGreaterThanOrEqual(1.3);
 	});
 });

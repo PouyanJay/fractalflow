@@ -7,7 +7,7 @@
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { ART_STYLES } from '$lib/stores/ui-logic';
 	import { getRenderer } from '$lib/fractals/registry';
-	import { panCamera, zoomCameraAt } from '$lib/engine/camera';
+	import { panCamera, zoomCameraAt, orbitCamera, dollyCamera } from '$lib/engine/camera';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
 	import type { BackendType } from '$lib/engine/types';
 
@@ -73,6 +73,10 @@
 
 	function onpointermove(event: PointerEvent) {
 		if (!dragging || !stage) return;
+		if (activeRenderer?.kind === '3d') {
+			sceneStore.setCamera(orbitCamera(sceneStore.camera, event.movementX, event.movementY));
+			return;
+		}
 		const { height } = stage.getBoundingClientRect();
 		sceneStore.setCamera(panCamera(sceneStore.camera, event.movementX, event.movementY, height));
 	}
@@ -84,8 +88,12 @@
 
 	function onwheel(event: WheelEvent) {
 		if (!stage) return;
-		const rect = stage.getBoundingClientRect();
 		const factor = event.deltaY > 0 ? 1.1 : 1 / 1.1;
+		if (activeRenderer?.kind === '3d') {
+			sceneStore.setCamera(dollyCamera(sceneStore.camera, factor));
+			return;
+		}
+		const rect = stage.getBoundingClientRect();
 		sceneStore.setCamera(
 			zoomCameraAt(
 				sceneStore.camera,
