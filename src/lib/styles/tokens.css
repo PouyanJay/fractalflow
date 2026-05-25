@@ -1,0 +1,111 @@
+/**
+ * FractalFlow Studio — design tokens.
+ * Single source of truth for color, space, type, radius, elevation, motion.
+ * Components must reference these variables, never raw values (see CLAUDE.md).
+ */
+
+:root {
+	/* ---- Neutral ramp (cool gray, off-black → off-white) ---- */
+	--ff-neutral-0: #0b0e13;
+	--ff-neutral-1: #0e1116;
+	--ff-neutral-2: #141a23;
+	--ff-neutral-3: #1a212c;
+	--ff-neutral-4: #222b38;
+	--ff-neutral-5: #2c3645;
+	--ff-neutral-6: #3a4656;
+	--ff-neutral-7: #586475;
+	--ff-neutral-8: #8a94a3;
+	--ff-neutral-9: #c5ccd6;
+	--ff-neutral-10: #e9ecf1;
+
+	/* ---- Accents (restrained: one primary, one signal, one info) ---- */
+	--ff-primary: #2dd4bf; /* teal */
+	--ff-primary-strong: #14b8a6;
+	--ff-signal: #f5a524; /* amber */
+	--ff-info: #4c8dff; /* blue */
+	--ff-danger: #f0563f;
+
+	/* ---- Semantic surfaces & text ---- */
+	--ff-bg: var(--ff-neutral-0);
+	--ff-surface: var(--ff-neutral-1);
+	--ff-surface-raised: var(--ff-neutral-2);
+	--ff-surface-overlay: var(--ff-neutral-3);
+	--ff-surface-hover: var(--ff-neutral-3);
+	--ff-surface-active: var(--ff-neutral-4);
+	--ff-border: var(--ff-neutral-4);
+	--ff-border-strong: var(--ff-neutral-6);
+	--ff-text: var(--ff-neutral-10);
+	--ff-text-secondary: var(--ff-neutral-9);
+	--ff-text-muted: var(--ff-neutral-8);
+	--ff-accent: var(--ff-primary);
+	--ff-accent-contrast: #04221e;
+	--ff-focus: var(--ff-primary);
+
+	/* ---- Spacing (4px base, 8px grid) ---- */
+	--ff-space-1: 4px;
+	--ff-space-2: 8px;
+	--ff-space-3: 12px;
+	--ff-space-4: 16px;
+	--ff-space-5: 20px;
+	--ff-space-6: 24px;
+	--ff-space-8: 32px;
+	--ff-space-10: 40px;
+	--ff-space-12: 48px;
+	--ff-space-16: 64px;
+
+	/* ---- Radius ---- */
+	--ff-radius-sm: 4px;
+	--ff-radius-md: 6px;
+	--ff-radius-lg: 10px;
+	--ff-radius-full: 999px;
+
+	/* ---- Typography ---- */
+	--ff-font-sans:
+		'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+		sans-serif;
+	--ff-font-mono:
+		ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+
+	--ff-text-xs: 11px;
+	--ff-text-sm: 12px;
+	--ff-text-base: 13px;
+	--ff-text-md: 14px;
+	--ff-text-lg: 16px;
+	--ff-text-xl: 20px;
+	--ff-text-2xl: 26px;
+
+	--ff-weight-regular: 400;
+	--ff-weight-medium: 500;
+	--ff-weight-semibold: 600;
+
+	--ff-leading-tight: 1.25;
+	--ff-leading-normal: 1.5;
+
+	/* ---- Elevation (subtle; reserved for overlays only) ---- */
+	--ff-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--ff-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--ff-shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+	/* ---- Motion ---- */
+	--ff-dur-fast: 120ms;
+	--ff-dur-base: 160ms;
+	--ff-dur-slow: 200ms;
+	--ff-ease: cubic-bezier(0.2, 0, 0, 1);
+
+	/* ---- Layout ---- */
+	--ff-topbar-h: 48px;
+	--ff-statusbar-h: 28px;
+	--ff-panel-w: 264px;
+	--ff-z-panel: 10;
+	--ff-z-statusbar: 20;
+	--ff-z-overlay: 100;
+}
+
+/* Compact density: tighter panels and base type. */
+:root[data-density='compact'] {
+	--ff-panel-w: 224px;
+	--ff-topbar-h: 42px;
+	--ff-statusbar-h: 24px;
+	--ff-text-base: 12px;
+	--ff-text-md: 13px;
+}
