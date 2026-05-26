@@ -74,15 +74,17 @@
 			{/if}
 		</IconButton>
 		<div class="divider" aria-hidden="true"></div>
+		{#if activeMode === 'compose'}
+			<IconButton
+				label="Toggle Start panel"
+				active={ui.panels.library}
+				onclick={() => ui.togglePanel('library')}
+			>
+				<PanelLeft size={16} aria-hidden="true" />
+			</IconButton>
+		{/if}
 		<IconButton
-			label="Toggle library panel"
-			active={ui.panels.library}
-			onclick={() => ui.togglePanel('library')}
-		>
-			<PanelLeft size={16} aria-hidden="true" />
-		</IconButton>
-		<IconButton
-			label="Toggle inspector panel"
+			label="Toggle Codex panel"
 			active={ui.panels.inspector}
 			onclick={() => ui.togglePanel('inspector')}
 		>

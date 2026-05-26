@@ -1,13 +1,15 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { page } from '$app/state';
+	import { modeFromPath } from '$lib/stores/ui-logic';
 	import { provideUiStore } from '$lib/stores/ui.svelte';
 	import { provideEngineStore } from '$lib/stores/engine.svelte';
 	import { provideSceneStore } from '$lib/stores/scene.svelte';
 	import { provideBookmarksStore } from '$lib/stores/bookmarks.svelte';
 	import { provideJourneyStore } from '$lib/stores/journey.svelte';
 	import TopBar from '$lib/components/shell/TopBar.svelte';
-	import LibraryPanel from '$lib/components/shell/LibraryPanel.svelte';
+	import StartPanel from '$lib/components/shell/StartPanel.svelte';
 	import InspectorPanel from '$lib/components/shell/InspectorPanel.svelte';
 	import StatusBar from '$lib/components/shell/StatusBar.svelte';
 	import CommandPalette from '$lib/components/shell/CommandPalette.svelte';
@@ -15,6 +17,9 @@
 
 	let { children } = $props();
 	const ui = provideUiStore();
+
+	// The Start palette is Compose-only; Explore stays immersive (no left chrome).
+	const isCompose = $derived(modeFromPath(page.url.pathname) === 'compose');
 	provideEngineStore();
 	provideSceneStore();
 	provideBookmarksStore();
@@ -43,7 +48,7 @@
 <div class="shell">
 	<TopBar />
 	<div class="body">
-		{#if ui.panels.library}<LibraryPanel />{/if}
+		{#if ui.panels.library && isCompose}<StartPanel />{/if}
 		<main class="main">
 			{@render children()}
 		</main>

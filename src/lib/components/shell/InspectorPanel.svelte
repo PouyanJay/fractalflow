@@ -11,13 +11,15 @@
 	import { onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { Play, Pause, MapPin, Trash2, RotateCcw } from '@lucide/svelte';
-	import { modeFromPath } from '$lib/stores/ui-logic';
+	import { Play, Pause, MapPin, Trash2, RotateCcw, Bookmark } from '@lucide/svelte';
+	import { modeFromPath, type ArtStyleId } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { getJourneyStore } from '$lib/stores/journey.svelte';
+	import { getBookmarksStore } from '$lib/stores/bookmarks.svelte';
 	import { getRenderer } from '$lib/fractals/registry';
 	import { formatZoom } from '$lib/engine/camera';
+	import { encodeScene, decodeScene } from '$lib/scene/codec';
 	import { describeScene, nearestLandmark } from '$lib/codex/codex';
 	import { JOURNEYS, journeyKeyframes, type JourneyType } from '$lib/animate/journey';
 	import { interpolateScene, cloneScene } from '$lib/animate/timeline';
@@ -26,6 +28,20 @@
 	const ui = getUiStore();
 	const scene = getSceneStore();
 	const journey = getJourneyStore();
+	const bookmarks = getBookmarksStore();
+
+	// Saved views — discovered while exploring, pinned here in the Codex.
+	function saveView() {
+		bookmarks.add(
+			`${desc.title} · ${zoom}`,
+			encodeScene(scene.scene),
+			ui.selectedStyle ?? 'deep-zoom-2d'
+		);
+	}
+	function loadView(styleId: string, token: string) {
+		ui.selectArtStyle(styleId as ArtStyleId);
+		scene.setScene(decodeScene(token));
+	}
 
 	const isCompose = $derived(modeFromPath(page.url.pathname) === 'compose');
 	const hasRenderer = $derived(getRenderer(ui.selectedStyle) !== null);
@@ -133,7 +149,7 @@
 			here in the node graph.
 		</p>
 	{:else if !hasRenderer}
-		<p class="defer">Pick an art style in the Library to begin exploring.</p>
+		<p class="defer">Pick an art style in Compose's Start palette to begin exploring.</p>
 	{:else if tab === 'codex'}
 		<section class="group">
 			<h3 class="codex-title">{desc.title}</h3>
@@ -165,6 +181,36 @@
 					<dd class="ff-num">{scene.maxIter}</dd>
 				</div>
 			</dl>
+		</section>
+
+		<section class="group">
+			<div class="wp-head">
+				<h4 class="group-label">Saved views</h4>
+				<button type="button" class="link" onclick={saveView}>
+					<Bookmark size={12} aria-hidden="true" /> Save
+				</button>
+			</div>
+			{#if bookmarks.list.length === 0}
+				<p class="hint">Save a view to pin it here and return any time.</p>
+			{:else}
+				<ul class="saved">
+					{#each bookmarks.list as bm (bm.id)}
+						<li>
+							<button type="button" class="entry" onclick={() => loadView(bm.styleId, bm.token)}>
+								{bm.label}
+							</button>
+							<button
+								type="button"
+								class="wp-del"
+								aria-label={`Delete bookmark ${bm.label}`}
+								onclick={() => bookmarks.remove(bm.id)}
+							>
+								<Trash2 size={13} aria-hidden="true" />
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</section>
 
 		<button type="button" class="reset" onclick={() => scene.reset()}>
@@ -488,6 +534,9 @@
 		justify-content: space-between;
 	}
 	.link {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 		border: none;
 		background: transparent;
 		color: var(--ff-text-muted);
@@ -495,6 +544,39 @@
 		cursor: pointer;
 	}
 	.link:hover {
+		color: var(--ff-text);
+	}
+	.saved {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.saved li {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-1);
+	}
+	.entry {
+		flex: 1;
+		min-width: 0;
+		padding: 6px var(--ff-space-2);
+		border: none;
+		border-radius: var(--ff-radius-md);
+		background: transparent;
+		text-align: left;
+		color: var(--ff-text-secondary);
+		font-size: var(--ff-text-sm);
+		cursor: pointer;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		transition: background var(--ff-dur-fast) var(--ff-ease);
+	}
+	.entry:hover {
+		background: var(--ff-surface-hover);
 		color: var(--ff-text);
 	}
 	.hint {
