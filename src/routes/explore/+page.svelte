@@ -2,13 +2,16 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import FractalStage from '$lib/components/engine/FractalStage.svelte';
+	import JourneyControls from '$lib/components/explore/JourneyControls.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
+	import { getJourneyStore } from '$lib/stores/journey.svelte';
 	import { isValidArtStyle } from '$lib/stores/ui-logic';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
 
 	const sceneStore = getSceneStore();
 	const ui = getUiStore();
+	const journey = getJourneyStore();
 
 	let hydrated = $state(false);
 	let urlTimer: ReturnType<typeof setTimeout> | undefined;
@@ -26,7 +29,10 @@
 	$effect(() => {
 		const token = encodeScene(sceneStore.scene);
 		const styleId = ui.selectedStyle ?? 'deep-zoom-2d';
-		if (!hydrated) return;
+		// While a journey plays it streams frames through the scene store; don't
+		// churn the deep-link URL with those intermediate views (it ends back at
+		// the user's framed scene anyway).
+		if (!hydrated || journey.playing) return;
 		clearTimeout(urlTimer);
 		urlTimer = setTimeout(() => {
 			const url = new URL(window.location.href);
@@ -39,4 +45,19 @@
 	onDestroy(() => clearTimeout(urlTimer));
 </script>
 
-<FractalStage />
+<div class="explore">
+	<FractalStage />
+	<JourneyControls />
+</div>
+
+<style>
+	.explore {
+		position: relative;
+		flex: 1;
+		/* min-* 0 so the GPU canvas shrinks to its box rather than its drawing-buffer
+		 * size (the hi-DPR feedback guard); the Journeys panel overlays absolutely. */
+		min-width: 0;
+		min-height: 0;
+		display: flex;
+	}
+</style>

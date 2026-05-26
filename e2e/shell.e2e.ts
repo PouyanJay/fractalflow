@@ -265,89 +265,57 @@ test('loading the Sinusoidal Web preset switches to the flames renderer', async 
 	await expect(page.getByLabel('Flame')).toHaveValue('sinusoidal');
 });
 
-test('Animate builds a keyframe timeline and scrubbing interpolates the scene', async ({
-	page
-}) => {
-	await page.goto('/animate');
-	await expect(page.locator('canvas')).toBeVisible();
-	const play = page.getByRole('button', { name: 'Play' });
-	await expect(play).toBeDisabled(); // needs two keyframes
+test('the Journeys panel plays a curated journey', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Open Journeys panel' }).click();
+	const panel = page.getByRole('region', { name: 'Journeys' });
+	await expect(panel).toBeVisible();
+	await panel.getByRole('button', { name: 'Zoom' }).click();
 
-	const add = page.getByRole('button', { name: 'Add keyframe' });
-	const track = page.getByRole('slider', { name: 'Playhead' });
-
-	// Keyframe at the start (wide view).
-	await add.click();
-	// Move the playhead to the end, zoom in, and keyframe again.
-	let box = (await track.boundingBox())!;
-	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
-	const stage = page.getByRole('application');
-	const sb = (await stage.boundingBox())!;
-	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
-	for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -120);
-	await add.click();
-
-	// Two keyframes → playback is now possible.
-	await expect(play).toBeEnabled();
-
-	// Scrubbing to the middle lands the status zoom between the two keyframes.
-	const zoomAt = async () => {
-		const txt = (await page.getByText(/zoom/).last().textContent()) ?? '';
-		return Number(txt.match(/zoom\s*([\d.]+)/)?.[1] ?? '0');
-	};
-	box = (await track.boundingBox())!;
-	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
-	const endZoom = await zoomAt();
-	box = (await track.boundingBox())!;
-	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-	const midZoom = await zoomAt();
-	expect(midZoom).toBeGreaterThan(1);
-	expect(midZoom).toBeLessThan(endZoom);
+	const progress = page.getByRole('progressbar', { name: 'Journey progress' });
+	await expect(progress).toHaveAttribute('aria-valuenow', '0');
+	await page.getByRole('button', { name: 'Play journey' }).click();
+	// Playback streams the journey's frames through the live scene, so progress
+	// advances from 0 (and the viewport animates).
+	await expect
+		.poll(async () => Number(await progress.getAttribute('aria-valuenow')))
+		.toBeGreaterThan(0);
 });
 
-test('Animate playback advances the playhead (loops, even from the end)', async ({ page }) => {
-	await page.goto('/animate');
-	await expect(page.locator('canvas')).toBeVisible();
-	const add = page.getByRole('button', { name: 'Add keyframe' });
-	const track = page.getByRole('slider', { name: 'Playhead' });
-	const readout = () => page.getByText(/s \/ /).textContent();
-
-	await add.click();
-	// Leave the playhead at the very end (as building a clip naturally does).
-	const box = (await track.boundingBox())!;
-	await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2);
-	const stage = page.getByRole('application');
-	const sb = (await stage.boundingBox())!;
-	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
-	for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120);
-	await add.click();
-	const before = await readout();
-
-	// Play must advance the playhead even though it sits at the end.
-	await page.getByRole('button', { name: 'Play' }).click();
-	await page.waitForTimeout(900);
-	await expect.poll(readout).not.toBe(before);
+test('the export sheet renders a journey as a movie (.zip)', async ({ page }) => {
+	// Off-screen WebGL2 readback is ~1.5s/frame in headless, so keep the clip short.
+	test.setTimeout(120_000);
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	await page.getByRole('button', { name: 'Movie' }).click();
+	await page.getByLabel('Export resolution').selectOption('hd');
+	await page.getByLabel('Journey duration').selectOption('2000');
+	await page.getByLabel('Frame rate').selectOption('12'); // 2s × 12 = 24 frames
+	await expect(page.getByText(/24 frames/)).toBeVisible();
+	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+	await page.getByRole('button', { name: /Export frames/ }).click();
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.zip$/);
 });
 
 test.describe('hi-DPR layout', () => {
 	test.use({ viewport: { width: 1280, height: 600 }, deviceScaleFactor: 2 });
 
-	test('Animate timeline dock stays fully on-screen on hi-DPR displays', async ({ page }) => {
-		await page.goto('/animate');
+	test('Explore keeps the Journeys panel on-screen on hi-DPR displays', async ({ page }) => {
+		await page.goto('/explore');
 		await expect(page.locator('canvas')).toBeVisible();
 		await page.waitForTimeout(900); // let any ResizeObserver feedback settle
-		const dock = page.getByRole('region', { name: 'Timeline' });
-		const box = (await dock.boundingBox())!;
-		// The whole dock (Play + track) must sit within the viewport, not pushed
-		// off the bottom by the canvas's drawing-buffer height feeding back.
+		await page.getByRole('button', { name: 'Open Journeys panel' }).click();
+		const panel = page.getByRole('region', { name: 'Journeys' });
+		const box = (await panel.boundingBox())!;
+		// The overlay panel must sit within the viewport — and the canvas's
+		// drawing-buffer height must not feed back and grow the stage.
 		expect(box.y + box.height).toBeLessThanOrEqual(601);
-		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Play journey' })).toBeVisible();
 	});
 });
-
-// Export is the top-bar action that replaced the Render route. The /render route
-// is gone; the Movie (frame-sequence) export returns in Step 3 with Journeys as
-// its source. Sequence math stays covered by src/lib/render/sequence.spec.ts.
 
 test('the Export button opens the export sheet', async ({ page }) => {
 	await page.goto('/explore');

@@ -5,8 +5,6 @@
 import {
 	Compass,
 	Workflow,
-	Clapperboard,
-	ImageDown,
 	Boxes,
 	Flame,
 	Orbit,
@@ -28,8 +26,6 @@ import {
 export const icons = {
 	compass: Compass,
 	workflow: Workflow,
-	clapperboard: Clapperboard,
-	'image-down': ImageDown,
 	boxes: Boxes,
 	flame: Flame,
 	orbit: Orbit,
