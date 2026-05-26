@@ -68,4 +68,34 @@ describe('journeyKeyframes', () => {
 		const mid = interpolateScene(zoom, 0.5).camera.scale;
 		expect(mid).toBeCloseTo(scene.camera.scale * Math.sqrt(ZOOM_JOURNEY_SPAN));
 	});
+
+	it('flies a Zoom journey through ≥2 waypoints in order', () => {
+		const waypoints = [
+			{ centerX: 0, centerY: 0, scale: 3 },
+			{ centerX: -0.5, centerY: 0.1, scale: 0.1 },
+			{ centerX: -0.745, centerY: 0.113, scale: 0.0008 }
+		];
+		const ks = journeyKeyframes('zoom', scene, waypoints);
+		expect(ks).toHaveLength(3);
+		expect(ks.map((k) => k.t)).toEqual([0, 0.5, 1]);
+		expect(ks[0].scene.camera).toEqual(waypoints[0]);
+		expect(ks[2].scene.camera).toEqual(waypoints[2]);
+		// Non-camera fields still come from the live scene.
+		expect(ks[1].scene.maxIter).toBe(scene.maxIter);
+	});
+
+	it('ignores a single waypoint and falls back to the auto wide→current dive', () => {
+		const ks = journeyKeyframes('zoom', scene, [{ centerX: 1, centerY: 1, scale: 1 }]);
+		expect(ks).toHaveLength(2);
+		expect(ks[0].scene.camera.scale).toBeCloseTo(scene.camera.scale * ZOOM_JOURNEY_SPAN);
+	});
+
+	it('ignores waypoints for a Formation journey (camera stays fixed)', () => {
+		const ks = journeyKeyframes('formation', scene, [
+			{ centerX: 9, centerY: 9, scale: 9 },
+			{ centerX: 1, centerY: 1, scale: 1 }
+		]);
+		expect(ks).toHaveLength(2);
+		expect(ks[0].scene.camera).toEqual(scene.camera);
+	});
 });

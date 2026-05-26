@@ -11,7 +11,7 @@
  *    view — the classic "infinite zoom" toward where you are.
  */
 import { cloneScene, type Keyframe } from './timeline';
-import type { SceneState } from '$lib/engine/types';
+import type { Camera2D, SceneState } from '$lib/engine/types';
 
 export type JourneyType = 'formation' | 'zoom';
 
@@ -32,11 +32,29 @@ export const FORMATION_START_ITER = 1;
 export const ZOOM_JOURNEY_SPAN = 256;
 
 /**
- * The two keyframes for a journey of `type` ending at `scene` (the live view).
- * The end keyframe is the current scene, so playing a journey returns to where
- * the user was.
+ * The keyframes for a journey of `type` ending at `scene` (the live view).
+ *
+ *  - Formation: two keyframes — low detail → current — camera fixed.
+ *  - Zoom with ≥2 `waypoints`: one keyframe per waypoint (camera path through
+ *    them in order), every other scene field taken from the live scene.
+ *  - Zoom otherwise: the auto wide→current dive (start 256× wider).
+ *
+ * The path ends at the current scene/last waypoint, so playing a journey leaves
+ * the user where they were.
  */
-export function journeyKeyframes(type: JourneyType, scene: SceneState): Keyframe[] {
+export function journeyKeyframes(
+	type: JourneyType,
+	scene: SceneState,
+	waypoints: readonly Camera2D[] = []
+): Keyframe[] {
+	if (type === 'zoom' && waypoints.length >= 2) {
+		return waypoints.map((camera, i) => {
+			const s = cloneScene(scene);
+			s.camera = { ...camera };
+			return { id: `journey-wp-${i}`, t: i / (waypoints.length - 1), scene: s };
+		});
+	}
+
 	const start = cloneScene(scene);
 	const end = cloneScene(scene);
 	if (type === 'formation') {

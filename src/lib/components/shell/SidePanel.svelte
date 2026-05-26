@@ -7,10 +7,12 @@
 		title: string;
 		panelId: PanelId;
 		side?: 'left' | 'right';
+		/** Optional custom head content (e.g. a tab strip); falls back to the title. */
+		header?: Snippet;
 		children: Snippet;
 	}
 
-	let { title, panelId, side = 'left', children }: Props = $props();
+	let { title, panelId, side = 'left', header, children }: Props = $props();
 
 	const ui = getUiStore();
 	const width = $derived(ui.panelWidths[panelId]);
@@ -46,8 +48,8 @@
 </script>
 
 <aside class="panel" class:right={side === 'right'} style="width: {width}px" aria-label={title}>
-	<div class="head">
-		<h2>{title}</h2>
+	<div class="head" class:custom={header}>
+		{#if header}{@render header()}{:else}<h2>{title}</h2>{/if}
 	</div>
 	<div class="body">
 		{@render children()}
@@ -86,6 +88,10 @@
 		padding: 0 var(--ff-space-4);
 		border-bottom: 1px solid var(--ff-border);
 		flex: none;
+	}
+	/* A custom header (e.g. a tab strip) manages its own padding. */
+	.head.custom {
+		padding: 0;
 	}
 	.head h2 {
 		font-size: var(--ff-text-xs);

@@ -13,7 +13,7 @@ test('root redirects to Explore and renders the shell', async ({ page }) => {
 	await expect(page.getByText('FractalFlow')).toBeVisible();
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('complementary', { name: 'Library' })).toBeVisible();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toBeVisible();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toBeVisible();
 });
 
 test('the engine initialises a backend (badge resolves)', async ({ page }) => {
@@ -21,33 +21,31 @@ test('the engine initialises a backend (badge resolves)', async ({ page }) => {
 	await expect(page.getByText(/^(WebGPU|WebGL2)$/)).toBeVisible();
 });
 
-test('Inspector exposes live Deep-Zoom 2D controls', async ({ page }) => {
+test('the Codex describes the current fractal and its position', async ({ page }) => {
 	await page.goto('/explore');
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Deep-Zoom 2D'
-	);
-	await expect(page.getByLabel('Iterations')).toHaveValue('300');
-	await expect(page.getByLabel('Formula')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Aurora' })).toBeVisible();
+	await waitForEngine(page);
+	const codex = page.getByRole('complementary', { name: 'Codex' });
+	await expect(codex).toContainText('Mandelbrot');
+	await expect(codex.getByText('Zoom')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
 });
 
-test('switching to Julia reveals the seed inputs', async ({ page }) => {
-	await page.goto('/explore');
-	await waitForEngine(page);
-	await page.getByLabel('Formula').selectOption('julia');
-	await expect(page.getByLabel('Julia seed real part')).toBeVisible();
-	await expect(page.getByLabel('Julia seed imaginary part')).toBeVisible();
+test('Compose reveals the Julia seed inputs for the Julia formula', async ({ page }) => {
+	await page.goto('/compose');
+	const formula = page.locator('select[aria-label="Formula"]:visible');
+	await formula.selectOption('julia');
+	await expect(page.locator('input[aria-label="Julia seed real part"]:visible')).toBeVisible();
+	await expect(page.locator('input[aria-label="Julia seed imaginary part"]:visible')).toBeVisible();
 	// Other formulas hide the seed inputs again.
-	await page.getByLabel('Formula').selectOption('burning-ship');
+	await formula.selectOption('burning-ship');
 	await expect(page.getByLabel('Julia seed real part')).toHaveCount(0);
 });
 
-test('changing iterations updates the status readout', async ({ page }) => {
-	await page.goto('/explore');
-	await waitForEngine(page);
-	await page.getByLabel('Iterations').fill('600');
-	await expect(page.getByLabel('Iterations')).toHaveValue('600');
+test('Compose edits the iteration count', async ({ page }) => {
+	await page.goto('/compose');
+	const iters = page.locator('input[aria-label="Iterations"]:visible');
+	await iters.fill('600');
+	await expect(iters).toHaveValue('600');
 });
 
 test('mode tabs navigate between modes', async ({ page }) => {
@@ -75,14 +73,17 @@ test('Compose node graph edits the shared scene and updates every mode', async (
 	// The pipeline nodes render; the Inspector defers to the graph here.
 	await expect(page.getByText('Coloring')).toBeVisible();
 	await expect(page.getByText('Output')).toBeVisible();
-	await expect(page.getByText(/Edit this art style with the node graph/)).toBeVisible();
+	// On Compose the right panel defers — editing is the node graph.
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('node graph');
 	// Editing the Source node mutates the shared scene.
-	const family = page.getByLabel('Attractor family');
+	const family = page.locator('select[aria-label="Attractor family"]:visible');
 	await expect(family).toHaveValue('clifford');
 	await family.selectOption('lorenz');
-	// Back in Explore, the same scene reflects the change (one scene, four lenses).
+	// One shared scene: Explore's Codex reflects the attractor, and the edit persists.
 	await page.getByRole('link', { name: 'Explore' }).click();
-	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Attractor');
+	await page.getByRole('link', { name: 'Compose' }).click();
+	await expect(page.locator('select[aria-label="Attractor family"]:visible')).toHaveValue('lorenz');
 });
 
 test('Compose Warp/Post-FX nodes drive the shared post-processing', async ({ page }) => {
@@ -132,15 +133,14 @@ test('the library panel can be resized by dragging its handle', async ({ page })
 test('a deep link restores the scene', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
-	await page.getByLabel('Formula').selectOption('julia');
-	await page.getByLabel('Iterations').fill('800');
+	// Loading a preset changes the shared scene, which the page writes to the URL.
+	await page.getByRole('button', { name: 'Julia Dendrite' }).click();
 	await page.waitForTimeout(400); // allow the debounced URL write
 	const url = page.url();
 	expect(url).toContain('s=');
 	await page.goto(url);
 	await waitForEngine(page);
-	await expect(page.getByLabel('Formula')).toHaveValue('julia');
-	await expect(page.getByLabel('Iterations')).toHaveValue('800');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Julia set');
 });
 
 test('the copy-link button copies the deep link', async ({ page, context }) => {
@@ -157,7 +157,14 @@ test('loading a preset switches the scene', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByRole('button', { name: 'Burning Ship' }).click();
-	await expect(page.getByLabel('Formula')).toHaveValue('burning-ship');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Burning Ship');
+});
+
+test('the Codex names the landmark when the view sits in a famous region', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Seahorse Valley' }).click();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Seahorse Valley');
 });
 
 test('a bookmark can be saved and deleted', async ({ page }) => {
@@ -174,10 +181,7 @@ test('selecting Geometric 3D switches to the 3D renderer', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByRole('option', { name: /Geometric 3D/ }).click();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Geometric 3D'
-	);
-	await expect(page.getByRole('heading', { name: 'Detail' })).toBeVisible();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Mandelbulb');
 	await expect(page.locator('canvas')).toBeVisible();
 });
 
@@ -185,68 +189,19 @@ test('loading a 2D preset while in 3D switches back to the 2D renderer', async (
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByRole('option', { name: /Geometric 3D/ }).click();
-	// 3D has no Formula control; confirm we are in the 3D renderer first.
-	await expect(page.getByLabel('Formula')).toHaveCount(0);
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Mandelbulb');
 	// A 2D preset must pull the studio back to Deep-Zoom 2D, not feed a 2D scene to Mandelbulb.
 	await page.getByRole('button', { name: 'Burning Ship' }).click();
-	await expect(page.getByLabel('Formula')).toHaveValue('burning-ship');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Burning Ship');
 });
 
-test('selecting Glowing Attractors exposes the family selector and exposure control', async ({
+test('selecting Glowing Attractors shows its Codex and renders (or asks for WebGPU)', async ({
 	page
 }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByRole('option', { name: /Glowing Attractors/ }).click();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Glowing Attractors'
-	);
-	// Family selector with all four strange attractors, and an Exposure (not Iterations) control.
-	const family = page.getByLabel('Attractor family');
-	await expect(family).toBeVisible();
-	await expect(family.getByRole('option')).toHaveText(['Clifford', 'de Jong', 'Lorenz', 'Thomas']);
-	await expect(page.getByRole('heading', { name: 'Exposure' })).toBeVisible();
-	await family.selectOption('lorenz');
-	await expect(family).toHaveValue('lorenz');
-	// The art style is WebGPU-only: the viewport is either a live canvas or the
-	// designed "needs WebGPU" state — never a crash or blank.
-	const canvasOrNotice = page
-		.locator('canvas')
-		.or(page.getByText(/needs WebGPU/i))
-		.first();
-	await expect(canvasOrNotice).toBeVisible();
-});
-
-test('loading the Lorenz preset switches to the attractors renderer', async ({ page }) => {
-	await page.goto('/explore');
-	await waitForEngine(page);
-	await page.getByRole('button', { name: 'Lorenz Butterfly' }).click();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Glowing Attractors'
-	);
-	await expect(page.getByLabel('Attractor family')).toHaveValue('lorenz');
-});
-
-test('selecting Painterly Flames exposes the flame selector and exposure control', async ({
-	page
-}) => {
-	await page.goto('/explore');
-	await waitForEngine(page);
-	await page.getByRole('option', { name: /Painterly Flames/ }).click();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Painterly Flames'
-	);
-	const flame = page.getByLabel('Flame');
-	await expect(flame).toBeVisible();
-	await expect(flame.getByRole('option')).toHaveText([
-		'Sierpinski',
-		'Sinusoidal Web',
-		'Swirl Bloom',
-		'Horseshoe'
-	]);
-	await expect(page.getByRole('heading', { name: 'Exposure' })).toBeVisible();
-	await flame.selectOption('swirl');
-	await expect(flame).toHaveValue('swirl');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Attractor');
 	// WebGPU-only: a live canvas or the designed "needs WebGPU" notice, never a crash.
 	const canvasOrNotice = page
 		.locator('canvas')
@@ -255,23 +210,66 @@ test('selecting Painterly Flames exposes the flame selector and exposure control
 	await expect(canvasOrNotice).toBeVisible();
 });
 
+test('Compose exposes the attractor family selector', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Glowing Attractors/ }).click();
+	await page.getByRole('link', { name: 'Compose' }).click();
+	const family = page.locator('select[aria-label="Attractor family"]:visible');
+	await expect(family.getByRole('option')).toHaveText(['Clifford', 'de Jong', 'Lorenz', 'Thomas']);
+	await family.selectOption('lorenz');
+	await expect(family).toHaveValue('lorenz');
+});
+
+test('loading the Lorenz preset switches to the attractors renderer', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Lorenz Butterfly' }).click();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Attractor');
+});
+
+test('selecting Painterly Flames shows its Codex and renders (or asks for WebGPU)', async ({
+	page
+}) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Painterly Flames/ }).click();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Flame');
+	const canvasOrNotice = page
+		.locator('canvas')
+		.or(page.getByText(/needs WebGPU/i))
+		.first();
+	await expect(canvasOrNotice).toBeVisible();
+});
+
+test('Compose exposes the flame selector', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('option', { name: /Painterly Flames/ }).click();
+	await page.getByRole('link', { name: 'Compose' }).click();
+	const flame = page.locator('select[aria-label="Flame"]:visible');
+	await expect(flame.getByRole('option')).toHaveText([
+		'Sierpinski',
+		'Sinusoidal Web',
+		'Swirl Bloom',
+		'Horseshoe'
+	]);
+	await flame.selectOption('swirl');
+	await expect(flame).toHaveValue('swirl');
+});
+
 test('loading the Sinusoidal Web preset switches to the flames renderer', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
 	await page.getByRole('button', { name: 'Sinusoidal Web' }).click();
-	await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText(
-		'Painterly Flames'
-	);
-	await expect(page.getByLabel('Flame')).toHaveValue('sinusoidal');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Flame');
 });
 
-test('the Journeys panel plays a curated journey', async ({ page }) => {
+test('the Journey tab plays a curated journey', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
-	await page.getByRole('button', { name: 'Open Journeys panel' }).click();
-	const panel = page.getByRole('region', { name: 'Journeys' });
-	await expect(panel).toBeVisible();
-	await panel.getByRole('button', { name: 'Zoom' }).click();
+	await page.getByRole('tab', { name: 'Journey' }).click();
+	await page.getByRole('button', { name: 'Zoom', exact: true }).click();
 
 	const progress = page.getByRole('progressbar', { name: 'Journey progress' });
 	await expect(progress).toHaveAttribute('aria-valuenow', '0');
@@ -281,6 +279,18 @@ test('the Journeys panel plays a curated journey', async ({ page }) => {
 	await expect
 		.poll(async () => Number(await progress.getAttribute('aria-valuenow')))
 		.toBeGreaterThan(0);
+});
+
+test('the Journey tab captures Zoom waypoints', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('tab', { name: 'Journey' }).click();
+	await page.getByRole('button', { name: 'Zoom', exact: true }).click();
+	const add = page.getByRole('button', { name: 'Add this view' });
+	await add.click();
+	await add.click();
+	// Two captured stops appear, each removable.
+	await expect(page.getByRole('button', { name: /Remove waypoint/ })).toHaveCount(2);
 });
 
 test('the export sheet renders a journey as a movie (.zip)', async ({ page }) => {
@@ -303,17 +313,16 @@ test('the export sheet renders a journey as a movie (.zip)', async ({ page }) =>
 test.describe('hi-DPR layout', () => {
 	test.use({ viewport: { width: 1280, height: 600 }, deviceScaleFactor: 2 });
 
-	test('Explore keeps the Journeys panel on-screen on hi-DPR displays', async ({ page }) => {
+	test('Explore lays out the canvas and Codex panel on hi-DPR displays', async ({ page }) => {
 		await page.goto('/explore');
 		await expect(page.locator('canvas')).toBeVisible();
 		await page.waitForTimeout(900); // let any ResizeObserver feedback settle
-		await page.getByRole('button', { name: 'Open Journeys panel' }).click();
-		const panel = page.getByRole('region', { name: 'Journeys' });
-		const box = (await panel.boundingBox())!;
-		// The overlay panel must sit within the viewport — and the canvas's
-		// drawing-buffer height must not feed back and grow the stage.
+		const codex = page.getByRole('complementary', { name: 'Codex' });
+		const box = (await codex.boundingBox())!;
+		// The panel sits within the viewport — the canvas drawing-buffer height
+		// must not feed back through the ResizeObserver and grow the layout.
 		expect(box.y + box.height).toBeLessThanOrEqual(601);
-		await expect(page.getByRole('button', { name: 'Play journey' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Journey' })).toBeVisible();
 	});
 });
 
@@ -361,7 +370,8 @@ test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 test('visual: Julia set', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
-	await page.getByLabel('Formula').selectOption('julia');
+	// Formula editing lives in Compose now; load a Julia preset to frame the shot.
+	await page.getByRole('button', { name: 'Julia Dendrite' }).click();
 	await page.waitForTimeout(300);
 	await expect(page).toHaveScreenshot('explore-julia.png', {
 		fullPage: true,

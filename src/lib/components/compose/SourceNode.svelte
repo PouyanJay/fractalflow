@@ -28,6 +28,35 @@
 				{/each}
 			</select>
 		</label>
+		{#if scene.formula === 'julia'}
+			<div class="field">
+				<span>Julia seed</span>
+				<div class="seeds">
+					<label class="seed">
+						<span class="seed-label">Re</span>
+						<input
+							class="nodrag"
+							type="number"
+							step="0.01"
+							value={scene.juliaSeed.x}
+							oninput={(e) => scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
+							aria-label="Julia seed real part"
+						/>
+					</label>
+					<label class="seed">
+						<span class="seed-label">Im</span>
+						<input
+							class="nodrag"
+							type="number"
+							step="0.01"
+							value={scene.juliaSeed.y}
+							oninput={(e) => scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
+							aria-label="Julia seed imaginary part"
+						/>
+					</label>
+				</div>
+			</div>
+		{/if}
 	{:else if style === 'attractors'}
 		<label class="field">
 			<span>Attractor</span>
@@ -78,6 +107,32 @@
 		color: var(--ff-text);
 		font: inherit;
 		cursor: pointer;
+	}
+	.seeds {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--ff-space-2);
+	}
+	.seed {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-1);
+		min-width: 0;
+	}
+	.seed-label {
+		flex: none;
+	}
+	.seed input {
+		flex: 1;
+		min-width: 0;
+		width: 100%;
+		padding: 4px 6px;
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-sm);
+		background: var(--ff-surface-raised);
+		color: var(--ff-text);
+		font: inherit;
+		font-variant-numeric: tabular-nums;
 	}
 	.hint {
 		font-size: var(--ff-text-sm);
