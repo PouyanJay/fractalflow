@@ -90,12 +90,16 @@
 		position: relative;
 		flex: 1;
 		min-width: 0;
+		min-height: 0;
 		display: flex;
 	}
 	canvas {
 		display: block;
 		width: 100%;
 		height: 100%;
+		/* The drawing-buffer size must not contribute to layout (hi-DPR feedback). */
+		min-width: 0;
+		min-height: 0;
 	}
 	.error {
 		position: absolute;

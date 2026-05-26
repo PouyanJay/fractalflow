@@ -320,6 +320,22 @@ test('Animate playback advances the playhead (loops, even from the end)', async 
 	await expect.poll(readout).not.toBe(before);
 });
 
+test.describe('hi-DPR layout', () => {
+	test.use({ viewport: { width: 1280, height: 600 }, deviceScaleFactor: 2 });
+
+	test('Animate timeline dock stays fully on-screen on hi-DPR displays', async ({ page }) => {
+		await page.goto('/animate');
+		await expect(page.locator('canvas')).toBeVisible();
+		await page.waitForTimeout(900); // let any ResizeObserver feedback settle
+		const dock = page.getByRole('region', { name: 'Timeline' });
+		const box = (await dock.boundingBox())!;
+		// The whole dock (Play + track) must sit within the viewport, not pushed
+		// off the bottom by the canvas's drawing-buffer height feeding back.
+		expect(box.y + box.height).toBeLessThanOrEqual(601);
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+	});
+});
+
 test('Render mode exports a PNG download', async ({ page }) => {
 	await page.goto('/render');
 	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
