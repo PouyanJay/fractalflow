@@ -98,7 +98,12 @@
 <style>
 	.stage {
 		flex: 1;
+		/* Both min-* are 0 so the flex item shrinks to its allocated box instead
+		 * of the canvas's intrinsic (drawing-buffer) size. Without min-height: 0
+		 * the canvas height feeds back through the ResizeObserver and grows the
+		 * stage on hi-DPR screens, pushing siblings (the Animate dock) off-screen. */
 		min-width: 0;
+		min-height: 0;
 		display: flex;
 		cursor: grab;
 		touch-action: none;
