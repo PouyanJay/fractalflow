@@ -139,33 +139,38 @@
 		font-weight: var(--ff-weight-regular);
 	}
 
+	/* Segmented control: a calm raised group; the active mode is a filled chip.
+	   No accent glow or underline — the fractal art supplies the colour. */
 	.modes {
 		display: flex;
 		align-items: center;
-		gap: var(--ff-space-1);
+		gap: 2px;
+		padding: 3px;
+		background: var(--ff-surface-raised);
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-md);
 	}
 	.tab {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--ff-space-2);
-		height: 32px;
+		height: 26px;
 		padding: 0 var(--ff-space-3);
-		border-radius: var(--ff-radius-md);
+		border-radius: var(--ff-radius-sm);
 		color: var(--ff-text-muted);
-		font-size: var(--ff-text-md);
+		font-size: var(--ff-text-sm);
 		font-weight: var(--ff-weight-medium);
 		transition:
 			background var(--ff-dur-fast) var(--ff-ease),
 			color var(--ff-dur-fast) var(--ff-ease);
 	}
 	.tab:hover {
-		background: var(--ff-surface-hover);
 		color: var(--ff-text);
 	}
 	.tab.active {
 		background: var(--ff-surface-active);
 		color: var(--ff-text);
-		box-shadow: inset 0 -2px 0 var(--ff-accent);
+		box-shadow: var(--ff-shadow-1);
 	}
 
 	.actions {

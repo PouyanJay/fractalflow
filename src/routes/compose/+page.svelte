@@ -33,6 +33,7 @@
 		fitView
 		minZoom={0.4}
 		maxZoom={1.5}
+		proOptions={{ hideAttribution: true }}
 	>
 		<Background gap={28} />
 		<Controls showLock={false} />
@@ -59,5 +60,10 @@
 	}
 	.compose :global(.svelte-flow__edge-path) {
 		stroke: var(--ff-border-strong);
+	}
+	/* The Output node's preview canvas is absolutely positioned, so it can't size
+	   the node itself — give the node a definite width and let the preview fill it. */
+	.compose :global(.svelte-flow__node-output) {
+		width: 300px;
 	}
 </style>

@@ -30,15 +30,28 @@
 
 <style>
 	.preview {
-		width: 240px;
-		height: 160px;
-		display: flex;
+		position: relative;
+		/* Fills the node's fixed width (set on .svelte-flow__node-output); a wide
+		   fractal frames inside the landscape box, and the canvas (absolute, below)
+		   can't feed its hi-DPR drawing-buffer size back into layout. */
+		width: 100%;
+		aspect-ratio: 16 / 10;
 		border-radius: var(--ff-radius-md);
 		overflow: hidden;
 		background: var(--ff-bg);
 	}
+	/* Lock the GPU canvas to the fixed preview box. */
+	.preview :global(.gpu) {
+		position: absolute;
+		inset: 0;
+	}
 	.hint {
-		margin: auto;
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
 		padding: var(--ff-space-3);
 		font-size: var(--ff-text-sm);
 		color: var(--ff-text-muted);

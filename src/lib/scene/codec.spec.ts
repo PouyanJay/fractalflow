@@ -115,7 +115,7 @@ describe('decodeScene resilience', () => {
 		expect(hi.maxIter).toBeLessThanOrEqual(1200);
 		expect(hi.paletteIndex).toBeLessThanOrEqual(3);
 		const lo = decodeScene(encodeScene({ ...s, maxIter: 1, paletteIndex: -5 }));
-		expect(lo.maxIter).toBeGreaterThanOrEqual(50);
+		expect(lo.maxIter).toBeGreaterThanOrEqual(1);
 		expect(lo.paletteIndex).toBe(0);
 	});
 

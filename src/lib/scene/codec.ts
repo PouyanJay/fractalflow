@@ -17,7 +17,7 @@ const FORMULA_IDS: readonly FormulaId[] = ['mandelbrot', 'julia', 'burning-ship'
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
-const MIN_ITER = 50;
+const MIN_ITER = 1;
 const MAX_ITER = 1200;
 const SEPARATOR = '~';
 

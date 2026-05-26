@@ -1,24 +1,22 @@
 <script lang="ts">
 	import NodeShell from './NodeShell.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { WARPS } from '$lib/fractals/post';
 
 	const scene = getSceneStore();
+	const warpOptions = WARPS.map((w) => ({ value: w.id, label: w.label }));
 </script>
 
 <NodeShell title="Warp" target source>
 	<label class="field">
 		<span>Mode</span>
-		<select
-			class="select nodrag"
-			aria-label="Warp"
+		<Select
+			ariaLabel="Warp"
+			options={warpOptions}
 			value={scene.post.warp}
-			onchange={(e) => scene.setPost({ warp: e.currentTarget.value })}
-		>
-			{#each WARPS as w (w.id)}
-				<option value={w.id}>{w.label}</option>
-			{/each}
-		</select>
+			onchange={(v) => scene.setPost({ warp: v })}
+		/>
 	</label>
 
 	{#if scene.post.warp === 'kaleido'}
@@ -49,16 +47,6 @@
 		font-size: var(--ff-text-xs);
 		color: var(--ff-text-muted);
 		width: 170px;
-	}
-	.select {
-		height: 30px;
-		padding: 0 var(--ff-space-2);
-		border: 1px solid var(--ff-border);
-		border-radius: var(--ff-radius-md);
-		background: var(--ff-surface-raised);
-		color: var(--ff-text);
-		font: inherit;
-		cursor: pointer;
 	}
 	.row {
 		display: flex;

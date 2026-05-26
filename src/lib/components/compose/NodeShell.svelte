@@ -35,7 +35,7 @@
 		border: 1px solid var(--ff-border);
 		border-radius: var(--ff-radius-lg);
 		background: var(--ff-surface);
-		overflow: hidden;
+		/* Not clipped: a node's dropdown popover must be able to overflow the node. */
 	}
 	.node-head {
 		padding: var(--ff-space-2) var(--ff-space-3);
@@ -46,6 +46,7 @@
 		color: var(--ff-text-secondary);
 		background: var(--ff-surface-raised);
 		border-bottom: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-lg) var(--ff-radius-lg) 0 0;
 	}
 	.node-body {
 		display: flex;

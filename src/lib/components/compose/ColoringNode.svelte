@@ -41,9 +41,9 @@
 			<input
 				class="nodrag"
 				type="range"
-				min="50"
+				min="1"
 				max="1200"
-				step="10"
+				step="1"
 				value={scene.maxIter}
 				oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}
 				aria-label={detailLabel}

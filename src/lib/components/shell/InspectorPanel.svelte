@@ -144,10 +144,36 @@
 
 <SidePanel title="Codex" panelId="inspector" side="right" header={isCompose ? undefined : tabs}>
 	{#if isCompose}
-		<p class="defer">
-			Switch to <strong>Explore</strong> to inspect a fractal and set up journeys. Parameters are edited
-			here in the node graph.
-		</p>
+		{#if !hasRenderer}
+			<p class="defer">Pick an art style in the Start palette to read about it here.</p>
+		{:else}
+			<section class="group">
+				<h3 class="codex-title">{desc.title}</h3>
+				<p class="codex-body">{desc.body}</p>
+			</section>
+			{#if desc.math}
+				<section class="group">
+					<h4 class="group-label">Mathematics</h4>
+					<p class="codex-body">{desc.math}</p>
+				</section>
+			{/if}
+			{#if desc.applications}
+				<section class="group">
+					<h4 class="group-label">Applications</h4>
+					<p class="codex-body">{desc.applications}</p>
+				</section>
+			{/if}
+			{#if desc.tips}
+				<section class="group">
+					<h4 class="group-label">How to create</h4>
+					<p class="codex-body">{desc.tips}</p>
+				</section>
+			{/if}
+			<p class="defer compose-note">
+				Parameters are edited in the node graph; switch to <strong>Explore</strong> to inhabit the fractal
+				and set up journeys.
+			</p>
+		{/if}
 	{:else if !hasRenderer}
 		<p class="defer">Pick an art style in Compose's Start palette to begin exploring.</p>
 	{:else if tab === 'codex'}
@@ -378,6 +404,9 @@
 	.defer strong {
 		color: var(--ff-text-secondary);
 		font-weight: var(--ff-weight-medium);
+	}
+	.compose-note {
+		margin-top: var(--ff-space-5);
 	}
 	.landmark {
 		display: flex;

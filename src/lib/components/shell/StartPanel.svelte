@@ -6,6 +6,7 @@
 	 * Codex.) Folded out of the old global Library in the two-act re-frame.
 	 */
 	import SidePanel from './SidePanel.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { ART_STYLES, modeFromPath } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
@@ -32,6 +33,12 @@
 		ui.selectArtStyle(styleId);
 		sceneStore.setScene(scene);
 		if (modeFromPath(page.url.pathname) !== 'explore') goto(resolve('/explore'));
+	}
+
+	const presetOptions = PRESETS.map((p) => ({ value: p.id, label: p.label }));
+	function onPickPreset(id: string) {
+		const preset = PRESETS.find((p) => p.id === id);
+		if (preset) loadPreset(preset.styleId, preset.scene);
 	}
 </script>
 
@@ -66,19 +73,13 @@
 
 	<section class="group">
 		<h3 class="group-label">Presets</h3>
-		<ul class="list">
-			{#each PRESETS as preset (preset.id)}
-				<li>
-					<button
-						type="button"
-						class="entry"
-						onclick={() => loadPreset(preset.styleId, preset.scene)}
-					>
-						{preset.label}
-					</button>
-				</li>
-			{/each}
-		</ul>
+		<Select
+			ariaLabel="Preset"
+			options={presetOptions}
+			value=""
+			placeholder="Load a preset…"
+			onchange={onPickPreset}
+		/>
 	</section>
 </SidePanel>
 
@@ -154,32 +155,5 @@
 		font-size: var(--ff-text-sm);
 		color: var(--ff-text-muted);
 		line-height: var(--ff-leading-tight);
-	}
-	.list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-	.entry {
-		width: 100%;
-		padding: 6px var(--ff-space-3);
-		border: none;
-		border-radius: var(--ff-radius-md);
-		background: transparent;
-		text-align: left;
-		color: var(--ff-text-secondary);
-		font-size: var(--ff-text-sm);
-		cursor: pointer;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		transition: background var(--ff-dur-fast) var(--ff-ease);
-	}
-	.entry:hover {
-		background: var(--ff-surface-hover);
-		color: var(--ff-text);
 	}
 </style>

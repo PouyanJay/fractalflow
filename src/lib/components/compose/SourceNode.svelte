@@ -1,5 +1,6 @@
 <script lang="ts">
 	import NodeShell from './NodeShell.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { sourceLabel } from '$lib/compose/graph';
@@ -11,22 +12,21 @@
 	const ui = getUiStore();
 	const scene = getSceneStore();
 	const style = $derived(ui.selectedStyle);
+
+	const toOptions = (items: readonly { id: string; label: string }[]) =>
+		items.map((i) => ({ value: i.id, label: i.label }));
 </script>
 
 <NodeShell title={sourceLabel(style)} source>
 	{#if style === 'deep-zoom-2d'}
 		<label class="field">
 			<span>Formula</span>
-			<select
-				class="select nodrag"
-				aria-label="Formula"
+			<Select
+				ariaLabel="Formula"
+				options={toOptions(FORMULAS)}
 				value={scene.formula}
-				onchange={(e) => scene.setFormula(e.currentTarget.value as FormulaId)}
-			>
-				{#each FORMULAS as f (f.id)}
-					<option value={f.id}>{f.label}</option>
-				{/each}
-			</select>
+				onchange={(v) => scene.setFormula(v as FormulaId)}
+			/>
 		</label>
 		{#if scene.formula === 'julia'}
 			<div class="field">
@@ -60,30 +60,22 @@
 	{:else if style === 'attractors'}
 		<label class="field">
 			<span>Attractor</span>
-			<select
-				class="select nodrag"
-				aria-label="Attractor family"
+			<Select
+				ariaLabel="Attractor family"
+				options={toOptions(ATTRACTORS)}
 				value={scene.attractor}
-				onchange={(e) => scene.setAttractor(e.currentTarget.value)}
-			>
-				{#each ATTRACTORS as a (a.id)}
-					<option value={a.id}>{a.label}</option>
-				{/each}
-			</select>
+				onchange={(v) => scene.setAttractor(v)}
+			/>
 		</label>
 	{:else if style === 'flames'}
 		<label class="field">
 			<span>Flame</span>
-			<select
-				class="select nodrag"
-				aria-label="Flame"
+			<Select
+				ariaLabel="Flame"
+				options={toOptions(FLAMES)}
 				value={scene.flame}
-				onchange={(e) => scene.setFlame(e.currentTarget.value)}
-			>
-				{#each FLAMES as fl (fl.id)}
-					<option value={fl.id}>{fl.label}</option>
-				{/each}
-			</select>
+				onchange={(v) => scene.setFlame(v)}
+			/>
 		</label>
 	{:else}
 		<p class="hint">Raymarched Mandelbulb — orbit and zoom in Explore.</p>
@@ -97,16 +89,6 @@
 		gap: var(--ff-space-1);
 		font-size: var(--ff-text-xs);
 		color: var(--ff-text-muted);
-	}
-	.select {
-		height: 30px;
-		padding: 0 var(--ff-space-2);
-		border: 1px solid var(--ff-border);
-		border-radius: var(--ff-radius-md);
-		background: var(--ff-surface-raised);
-		color: var(--ff-text);
-		font: inherit;
-		cursor: pointer;
 	}
 	.seeds {
 		display: grid;
