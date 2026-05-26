@@ -39,13 +39,17 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 			x: lerp(a.juliaSeed.x, b.juliaSeed.x, u),
 			y: lerp(a.juliaSeed.y, b.juliaSeed.y, u)
 		},
-		// Warp snaps to the earlier keyframe; the grade amounts interpolate.
+		// Warp snaps to the earlier keyframe; the grade and bloom amounts interpolate.
 		post: {
 			warp: a.post.warp,
 			warpAmount: lerp(a.post.warpAmount, b.post.warpAmount, u),
 			vignette: lerp(a.post.vignette, b.post.vignette, u),
 			gamma: lerp(a.post.gamma, b.post.gamma, u),
-			grain: lerp(a.post.grain, b.post.grain, u)
+			grain: lerp(a.post.grain, b.post.grain, u),
+			bloom: lerp(a.post.bloom, b.post.bloom, u),
+			bloomThreshold: lerp(a.post.bloomThreshold, b.post.bloomThreshold, u),
+			bloomKnee: lerp(a.post.bloomKnee, b.post.bloomKnee, u),
+			bloomRadius: lerp(a.post.bloomRadius, b.post.bloomRadius, u)
 		}
 	};
 }

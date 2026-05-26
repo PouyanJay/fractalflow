@@ -11,11 +11,12 @@ import {
 } from './post';
 
 describe('post model', () => {
-	it('defaults to a no-op (identity warp, neutral grade)', () => {
+	it('defaults to a no-op (identity warp, neutral grade, bloom off)', () => {
 		expect(DEFAULT_POST.warp).toBe('none');
 		expect(DEFAULT_POST.vignette).toBe(0);
 		expect(DEFAULT_POST.gamma).toBe(1);
 		expect(DEFAULT_POST.grain).toBe(0);
+		expect(DEFAULT_POST.bloom).toBe(0);
 	});
 
 	it('lists warps with codes that match', () => {
@@ -34,7 +35,11 @@ describe('packPost', () => {
 			warpAmount: 8,
 			vignette: 0.4,
 			gamma: 1.5,
-			grain: 0.2
+			grain: 0.2,
+			bloom: 0,
+			bloomThreshold: 0.8,
+			bloomKnee: 0.5,
+			bloomRadius: 1
 		};
 		packPost(view, 8, p);
 		expect(view.getUint32(8, true)).toBe(2);
@@ -42,6 +47,25 @@ describe('packPost', () => {
 		expect(view.getFloat32(16, true)).toBeCloseTo(0.4);
 		expect(view.getFloat32(20, true)).toBeCloseTo(1.5);
 		expect(view.getFloat32(24, true)).toBeCloseTo(0.2);
+	});
+
+	it('sets the bloomActive flag only when bloom intensity is positive', () => {
+		const view = new DataView(new ArrayBuffer(POST_SIZE));
+		const base: PostSettings = {
+			warp: 'none',
+			warpAmount: 6,
+			vignette: 0,
+			gamma: 1,
+			grain: 0,
+			bloom: 0,
+			bloomThreshold: 0.8,
+			bloomKnee: 0.5,
+			bloomRadius: 1
+		};
+		packPost(view, 0, base);
+		expect(view.getFloat32(20, true)).toBe(0);
+		packPost(view, 0, { ...base, bloom: 0.7 });
+		expect(view.getFloat32(20, true)).toBe(1);
 	});
 
 	it('is a multiple of 16 bytes for std140 alignment', () => {

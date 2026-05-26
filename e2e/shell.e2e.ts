@@ -110,6 +110,20 @@ test('Compose Warp/Post-FX nodes drive the shared post-processing', async ({ pag
 	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('kaleido');
 });
 
+test('Compose Post-FX bloom intensity drives the shared scene', async ({ page }) => {
+	await page.goto('/compose');
+	const intensity = page.locator('input[aria-label="Intensity"]:visible');
+	await expect(intensity).toBeVisible();
+	await expect(intensity).toHaveValue('0'); // bloom off by default
+	// Set the slider via its bound value; bloom lives in the shared scene.
+	await intensity.fill('1.4');
+	await intensity.dispatchEvent('input');
+	await expect(intensity).toHaveValue('1.4');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	// The scene token (?s=) carries the bloom amount past the grade fields.
+	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('~1.4~');
+});
+
 test('command palette opens with the keyboard and navigates', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);

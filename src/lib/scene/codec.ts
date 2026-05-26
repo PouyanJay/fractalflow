@@ -25,6 +25,8 @@ function clampInt(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, Math.round(value)));
 }
 
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
 export function encodeScene(scene: SceneState): string {
 	return [
 		scene.formula,
@@ -41,7 +43,11 @@ export function encodeScene(scene: SceneState): string {
 		scene.post.warpAmount,
 		scene.post.vignette,
 		scene.post.gamma,
-		scene.post.grain
+		scene.post.grain,
+		scene.post.bloom,
+		scene.post.bloomThreshold,
+		scene.post.bloomKnee,
+		scene.post.bloomRadius
 	].join(SEPARATOR);
 }
 
@@ -80,7 +86,11 @@ export function decodeScene(token: string): SceneState {
 			warpAmount: num(parts[11], fallback.post.warpAmount),
 			vignette: num(parts[12], fallback.post.vignette),
 			gamma: num(parts[13], fallback.post.gamma),
-			grain: num(parts[14], fallback.post.grain)
+			grain: num(parts[14], fallback.post.grain),
+			bloom: Math.max(0, num(parts[15], fallback.post.bloom)),
+			bloomThreshold: Math.max(0, num(parts[16], fallback.post.bloomThreshold)),
+			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
+			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
 		}
 	};
 }

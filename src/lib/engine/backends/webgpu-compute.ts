@@ -12,6 +12,8 @@
  * shared uniform buffer. WebGPU-only by design; there is no WebGL2 equivalent.
  */
 import type { ComputeRenderer, RenderInput, RenderBackend } from '../types';
+import { createWebGPUBloom, BLOOM_HDR_FORMAT } from './webgpu-bloom';
+import { withBloomDisabled } from '$lib/fractals/bloom';
 
 /** Must match `@workgroup_size(N)` on the `integrate` entry point. */
 export const COMPUTE_WORKGROUP_SIZE = 64;
@@ -39,18 +41,24 @@ export async function createWebGPUComputeBackend(
 		layout: 'auto',
 		compute: { module, entryPoint: 'integrate' }
 	});
-	const renderPipeline = device.createRenderPipeline({
-		layout: 'auto',
-		vertex: { module, entryPoint: 'vs' },
-		fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-		primitive: { topology: 'triangle-list' }
-	});
+	const makeRenderPipeline = (target: GPUTextureFormat) =>
+		device.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module, entryPoint: 'vs' },
+			fragment: { module, entryPoint: 'fs', targets: [{ format: target }] },
+			primitive: { topology: 'triangle-list' }
+		});
+	const renderPipeline = makeRenderPipeline(format);
+	// HDR tone-map variant: glowing cores keep values >1 for the bright pass.
+	const renderPipelineHDR = makeRenderPipeline(BLOOM_HDR_FORMAT);
 	const pipelineError = await device.popErrorScope();
 	if (pipelineError) {
 		console.warn('[webgpu-compute] pipeline invalid:', pipelineError.message);
 		device.destroy();
 		return null;
 	}
+
+	const bloom = await createWebGPUBloom(device, format);
 
 	const uniformBuffer = device.createBuffer({
 		size: renderer.uniformSize,
@@ -65,6 +73,7 @@ export async function createWebGPUComputeBackend(
 	let densityBuffer: GPUBuffer | null = null;
 	let computeBindGroup: GPUBindGroup | null = null;
 	let renderBindGroup: GPUBindGroup | null = null;
+	let renderBindGroupHDR: GPUBindGroup | null = null;
 	let gridW = 0;
 	let gridH = 0;
 
@@ -84,6 +93,12 @@ export async function createWebGPUComputeBackend(
 			layout: renderPipeline.getBindGroupLayout(0),
 			entries: [uniform, density]
 		});
+		renderBindGroupHDR = bloom
+			? device.createBindGroup({
+					layout: renderPipelineHDR.getBindGroupLayout(0),
+					entries: [uniform, density]
+				})
+			: null;
 		gridW = width;
 		gridH = height;
 	}
@@ -101,7 +116,11 @@ export async function createWebGPUComputeBackend(
 			if (!densityBuffer || gridW !== input.width || gridH !== input.height) {
 				allocateGrid(input.width, input.height);
 			}
-			renderer.packUniforms(view, input);
+			const useBloom = !!bloom && input.scene.post.bloom > 0;
+			// Bloom requested but unavailable → restore the in-shader grade.
+			const packInput =
+				!useBloom && input.scene.post.bloom > 0 ? withBloomDisabled(input) : input;
+			renderer.packUniforms(view, packInput);
 			device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
 			const encoder = device.createCommandEncoder();
@@ -113,23 +132,30 @@ export async function createWebGPUComputeBackend(
 			compute.dispatchWorkgroups(workgroups);
 			compute.end();
 
-			const pass = encoder.beginRenderPass({
-				colorAttachments: [
-					{
-						view: context.getCurrentTexture().createView(),
-						clearValue: { r: 0, g: 0, b: 0, a: 1 },
-						loadOp: 'clear',
-						storeOp: 'store'
-					}
-				]
-			});
-			pass.setPipeline(renderPipeline);
-			pass.setBindGroup(0, renderBindGroup!);
-			pass.draw(3);
-			pass.end();
+			const target = context.getCurrentTexture().createView();
+			const toneMap = (dst: GPUTextureView, hdr: boolean) => {
+				const pass = encoder.beginRenderPass({
+					colorAttachments: [
+						{ view: dst, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }
+					]
+				});
+				pass.setPipeline(hdr ? renderPipelineHDR : renderPipeline);
+				pass.setBindGroup(0, hdr ? renderBindGroupHDR! : renderBindGroup!);
+				pass.draw(3);
+				pass.end();
+			};
+
+			if (useBloom && bloom) {
+				bloom.resize(input.width, input.height);
+				toneMap(bloom.sceneView(), true);
+				bloom.encode(encoder, target, input.scene.post);
+			} else {
+				toneMap(target, false);
+			}
 			device.queue.submit([encoder.finish()]);
 		},
 		destroy() {
+			bloom?.destroy();
 			uniformBuffer.destroy();
 			densityBuffer?.destroy();
 			context.unconfigure();

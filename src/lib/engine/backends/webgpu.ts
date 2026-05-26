@@ -6,6 +6,8 @@
  */
 import type { FractalRenderer, RenderInput, RenderBackend } from '../types';
 import { createWebGPUComputeBackend } from './webgpu-compute';
+import { createWebGPUBloom, BLOOM_HDR_FORMAT } from './webgpu-bloom';
+import { withBloomDisabled } from '$lib/fractals/bloom';
 
 export async function createWebGPUBackend(
 	canvas: HTMLCanvasElement,
@@ -32,18 +34,27 @@ export async function createWebGPUBackend(
 	// engine falls back to WebGL2 instead of rendering nothing.
 	device.pushErrorScope('validation');
 	const module = device.createShaderModule({ code: renderer.wgsl });
-	const pipeline = device.createRenderPipeline({
-		layout: 'auto',
-		vertex: { module, entryPoint: 'vs' },
-		fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-		primitive: { topology: 'triangle-list' }
-	});
+	const makeScenePipeline = (target: GPUTextureFormat) =>
+		device.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module, entryPoint: 'vs' },
+			fragment: { module, entryPoint: 'fs', targets: [{ format: target }] },
+			primitive: { topology: 'triangle-list' }
+		});
+	const pipeline = makeScenePipeline(format);
+	// HDR variant used when bloom is on: the scene renders to an offscreen
+	// rgba16float target so bright values survive the bright-pass threshold.
+	const pipelineHDR = makeScenePipeline(BLOOM_HDR_FORMAT);
 	const pipelineError = await device.popErrorScope();
 	if (pipelineError) {
 		console.warn('[webgpu] pipeline invalid, falling back to WebGL2:', pipelineError.message);
 		device.destroy();
 		return null;
 	}
+
+	// Bloom is optional: if its pipelines fail to build, the backend still
+	// renders (direct path) — bloom just won't apply.
+	const bloom = await createWebGPUBloom(device, format);
 
 	const uniformBuffer = device.createBuffer({
 		size: renderer.uniformSize,
@@ -61,9 +72,25 @@ export async function createWebGPUBackend(
 	}
 
 	const bindGroup = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries });
+	// A second bind group bound to the HDR pipeline's (auto) layout — same buffers.
+	const bindGroupHDR = bloom
+		? device.createBindGroup({ layout: pipelineHDR.getBindGroupLayout(0), entries })
+		: null;
 
 	const uniformData = new ArrayBuffer(renderer.uniformSize);
 	const view = new DataView(uniformData);
+
+	function drawScene(encoder: GPUCommandEncoder, target: GPUTextureView, hdr: boolean) {
+		const pass = encoder.beginRenderPass({
+			colorAttachments: [
+				{ view: target, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }
+			]
+		});
+		pass.setPipeline(hdr ? pipelineHDR : pipeline);
+		pass.setBindGroup(0, hdr ? bindGroupHDR! : bindGroup);
+		pass.draw(3);
+		pass.end();
+	}
 
 	return {
 		type: 'webgpu',
@@ -71,7 +98,11 @@ export async function createWebGPUBackend(
 			// The configured context tracks the canvas drawing-buffer size.
 		},
 		render(input: RenderInput) {
-			renderer.packUniforms(view, input);
+			const useBloom = !!bloom && input.scene.post.bloom > 0;
+			// Bloom requested but unavailable → keep the in-shader grade (clear the flag).
+			const packInput =
+				!useBloom && input.scene.post.bloom > 0 ? withBloomDisabled(input) : input;
+			renderer.packUniforms(view, packInput);
 			device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
 			if (dataBuffer && renderer.packData) {
@@ -80,23 +111,18 @@ export async function createWebGPUBackend(
 			}
 
 			const encoder = device.createCommandEncoder();
-			const pass = encoder.beginRenderPass({
-				colorAttachments: [
-					{
-						view: context.getCurrentTexture().createView(),
-						clearValue: { r: 0, g: 0, b: 0, a: 1 },
-						loadOp: 'clear',
-						storeOp: 'store'
-					}
-				]
-			});
-			pass.setPipeline(pipeline);
-			pass.setBindGroup(0, bindGroup);
-			pass.draw(3);
-			pass.end();
+			const target = context.getCurrentTexture().createView();
+			if (useBloom && bloom) {
+				bloom.resize(input.width, input.height);
+				drawScene(encoder, bloom.sceneView(), true);
+				bloom.encode(encoder, target, input.scene.post);
+			} else {
+				drawScene(encoder, target, false);
+			}
 			device.queue.submit([encoder.finish()]);
 		},
 		destroy() {
+			bloom?.destroy();
 			uniformBuffer.destroy();
 			dataBuffer?.destroy();
 			context.unconfigure();

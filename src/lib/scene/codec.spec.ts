@@ -18,7 +18,17 @@ describe('encodeScene / decodeScene round-trip', () => {
 			juliaSeed: { x: -0.8, y: 0.156 },
 			attractor: 'clifford',
 			flame: 'sierpinski',
-			post: { warp: 'none', warpAmount: 6, vignette: 0, gamma: 1, grain: 0 }
+			post: {
+				warp: 'none',
+				warpAmount: 6,
+				vignette: 0,
+				gamma: 1,
+				grain: 0,
+				bloom: 0,
+				bloomThreshold: 0.8,
+				bloomKnee: 0.5,
+				bloomRadius: 1
+			}
 		};
 		expect(decodeScene(encodeScene(s))).toEqual(s);
 	});
@@ -28,7 +38,17 @@ describe('encodeScene / decodeScene round-trip', () => {
 			...createDefaultScene(),
 			attractor: 'lorenz',
 			flame: 'swirl',
-			post: { warp: 'kaleido', warpAmount: 8, vignette: 0.5, gamma: 1.4, grain: 0.3 }
+			post: {
+				warp: 'kaleido',
+				warpAmount: 8,
+				vignette: 0.5,
+				gamma: 1.4,
+				grain: 0.3,
+				bloom: 1.2,
+				bloomThreshold: 0.65,
+				bloomKnee: 0.3,
+				bloomRadius: 1.5
+			}
 		};
 		const out = decodeScene(encodeScene(s));
 		expect(out.attractor).toBe('lorenz');
@@ -39,6 +59,30 @@ describe('encodeScene / decodeScene round-trip', () => {
 	it('defaults post to a no-op for legacy tokens', () => {
 		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 10).join('~');
 		expect(decodeScene(legacy).post).toEqual(createDefaultScene().post);
+	});
+
+	it('defaults bloom for tokens written before bloom existed', () => {
+		// A pre-bloom token has the 15 fields up to grain but none of the bloom four.
+		const preBloom = encodeScene(createDefaultScene()).split('~').slice(0, 15).join('~');
+		const { post } = decodeScene(preBloom);
+		expect(post.bloom).toBe(0);
+		expect(post.bloomThreshold).toBe(0.8);
+		expect(post.bloomKnee).toBe(0.5);
+		expect(post.bloomRadius).toBe(1);
+	});
+
+	it('clamps out-of-range bloom values defensively', () => {
+		const s = createDefaultScene();
+		const out = decodeScene(
+			encodeScene({
+				...s,
+				post: { ...s.post, bloom: -3, bloomThreshold: -1, bloomKnee: 5, bloomRadius: -2 }
+			})
+		);
+		expect(out.post.bloom).toBe(0);
+		expect(out.post.bloomThreshold).toBe(0);
+		expect(out.post.bloomKnee).toBe(1);
+		expect(out.post.bloomRadius).toBe(0);
 	});
 });
 

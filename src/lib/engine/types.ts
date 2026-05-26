@@ -26,6 +26,20 @@ export interface PostSettings {
 	vignette: number;
 	gamma: number;
 	grain: number;
+	/**
+	 * Bloom (HDR glow). `bloom` is the intensity; 0 disables it entirely and the
+	 * backend keeps its direct-to-swapchain path (no render-to-texture cost).
+	 * When > 0 the backend renders the scene to an offscreen target, builds a
+	 * downsample/upsample mip pyramid of the bright areas, and adds the glow back
+	 * *before* the gamma/vignette/grain grade. See `$lib/fractals/bloom`.
+	 */
+	bloom: number;
+	/** Bright-pass luminance cutoff — only pixels above this contribute glow. */
+	bloomThreshold: number;
+	/** Soft-knee smoothness of the threshold rolloff (0 = hard, 1 = soft). */
+	bloomKnee: number;
+	/** Spread of the glow (scales the upsample tent filter radius). */
+	bloomRadius: number;
 }
 
 /** Mutable per-frame scene state the UI updates and the renderer consumes. */

@@ -11,7 +11,17 @@ const scene: SceneState = {
 	juliaSeed: { x: 0, y: 0 },
 	attractor: 'clifford',
 	flame: 'sierpinski',
-	post: { warp: 'none', warpAmount: 0, vignette: 0, gamma: 1, grain: 0 }
+	post: {
+		warp: 'none',
+		warpAmount: 0,
+		vignette: 0,
+		gamma: 1,
+		grain: 0,
+		bloom: 0,
+		bloomThreshold: 0.8,
+		bloomKnee: 0.5,
+		bloomRadius: 1
+	}
 };
 
 describe('JOURNEYS', () => {

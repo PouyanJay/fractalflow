@@ -51,6 +51,20 @@ describe('interpolateScene', () => {
 		expect(interpolateScene([A, B], 0.5).paletteIndex).toBe(0);
 	});
 
+	it('interpolates bloom amounts so the glow ramps over a journey', () => {
+		const lo = scene({ post: { ...createDefaultScene().post, bloom: 0, bloomThreshold: 1 } });
+		const hi = scene({ post: { ...createDefaultScene().post, bloom: 1, bloomThreshold: 0.5 } });
+		const m = interpolateScene(
+			[
+				{ id: 'l', t: 0, scene: lo },
+				{ id: 'h', t: 1, scene: hi }
+			],
+			0.5
+		);
+		expect(m.post.bloom).toBeCloseTo(0.5, 10);
+		expect(m.post.bloomThreshold).toBeCloseTo(0.75, 10);
+	});
+
 	it('returns the only keyframe for any time when there is one', () => {
 		expect(interpolateScene([A], 0.7)).toEqual(A.scene);
 	});
