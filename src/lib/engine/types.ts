@@ -82,9 +82,15 @@ export interface FragmentRenderer extends RendererBase {
 	 * Optional per-frame data buffer (e.g. a perturbation reference orbit),
 	 * exposed to the shader as a storage buffer (WebGPU) / data texture (WebGL2).
 	 * `dataBufferSize` is the max byte capacity; `packData` returns this frame's
-	 * data (interleaved RG f32, length ≤ capacity).
+	 * data (interleaved f32, length ≤ capacity).
 	 */
 	dataBufferSize?: number;
+	/**
+	 * Floats per data-buffer element for the WebGL2 data texture: 2 → RG32F (the
+	 * default), 4 → RGBA32F (e.g. a df64 hi/lo reference orbit). WebGPU reads the
+	 * buffer by its WGSL type, so this only steers the WebGL2 texture format.
+	 */
+	dataChannels?: 2 | 4;
 	packData?(input: RenderInput): Float32Array;
 }
 
