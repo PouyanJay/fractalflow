@@ -11,6 +11,8 @@ import {
 	setDensity,
 	toggleCommandPalette,
 	setCommandPalette,
+	setExport,
+	toggleExport,
 	selectArtStyle,
 	setPanelWidth,
 	PANEL_MIN_WIDTH,
@@ -74,13 +76,14 @@ describe('pathForMode / modeFromPath', () => {
 });
 
 describe('ui state transitions (pure & immutable)', () => {
-	it('starts with both panels open, comfortable density, palette closed, deep-zoom selected', () => {
+	it('starts with both panels open, comfortable density, palette + export closed, deep-zoom selected', () => {
 		const s = createInitialUiState();
 		expect(s).toEqual({
 			panels: { library: true, inspector: true },
 			panelWidths: { library: 264, inspector: 264 },
 			density: 'comfortable',
 			commandPaletteOpen: false,
+			exportOpen: false,
 			selectedStyle: 'deep-zoom-2d'
 		});
 	});
@@ -106,6 +109,13 @@ describe('ui state transitions (pure & immutable)', () => {
 		const opened = toggleCommandPalette(createInitialUiState());
 		expect(opened.commandPaletteOpen).toBe(true);
 		expect(setCommandPalette(opened, false).commandPaletteOpen).toBe(false);
+	});
+
+	it('toggleExport and setExport control the export sheet without touching other state', () => {
+		const opened = toggleExport(createInitialUiState());
+		expect(opened.exportOpen).toBe(true);
+		expect(opened.commandPaletteOpen).toBe(false);
+		expect(setExport(opened, false).exportOpen).toBe(false);
 	});
 
 	it('selectArtStyle records the chosen style', () => {

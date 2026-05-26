@@ -3,15 +3,11 @@
 	import { page } from '$app/state';
 	import { MODES, modeFromPath } from '$lib/stores/ui-logic';
 	import { getUiStore } from '$lib/stores/ui.svelte';
-	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { getRenderer } from '$lib/fractals/registry';
-	import { EXPORT_SIZES, captureScene, downloadBlob, exportFilename } from '$lib/engine/capture';
 	import { getIcon } from '$lib/components/icons';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { Command, PanelLeft, PanelRight, Rows3, Share2, Check, Download } from '@lucide/svelte';
 
 	const ui = getUiStore();
-	const scene = getSceneStore();
 	const activeMode = $derived(modeFromPath(page.url.pathname));
 
 	let copied = $state(false);
@@ -22,49 +18,6 @@
 			setTimeout(() => (copied = false), 1500);
 		} catch {
 			// Clipboard may be unavailable (e.g. insecure context); ignore.
-		}
-	}
-
-	// Export the current view as a still. The full Still/Movie sheet (resolution,
-	// progress, journey video) arrives in Step 2; for now Export does the one
-	// universally useful thing — a high-res PNG of whatever the scene shows.
-	const FHD = EXPORT_SIZES.find((s) => s.id === 'fhd') ?? EXPORT_SIZES[0];
-	const renderer = $derived(getRenderer(ui.selectedStyle));
-	// Tag the filename with the active subject (formula / attractor / flame).
-	const exportTag = $derived(
-		ui.selectedStyle === 'deep-zoom-2d'
-			? scene.formula
-			: ui.selectedStyle === 'attractors'
-				? `attractor-${scene.attractor}`
-				: ui.selectedStyle === 'flames'
-					? `flame-${scene.flame}`
-					: (ui.selectedStyle ?? 'fractal')
-	);
-
-	let exporting = $state(false);
-	let exportFailed = $state(false);
-	const exportLabel = $derived(
-		exportFailed ? 'Export failed' : exporting ? 'Exporting…' : 'Export'
-	);
-
-	async function exportStill() {
-		if (!renderer || exporting) return;
-		exporting = true;
-		exportFailed = false;
-		try {
-			const blob = await captureScene(renderer, scene.scene, FHD.width, FHD.height);
-			if (!blob) {
-				exportFailed = true;
-				return;
-			}
-			downloadBlob(blob, exportFilename(exportTag));
-		} catch {
-			exportFailed = true;
-		} finally {
-			exporting = false;
-			// Compute styles (Flames/Attractors) need WebGPU; surface the failure
-			// briefly, then let the user try again.
-			if (exportFailed) setTimeout(() => (exportFailed = false), 2400);
 		}
 	}
 </script>
@@ -142,16 +95,9 @@
 			<Rows3 size={16} aria-hidden="true" />
 		</IconButton>
 		<div class="divider" aria-hidden="true"></div>
-		<button
-			class="export"
-			class:failed={exportFailed}
-			type="button"
-			onclick={exportStill}
-			disabled={!renderer || exporting}
-			aria-busy={exporting}
-		>
+		<button class="export" type="button" onclick={() => ui.openExport()}>
 			<Download size={15} aria-hidden="true" />
-			<span aria-live="polite">{exportLabel}</span>
+			<span>Export</span>
 		</button>
 	</div>
 </header>
@@ -277,17 +223,8 @@
 		white-space: nowrap;
 		transition: background var(--ff-dur-fast) var(--ff-ease);
 	}
-	.export:hover:not(:disabled) {
+	.export:hover {
 		background: var(--ff-primary-strong);
-	}
-	.export:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-	.export.failed {
-		background: var(--ff-surface-raised);
-		border-color: var(--ff-danger);
-		color: var(--ff-danger);
 	}
 
 	@media (max-width: 720px) {

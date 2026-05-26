@@ -28,6 +28,21 @@ export function exportFilename(formula: string, date = new Date()): string {
 	return `fractalflow-${formula}-${stamp}.png`;
 }
 
+/**
+ * A filename tag describing the active subject: the formula for Deep-Zoom 2D,
+ * the named variant for attractors/flames, otherwise the style id. Pure so it's
+ * shared by every export surface and unit-tested.
+ */
+export function exportTagFor(
+	style: string | null,
+	scene: { formula: string; attractor: string; flame: string }
+): string {
+	if (style === 'deep-zoom-2d') return scene.formula;
+	if (style === 'attractors') return `attractor-${scene.attractor}`;
+	if (style === 'flames') return `flame-${scene.flame}`;
+	return style ?? 'fractal';
+}
+
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
 
 /**

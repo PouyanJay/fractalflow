@@ -1,8 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { panCamera, zoomCameraAt, orbitCamera, dollyCamera } from './camera';
+import { panCamera, zoomCameraAt, orbitCamera, dollyCamera, formatZoom } from './camera';
 import type { Camera2D } from './types';
 
 const base: Camera2D = { centerX: -0.5, centerY: 0, scale: 3 };
+
+describe('formatZoom', () => {
+	it('shows one decimal near the home view', () => {
+		expect(formatZoom(3)).toBe('1.0×'); // baseScale/scale = 1
+		expect(formatZoom(6)).toBe('0.5×');
+	});
+
+	it('rounds to a whole number in the mid range', () => {
+		expect(formatZoom(0.06)).toBe('50×'); // 3 / 0.06 = 50
+	});
+
+	it('switches to exponential for very deep zoom', () => {
+		expect(formatZoom(3e-6)).toBe('1.0e+6×');
+	});
+});
 
 describe('panCamera', () => {
 	it('moves the center opposite to a horizontal drag', () => {

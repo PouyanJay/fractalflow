@@ -116,6 +116,7 @@ export interface UiState {
 	panelWidths: Record<PanelId, number>;
 	density: Density;
 	commandPaletteOpen: boolean;
+	exportOpen: boolean;
 	selectedStyle: ArtStyleId | null;
 }
 
@@ -125,6 +126,7 @@ export function createInitialUiState(): UiState {
 		panelWidths: { library: DEFAULT_PANEL_WIDTH, inspector: DEFAULT_PANEL_WIDTH },
 		density: 'comfortable',
 		commandPaletteOpen: false,
+		exportOpen: false,
 		// Deep-Zoom 2D is the implemented renderer, so it's selected by default.
 		selectedStyle: 'deep-zoom-2d'
 	};
@@ -154,6 +156,14 @@ export function setCommandPalette(state: UiState, open: boolean): UiState {
 
 export function toggleCommandPalette(state: UiState): UiState {
 	return setCommandPalette(state, !state.commandPaletteOpen);
+}
+
+export function setExport(state: UiState, open: boolean): UiState {
+	return { ...state, exportOpen: open };
+}
+
+export function toggleExport(state: UiState): UiState {
+	return setExport(state, !state.exportOpen);
 }
 
 export function selectArtStyle(state: UiState, id: ArtStyleId): UiState {

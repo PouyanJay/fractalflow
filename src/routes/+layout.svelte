@@ -11,6 +11,7 @@
 	import InspectorPanel from '$lib/components/shell/InspectorPanel.svelte';
 	import StatusBar from '$lib/components/shell/StatusBar.svelte';
 	import CommandPalette from '$lib/components/shell/CommandPalette.svelte';
+	import ExportSheet from '$lib/components/shell/ExportSheet.svelte';
 
 	let { children } = $props();
 	const ui = provideUiStore();
@@ -50,6 +51,7 @@
 	</div>
 	<StatusBar />
 	<CommandPalette />
+	<ExportSheet />
 </div>
 
 <style>

@@ -54,6 +54,18 @@ export function dollyCamera(camera: Camera2D, factor: number): Camera2D {
 	return { centerX: camera.centerX, centerY: camera.centerY, scale: zoom };
 }
 
+/**
+ * Human-readable zoom magnification for a 2D camera `scale`, where 1× is the
+ * home view (`baseScale`). One decimal near home, whole numbers in the mid
+ * range, exponential past 1000× — shared by the status bar and export readouts.
+ */
+export function formatZoom(scale: number, baseScale = 3): string {
+	const mag = baseScale / scale;
+	if (mag >= 1000) return `${mag.toExponential(1)}×`;
+	if (mag >= 10) return `${Math.round(mag)}×`;
+	return `${mag.toFixed(1)}×`;
+}
+
 /** Zoom by `factor` (<1 zooms in) while keeping the point under the cursor fixed. */
 export function zoomCameraAt(
 	camera: Camera2D,

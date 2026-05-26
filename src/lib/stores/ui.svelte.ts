@@ -10,6 +10,8 @@ import {
 	setDensity,
 	setCommandPalette,
 	toggleCommandPalette,
+	setExport,
+	toggleExport,
 	selectArtStyle,
 	setPanelWidth,
 	type ArtStyleId,
@@ -36,6 +38,9 @@ export function createUiStore() {
 		get commandPaletteOpen() {
 			return state.commandPaletteOpen;
 		},
+		get exportOpen() {
+			return state.exportOpen;
+		},
 		get selectedStyle() {
 			return state.selectedStyle;
 		},
@@ -48,6 +53,9 @@ export function createUiStore() {
 		openCommandPalette: () => (state = setCommandPalette(state, true)),
 		closeCommandPalette: () => (state = setCommandPalette(state, false)),
 		toggleCommandPalette: () => (state = toggleCommandPalette(state)),
+		openExport: () => (state = setExport(state, true)),
+		closeExport: () => (state = setExport(state, false)),
+		toggleExport: () => (state = toggleExport(state)),
 		selectArtStyle: (id: ArtStyleId) => (state = selectArtStyle(state, id))
 	};
 }

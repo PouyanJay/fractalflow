@@ -66,15 +66,6 @@ test('the top bar shows exactly two tabs — Compose then Explore', async ({ pag
 	await expect(page.getByRole('link', { name: 'Render' })).toHaveCount(0);
 });
 
-test('the Export button downloads a PNG of the current view', async ({ page }) => {
-	await page.goto('/explore');
-	await waitForEngine(page);
-	const downloadPromise = page.waitForEvent('download');
-	await page.getByRole('button', { name: 'Export', exact: true }).click();
-	const download = await downloadPromise;
-	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.png$/);
-});
-
 test('Compose node graph edits the shared scene and updates every mode', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
@@ -354,27 +345,40 @@ test.describe('hi-DPR layout', () => {
 	});
 });
 
-test('Render mode exports a PNG download', async ({ page }) => {
-	await page.goto('/render');
-	await expect(page.getByRole('heading', { name: 'Render', exact: true })).toBeVisible();
+// Export is the top-bar action that replaced the Render route. The /render route
+// is gone; the Movie (frame-sequence) export returns in Step 3 with Journeys as
+// its source. Sequence math stays covered by src/lib/render/sequence.spec.ts.
+
+test('the Export button opens the export sheet', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await expect(page.getByRole('dialog', { name: 'Export' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Export' })).toBeVisible();
+	await expect(page.getByLabel('Export resolution')).toBeVisible();
+});
+
+test('the export sheet downloads a PNG at the chosen resolution', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	await page.getByLabel('Export resolution').selectOption('hd');
 	const downloadPromise = page.waitForEvent('download');
-	await page.getByRole('button', { name: /Export PNG/ }).click();
+	await page.getByRole('button', { name: 'Export PNG' }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.png$/);
+	await expect(page.getByText(/Saved 1280 × 720 PNG/)).toBeVisible();
 });
 
-test('Render gates the frame-sequence export on having keyframes', async ({ page }) => {
-	await page.goto('/render');
-	// No keyframes yet → the Animation section prompts the user, no export button.
-	await expect(page.getByText(/at least two keyframes/)).toBeVisible();
-	await expect(page.getByRole('button', { name: /Export frames/ })).toHaveCount(0);
+test('Escape and the backdrop close the export sheet', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Export' });
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(dialog).toHaveCount(0);
 });
-
-// NOTE: the Animate→Render zip-export integration flow it used to test relied on
-// a client-side tab hop carrying the in-memory timeline store between the two
-// routes. The two-tab IA removes both tabs, so that path no longer exists — the
-// movie export is re-homed into Explore Journeys + the Export sheet (Steps 2–3).
-// Sequence math stays covered by src/lib/render/sequence.spec.ts.
 
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');

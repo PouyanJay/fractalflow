@@ -1,5 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { EXPORT_SIZES, exportFilename } from './capture';
+import { EXPORT_SIZES, exportFilename, exportTagFor } from './capture';
+
+describe('exportTagFor', () => {
+	const scene = { formula: 'julia', attractor: 'lorenz', flame: 'swirl' };
+
+	it('tags Deep-Zoom 2D exports with the active formula', () => {
+		expect(exportTagFor('deep-zoom-2d', scene)).toBe('julia');
+	});
+
+	it('tags attractor and flame exports with their variant', () => {
+		expect(exportTagFor('attractors', scene)).toBe('attractor-lorenz');
+		expect(exportTagFor('flames', scene)).toBe('flame-swirl');
+	});
+
+	it('falls back to the style id, then a generic tag', () => {
+		expect(exportTagFor('geometric-3d', scene)).toBe('geometric-3d');
+		expect(exportTagFor(null, scene)).toBe('fractal');
+	});
+});
 
 describe('EXPORT_SIZES', () => {
 	it('offers several resolutions with unique ids and positive dimensions', () => {
