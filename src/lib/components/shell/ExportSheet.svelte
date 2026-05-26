@@ -10,6 +10,7 @@
 	import { formatZoom } from '$lib/engine/camera';
 	import { JOURNEYS, journeyKeyframes } from '$lib/animate/journey';
 	import { sequenceScenes, frameCountFor, frameFilename } from '$lib/render/sequence';
+	import { encodeVideo, videoExtension, type VideoFormat } from '$lib/render/video';
 	import {
 		EXPORT_SIZES,
 		captureScene,
@@ -34,6 +35,7 @@
 	let saved = $state(false);
 
 	let fps = $state(24);
+	let movieFormat = $state<VideoFormat | 'zip'>('mp4');
 	let seqBusy = $state(false);
 	let seqFailed = $state(false);
 	let seqDone = $state(0);
@@ -108,14 +110,32 @@
 		seqSaved = false;
 		seqDone = 0;
 		try {
-			const scenes = sequenceScenes(journeyKeyframes(journey.type, scene.scene), frameCount);
-			const blobs = await captureSequence(
-				renderer,
-				scenes,
-				size.width,
-				size.height,
-				(done) => (seqDone = done)
-			);
+			const keyframes = journeyKeyframes(journey.type, scene.scene, journey.waypoints);
+			const scenes = sequenceScenes(keyframes, frameCount);
+			const tag = `${exportTag}-${journey.type}`;
+			const onProgress = (done: number) => (seqDone = done);
+
+			// Real video via WebCodecs; null when unavailable → fall through to .zip.
+			if (movieFormat !== 'zip') {
+				const video = await encodeVideo(
+					renderer,
+					scenes,
+					size.width,
+					size.height,
+					fps,
+					movieFormat,
+					onProgress
+				);
+				if (video) {
+					const ext = videoExtension(movieFormat);
+					downloadBlob(video, exportFilename(tag).replace(/\.png$/, `.${ext}`));
+					seqSaved = true;
+					setTimeout(() => (seqSaved = false), 2000);
+					return;
+				}
+			}
+
+			const blobs = await captureSequence(renderer, scenes, size.width, size.height, onProgress);
 			if (!blobs) {
 				seqFailed = true;
 				return;
@@ -126,8 +146,10 @@
 			}
 			// PNGs are already compressed, so store (level 0) — fast, no extra CPU.
 			const zip = zipSync(files, { level: 0 });
-			const name = exportFilename(`${exportTag}-${journey.type}`).replace(/\.png$/, '.zip');
-			downloadBlob(new Blob([zip], { type: 'application/zip' }), name);
+			downloadBlob(
+				new Blob([zip], { type: 'application/zip' }),
+				exportFilename(tag).replace(/\.png$/, '.zip')
+			);
 			seqSaved = true;
 			setTimeout(() => (seqSaved = false), 2000);
 		} catch {
@@ -185,7 +207,7 @@
 			<p class="blurb">
 				{mode === 'still'
 					? 'Save the current view as a high-resolution image.'
-					: 'Render a journey from Explore as a sequence of frames (.zip).'}
+					: 'Render a journey from Explore as an MP4/WebM video or a frame sequence.'}
 			</p>
 
 			<dl class="summary">
@@ -272,6 +294,15 @@
 					</label>
 				</div>
 
+				<label class="field">
+					<span class="field-label">Format</span>
+					<select bind:value={movieFormat} aria-label="Movie format">
+						<option value="mp4">MP4 video (H.264)</option>
+						<option value="webm">WebM video (VP9)</option>
+						<option value="zip">Frames (.zip)</option>
+					</select>
+				</label>
+
 				<p class="note">
 					{frameCount} frames at {size.width} × {size.height}{frameCount === MAX_FRAMES
 						? ' · capped'
@@ -280,7 +311,11 @@
 
 				<button class="export" type="button" onclick={exportMovie} disabled={seqBusy || !renderer}>
 					<Film size={16} aria-hidden="true" />
-					{seqBusy ? `Rendering ${seqDone}/${frameCount}…` : 'Export frames (.zip)'}
+					{seqBusy
+						? `Rendering ${seqDone}/${frameCount}…`
+						: movieFormat === 'zip'
+							? 'Export frames (.zip)'
+							: `Export ${movieFormat.toUpperCase()}`}
 				</button>
 
 				<p class="status" role="status" aria-live="polite">
@@ -291,7 +326,11 @@
 							>Export failed — Painterly Flames and Glowing Attractors need WebGPU.</span
 						>
 					{:else if seqSaved}
-						<span class="ok">Saved {frameCount} frames (.zip).</span>
+						<span class="ok"
+							>Saved a {frameCount}-frame {movieFormat === 'zip'
+								? '.zip'
+								: movieFormat.toUpperCase()}.</span
+						>
 					{/if}
 				</p>
 			{/if}

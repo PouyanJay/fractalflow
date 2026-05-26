@@ -287,7 +287,7 @@ test('the Journey tab captures Zoom waypoints', async ({ page }) => {
 	await expect(page.getByRole('button', { name: /Remove waypoint/ })).toHaveCount(2);
 });
 
-test('the export sheet renders a journey as a movie (.zip)', async ({ page }) => {
+test('the export sheet renders a journey as a frame-sequence (.zip)', async ({ page }) => {
 	// Off-screen WebGL2 readback is ~1.5s/frame in headless, so keep the clip short.
 	test.setTimeout(120_000);
 	await page.goto('/explore');
@@ -297,11 +297,29 @@ test('the export sheet renders a journey as a movie (.zip)', async ({ page }) =>
 	await page.getByLabel('Export resolution').selectOption('hd');
 	await page.getByLabel('Journey duration').selectOption('2000');
 	await page.getByLabel('Frame rate').selectOption('12'); // 2s × 12 = 24 frames
+	await page.getByLabel('Movie format').selectOption('zip');
 	await expect(page.getByText(/24 frames/)).toBeVisible();
 	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
 	await page.getByRole('button', { name: /Export frames/ }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.zip$/);
+});
+
+test('the export sheet renders an MP4 (or falls back to a .zip)', async ({ page }) => {
+	test.setTimeout(120_000);
+	await page.goto('/explore');
+	await waitForEngine(page);
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	await page.getByRole('button', { name: 'Movie' }).click();
+	await page.getByLabel('Export resolution').selectOption('hd');
+	await page.getByLabel('Journey duration').selectOption('2000');
+	await page.getByLabel('Frame rate').selectOption('12');
+	await page.getByLabel('Movie format').selectOption('mp4');
+	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+	await page.getByRole('button', { name: /Export MP4/ }).click();
+	const download = await downloadPromise;
+	// Real MP4 when WebCodecs/H.264 is available, otherwise the graceful .zip fallback.
+	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.(mp4|zip)$/);
 });
 
 test.describe('hi-DPR layout', () => {
