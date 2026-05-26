@@ -18,8 +18,8 @@ import {
 } from './ui-logic';
 
 describe('mode metadata', () => {
-	it('defines exactly the four workflow modes in order', () => {
-		expect(MODES.map((m) => m.id)).toEqual(['explore', 'compose', 'animate', 'render']);
+	it('defines exactly the two workflow modes — Compose then Explore', () => {
+		expect(MODES.map((m) => m.id)).toEqual(['compose', 'explore']);
 	});
 
 	it('gives every mode a label, path, icon and blurb', () => {
@@ -44,9 +44,12 @@ describe('art styles', () => {
 });
 
 describe('isValidMode', () => {
-	it('accepts known modes and rejects others', () => {
+	it('accepts the two workflow modes and rejects the retired/unknown ones', () => {
 		expect(isValidMode('explore')).toBe(true);
-		expect(isValidMode('render')).toBe(true);
+		expect(isValidMode('compose')).toBe(true);
+		// Animate and Render are no longer modes (re-framed into Explore + Export).
+		expect(isValidMode('animate')).toBe(false);
+		expect(isValidMode('render')).toBe(false);
 		expect(isValidMode('nope')).toBe(false);
 		expect(isValidMode('')).toBe(false);
 	});

@@ -57,6 +57,24 @@ test('mode tabs navigate between modes', async ({ page }) => {
 	await expect(page.getByRole('region', { name: 'Compose workspace' })).toBeVisible();
 });
 
+test('the top bar shows exactly two tabs — Compose then Explore', async ({ page }) => {
+	await page.goto('/explore');
+	const tabs = page.getByRole('navigation', { name: 'Workspace modes' }).getByRole('link');
+	await expect(tabs).toHaveText(['Compose', 'Explore']);
+	// The retired modes are gone from the nav.
+	await expect(page.getByRole('link', { name: 'Animate' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Render' })).toHaveCount(0);
+});
+
+test('the Export button downloads a PNG of the current view', async ({ page }) => {
+	await page.goto('/explore');
+	await waitForEngine(page);
+	const downloadPromise = page.waitForEvent('download');
+	await page.getByRole('button', { name: 'Export', exact: true }).click();
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.png$/);
+});
+
 test('Compose node graph edits the shared scene and updates every mode', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
@@ -94,9 +112,9 @@ test('command palette opens with the keyboard and navigates', async ({ page }) =
 	await waitForEngine(page);
 	await page.keyboard.press('Control+k');
 	await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
-	await page.getByPlaceholder('Search commands…').fill('Animate');
+	await page.getByPlaceholder('Search commands…').fill('Compose');
 	await page.keyboard.press('Enter');
-	await expect(page).toHaveURL(/\/animate$/);
+	await expect(page).toHaveURL(/\/compose$/);
 });
 
 test('toggling the library panel hides it', async ({ page }) => {
@@ -352,31 +370,11 @@ test('Render gates the frame-sequence export on having keyframes', async ({ page
 	await expect(page.getByRole('button', { name: /Export frames/ })).toHaveCount(0);
 });
 
-test('Render exports an animation as a zip of frames', async ({ page }) => {
-	// Build a short two-keyframe clip in Animate.
-	await page.goto('/animate');
-	await expect(page.locator('canvas')).toBeVisible();
-	const add = page.getByRole('button', { name: 'Add keyframe' });
-	const track = page.getByRole('slider', { name: 'Playhead' });
-	await add.click();
-	const tb = (await track.boundingBox())!;
-	await page.mouse.click(tb.x + tb.width - 4, tb.y + tb.height / 2);
-	const stage = page.getByRole('application');
-	const sb = (await stage.boundingBox())!;
-	await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
-	for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120);
-	await add.click();
-	await page.getByLabel('Duration in seconds').fill('1');
-
-	await page.getByRole('link', { name: 'Render' }).click();
-	await page.getByLabel('Export resolution').selectOption('hd');
-	await page.getByLabel('Frame rate').selectOption('12'); // 1s × 12 = 12 frames, quick
-	await expect(page.getByText(/12 frames/)).toBeVisible();
-	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
-	await page.getByRole('button', { name: /Export frames/ }).click();
-	const download = await downloadPromise;
-	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*-frames-.*\.zip$/);
-});
+// NOTE: the Animate→Render zip-export integration flow it used to test relied on
+// a client-side tab hop carrying the in-memory timeline store between the two
+// routes. The two-tab IA removes both tabs, so that path no longer exists — the
+// movie export is re-homed into Explore Journeys + the Export sheet (Steps 2–3).
+// Sequence math stays covered by src/lib/render/sequence.spec.ts.
 
 test('visual: Explore renders the Mandelbrot', async ({ page }) => {
 	await page.goto('/explore');

@@ -5,7 +5,10 @@
  * (see ui-logic.spec.ts). The reactive wrapper lives in ui.svelte.ts.
  */
 
-export type ModeId = 'explore' | 'compose' | 'animate' | 'render';
+// Two acts on one shared Scene: Compose (author it) → Explore (inhabit it).
+// Animation lives inside Explore as "Journeys"; output is the top-bar Export
+// action — neither is a mode. See .claude/plans/07-product-reframe.md.
+export type ModeId = 'compose' | 'explore';
 export type ArtStyleId = 'geometric-3d' | 'flames' | 'attractors' | 'deep-zoom-2d';
 export type PanelId = 'library' | 'inspector';
 export type Density = 'comfortable' | 'compact';
@@ -28,14 +31,9 @@ export interface ArtStyleMeta {
 	blurb: string;
 }
 
+// Listed Compose → Explore as the creation arrow; Explore is the default
+// landing (see routes/+page.ts) so first impression is a living fractal.
 export const MODES: readonly ModeMeta[] = [
-	{
-		id: 'explore',
-		label: 'Explore',
-		path: '/explore',
-		icon: 'compass',
-		blurb: 'Navigate fractal space like a map — pan, zoom, and dive.'
-	},
 	{
 		id: 'compose',
 		label: 'Compose',
@@ -44,18 +42,11 @@ export const MODES: readonly ModeMeta[] = [
 		blurb: 'Build a look by wiring formula, color, and post-effect nodes.'
 	},
 	{
-		id: 'animate',
-		label: 'Animate',
-		path: '/animate',
-		icon: 'clapperboard',
-		blurb: 'Keyframe any parameter on a timeline and scrub the result.'
-	},
-	{
-		id: 'render',
-		label: 'Render',
-		path: '/render',
-		icon: 'image-down',
-		blurb: 'Export high-resolution stills and video from your scene.'
+		id: 'explore',
+		label: 'Explore',
+		path: '/explore',
+		icon: 'compass',
+		blurb: 'Navigate fractal space like a map — pan, zoom, and dive.'
 	}
 ] as const;
 
