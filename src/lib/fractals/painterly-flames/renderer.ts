@@ -18,7 +18,7 @@
  *   32 cx : f32  36 cy : f32  40 radius : f32  44 time : f32
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
-import { PALETTES } from '$lib/fractals/palette';
+import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { FLAMES, flameBounds, type VariationId } from './flames';
@@ -254,12 +254,11 @@ export const flamesRenderer: ComputeRenderer = {
 		f(36, fr.cy);
 		f(40, fr.radius);
 		f(44, timeMs);
-		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
-		const c = preset.coeffs;
+		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
-		f(60, preset.colormap ?? 0); // palA.w: scientific-colormap code
+		f(60, colormap); // palA.w: scientific-colormap code
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);

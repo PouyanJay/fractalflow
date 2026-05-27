@@ -18,7 +18,7 @@
  *   112 series0 : vec4f  (A1.x, A1.y, A2.x, A2.y)
  *   128 series1 : vec4f  (A3.x, A3.y, seriesSkip, pad)
  */
-import { PALETTES } from '$lib/fractals/palette';
+import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL, COLORMAP_GLSL } from '$lib/fractals/colormaps';
 import {
 	DEFAULT_POST,
@@ -542,12 +542,11 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(36, scene.juliaSeed.y);
 		f(40, orbitFor(input).length);
 		f(44, scene.power ?? DEFAULT_POWER); // Multibrot exponent (former pad slot)
-		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
-		const c = preset.coeffs;
+		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
-		f(60, preset.colormap ?? 0); // palA.w: scientific-colormap code (0 = cosine)
+		f(60, colormap); // palA.w: scientific-colormap code (0 = cosine/custom)
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);

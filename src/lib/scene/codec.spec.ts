@@ -167,6 +167,33 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 		expect(out.camera.centerYLo).toBe(-2.3e-18);
 	});
 
+	it('round-trips an inline custom palette, and omits it when absent', () => {
+		const s = createDefaultScene();
+		const coeffs = {
+			a: [0.4, 0.5, 0.6] as [number, number, number],
+			b: [0.3, 0.5, 0.2] as [number, number, number],
+			c: [1, 2, 1.5] as [number, number, number],
+			d: [0.1, 0.4, 0.7] as [number, number, number]
+		};
+		const out = decodeScene(encodeScene({ ...s, paletteCoeffs: coeffs }));
+		expect(out.paletteCoeffs).toEqual(coeffs);
+		// Absent by default → not carried, decodes as undefined.
+		expect(decodeScene(encodeScene(s)).paletteCoeffs).toBeUndefined();
+		// Survives alongside a Multibrot power and deep-zoom lo-tails.
+		const combo = decodeScene(
+			encodeScene({
+				...s,
+				formula: 'multibrot',
+				power: 3,
+				paletteCoeffs: coeffs,
+				camera: { centerX: -0.5, centerY: 0, scale: 1e-12, centerXLo: 1e-17, centerYLo: 0 }
+			})
+		);
+		expect(combo.power).toBe(3);
+		expect(combo.paletteCoeffs).toEqual(coeffs);
+		expect(combo.camera.centerXLo).toBe(1e-17);
+	});
+
 	it('round-trips the Multibrot power, and omits it when default (2)', () => {
 		const s = createDefaultScene();
 		// Non-default power is carried and restored.

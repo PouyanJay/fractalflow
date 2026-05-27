@@ -11,7 +11,7 @@
  *   24 time       : f32   28 detail: f32
  *   32 palA  48 palB  64 palC  80 palD : vec4f
  */
-import { PALETTES } from '$lib/fractals/palette';
+import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL, COLORMAP_GLSL } from '$lib/fractals/colormaps';
 import {
 	POST_SIZE,
@@ -260,10 +260,9 @@ export const mandelbulbRenderer: FractalRenderer = {
 		f(20, POWER);
 		f(24, timeMs);
 		f(28, scene.maxIter); // raymarch quality
-		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
-		const c = preset.coeffs;
+		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(32, c.a[0]);
-		f(44, preset.colormap ?? 0); // palA.w: scientific-colormap code
+		f(44, colormap); // palA.w: scientific-colormap code
 		f(36, c.a[1]);
 		f(40, c.a[2]);
 		f(48, c.b[0]);

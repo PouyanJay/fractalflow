@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { cosinePalette, paletteCssGradient, PALETTES } from './palette';
+import {
+	cosinePalette,
+	paletteCssGradient,
+	PALETTES,
+	resolvePalette,
+	type PaletteCoeffs
+} from './palette';
 
 describe('cosinePalette', () => {
 	it('returns channel values within [0, 1]', () => {
@@ -41,5 +47,26 @@ describe('PALETTES', () => {
 			expect(p.id.length).toBeGreaterThan(0);
 			expect(p.label.length).toBeGreaterThan(0);
 		}
+	});
+});
+
+describe('resolvePalette', () => {
+	it('prefers an inline custom palette over the index (colormap forced off)', () => {
+		const coeffs: PaletteCoeffs = {
+			a: [0.1, 0.2, 0.3],
+			b: [0.4, 0.5, 0.6],
+			c: [1, 1, 1],
+			d: [0, 0, 0]
+		};
+		const r = resolvePalette({ paletteIndex: 0, paletteCoeffs: coeffs });
+		expect(r.coeffs).toBe(coeffs);
+		expect(r.colormap).toBe(0);
+	});
+
+	it('falls back to the indexed preset (carrying its colormap code)', () => {
+		const idx = PALETTES.findIndex((p) => p.colormap);
+		const r = resolvePalette({ paletteIndex: idx });
+		expect(r.coeffs).toBe(PALETTES[idx].coeffs);
+		expect(r.colormap).toBe(PALETTES[idx].colormap);
 	});
 });

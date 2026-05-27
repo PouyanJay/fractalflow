@@ -70,6 +70,16 @@ export interface SceneState {
 	maxIter: number;
 	/** Index into the palette presets. */
 	paletteIndex: number;
+	/** Inline custom cosine-palette coefficients — color = a + b·cos(2π(c·t + d)),
+	 * each component [r,g,b]. When present it overrides `paletteIndex`, so a
+	 * hand-designed palette travels with the scene (share links stay reproducible).
+	 * Optional and absent by default. */
+	paletteCoeffs?: {
+		a: [number, number, number];
+		b: [number, number, number];
+		c: [number, number, number];
+		d: [number, number, number];
+	};
 	/** Seed `c` for the Julia formula. */
 	juliaSeed: { x: number; y: number };
 	/** Exponent `d` for the Multibrot formula (z ← zᵈ + c). Optional and default

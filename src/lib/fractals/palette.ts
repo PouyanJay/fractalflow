@@ -149,3 +149,33 @@ export const PALETTES: PalettePreset[] = [
 export function paletteById(id: string): PalettePreset {
 	return PALETTES.find((p) => p.id === id) ?? PALETTES[0];
 }
+
+/**
+ * The coefficients + colormap code a renderer should pack for a scene: a custom
+ * inline palette (`scene.paletteCoeffs`) wins; otherwise the indexed preset.
+ * Custom palettes are always cosine, so their colormap code is 0.
+ */
+export function resolvePalette(scene: { paletteIndex: number; paletteCoeffs?: PaletteCoeffs }): {
+	coeffs: PaletteCoeffs;
+	colormap: number;
+} {
+	if (scene.paletteCoeffs) return { coeffs: scene.paletteCoeffs, colormap: 0 };
+	const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
+	return { coeffs: preset.coeffs, colormap: preset.colormap ?? 0 };
+}
+
+/** A fresh, neutral cosine palette to seed the custom editor. */
+export function defaultCustomCoeffs(): PaletteCoeffs {
+	return { a: [0.5, 0.5, 0.5], b: [0.5, 0.5, 0.5], c: [1, 1, 1], d: [0.0, 0.33, 0.67] };
+}
+
+/** A random but tasteful cosine palette (balanced bias/amp, varied freq + phase). */
+export function randomCustomCoeffs(rng: () => number = Math.random): PaletteCoeffs {
+	const freq = 0.5 + Math.round(rng() * 3); // 0.5..3.5, gentle banding
+	return {
+		a: [0.5, 0.5, 0.5],
+		b: [0.5, 0.5, 0.5],
+		c: [freq, freq, freq],
+		d: [rng(), rng(), rng()]
+	};
+}

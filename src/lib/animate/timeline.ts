@@ -121,7 +121,17 @@ export function cloneScene(scene: SceneState): SceneState {
 		attractor: scene.attractor,
 		flame: scene.flame,
 		post: { ...scene.post },
-		...(scene.power !== undefined ? { power: scene.power } : {})
+		...(scene.power !== undefined ? { power: scene.power } : {}),
+		...(scene.paletteCoeffs
+			? {
+					paletteCoeffs: {
+						a: [...scene.paletteCoeffs.a],
+						b: [...scene.paletteCoeffs.b],
+						c: [...scene.paletteCoeffs.c],
+						d: [...scene.paletteCoeffs.d]
+					} as SceneState['paletteCoeffs']
+				}
+			: {})
 	};
 }
 

@@ -28,6 +28,9 @@ export function createSceneStore() {
 		get paletteIndex() {
 			return scene.paletteIndex;
 		},
+		get paletteCoeffs() {
+			return scene.paletteCoeffs;
+		},
 		get juliaSeed() {
 			return scene.juliaSeed;
 		},
@@ -46,7 +49,12 @@ export function createSceneStore() {
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
-		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
+		// Picking a built-in preset exits custom mode (clears any inline coeffs).
+		setPaletteIndex: (i: number) => {
+			scene.paletteIndex = i;
+			scene.paletteCoeffs = undefined;
+		},
+		setPaletteCoeffs: (coeffs: SceneState['paletteCoeffs']) => (scene.paletteCoeffs = coeffs),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
 		setPower: (d: number) => (scene.power = d),
 		setAttractor: (id: string) => (scene.attractor = id),

@@ -45,6 +45,13 @@ function clampInt(value: number, min: number, max: number): number {
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
+/** The 12 inline custom-palette fields (a,b,c,d × rgb), or 12 zeros when absent. */
+function paletteCoeffsFields(scene: SceneState): number[] {
+	const p = scene.paletteCoeffs;
+	if (!p) return Array(12).fill(0);
+	return [...p.a, ...p.b, ...p.c, ...p.d];
+}
+
 export function encodeScene(scene: SceneState): string {
 	const deep = scene.camera.scale < LO_PRECISION_SCALE;
 	const fields: (string | number)[] = [
@@ -72,7 +79,9 @@ export function encodeScene(scene: SceneState): string {
 		deep ? (scene.camera.centerXLo ?? 0) : 0,
 		deep ? (scene.camera.centerYLo ?? 0) : 0,
 		// Multibrot exponent — default 2, so non-Multibrot scenes trim it away.
-		scene.power ?? 2
+		scene.power ?? 2,
+		// Inline custom cosine palette (12 values) — absent → all 0 → trimmed away.
+		...paletteCoeffsFields(scene)
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -100,7 +109,8 @@ export function encodeScene(scene: SceneState): string {
 		d.post.bloomRadius,
 		0,
 		0,
-		2 // default Multibrot power
+		2, // default Multibrot power
+		...Array(12).fill(0) // default (absent) custom palette
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -127,6 +137,17 @@ export function decodeScene(token: string): SceneState {
 	const centerYLo = num(parts[20], 0);
 	// Multibrot exponent — only carried when non-default (2), matching the encoder.
 	const power = num(parts[21], 2);
+	// Inline custom palette (indices 22..33). Present iff any value is non-zero.
+	const pc = Array.from({ length: 12 }, (_, i) => num(parts[22 + i], 0));
+	const hasCustom = pc.some((v) => v !== 0);
+	const paletteCoeffs = hasCustom
+		? {
+				a: [pc[0], pc[1], pc[2]] as [number, number, number],
+				b: [pc[3], pc[4], pc[5]] as [number, number, number],
+				c: [pc[6], pc[7], pc[8]] as [number, number, number],
+				d: [pc[9], pc[10], pc[11]] as [number, number, number]
+			}
+		: undefined;
 
 	return {
 		formula,
@@ -156,6 +177,7 @@ export function decodeScene(token: string): SceneState {
 			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
 			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
 		},
-		...(power !== 2 ? { power } : {})
+		...(power !== 2 ? { power } : {}),
+		...(paletteCoeffs ? { paletteCoeffs } : {})
 	};
 }
