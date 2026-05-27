@@ -53,6 +53,9 @@ export function createSceneStore() {
 		get geometricShape() {
 			return scene.geometricShape ?? 'mandelbulb';
 		},
+		get coloring() {
+			return scene.coloring ?? 'smooth';
+		},
 		// Switching formula reframes the camera to that formula's natural home when
 		// it has one (Lyapunov lives in (a,b) space, Apollonian in the unit cell),
 		// so it opens on its interesting region instead of an empty corner.
@@ -77,6 +80,7 @@ export function createSceneStore() {
 		setIfs: (id: string) => (scene.ifs = id),
 		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),
 		setGeometricShape: (id: SceneState['geometricShape']) => (scene.geometricShape = id),
+		setColoring: (id: SceneState['coloring']) => (scene.coloring = id),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};

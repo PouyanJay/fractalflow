@@ -75,6 +75,58 @@ export async function captureScene(
 	return blob;
 }
 
+/** One layer to composite: a resolved renderer + its scene, blend and opacity. */
+export interface CaptureLayer {
+	renderer: FractalRenderer | null;
+	scene: SceneState;
+	/** Blend-mode id (a CSS mix-blend-mode value); 'normal' → source-over. */
+	blend: string;
+	opacity: number;
+	visible: boolean;
+}
+
+/** Map a layer blend id to a 2D-canvas globalCompositeOperation. */
+function compositeOp(blend: string): GlobalCompositeOperation {
+	return blend === 'normal' ? 'source-over' : (blend as GlobalCompositeOperation);
+}
+
+/**
+ * Composite a multi-layer document to a single PNG, mirroring the Explore
+ * viewport: each visible layer is rendered off-screen, then drawn onto a 2D
+ * canvas with its blend mode (globalCompositeOperation) and opacity, bottom →
+ * top. Returns null if nothing could be rendered.
+ */
+export async function captureLayers(
+	layers: readonly CaptureLayer[],
+	width: number,
+	height: number
+): Promise<Blob | null> {
+	const out = document.createElement('canvas');
+	out.width = width;
+	out.height = height;
+	const ctx = out.getContext('2d');
+	if (!ctx) return null;
+	let drewAny = false;
+	for (const layer of layers) {
+		if (!layer.visible || !layer.renderer) continue;
+		// A compute-style layer (attractors/flames/IFS) needs WebGPU; if it's
+		// unavailable here, captureScene returns null and we skip that layer —
+		// the same graceful degradation as the live "needs WebGPU" viewport state.
+		const blob = await captureScene(layer.renderer, layer.scene, width, height);
+		if (!blob) continue;
+		const bitmap = await createImageBitmap(blob);
+		ctx.globalCompositeOperation = compositeOp(layer.blend);
+		ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity));
+		ctx.drawImage(bitmap, 0, 0);
+		bitmap.close();
+		drewAny = true;
+	}
+	ctx.globalCompositeOperation = 'source-over';
+	ctx.globalAlpha = 1;
+	if (!drewAny) return null;
+	return new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
+}
+
 async function captureCompute(
 	renderer: ComputeRenderer,
 	scene: SceneState,

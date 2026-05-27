@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { encodeScene, decodeScene } from './codec';
+import { encodeScene, decodeScene, encodeLayers, decodeLayers } from './codec';
+import { addLayer, makeLayer, singleStack, updateLayer } from './layers';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { PALETTES } from '$lib/fractals/palette';
 import type { SceneState } from '$lib/engine/types';
@@ -26,6 +27,8 @@ describe('encodeScene / decodeScene round-trip', () => {
 				vignette: 0,
 				gamma: 1,
 				grain: 0,
+				hueShift: 0,
+				saturation: 1,
 				bloom: 0,
 				bloomThreshold: 0.8,
 				bloomKnee: 0.5,
@@ -46,6 +49,8 @@ describe('encodeScene / decodeScene round-trip', () => {
 				vignette: 0.5,
 				gamma: 1.4,
 				grain: 0.3,
+				hueShift: 0,
+				saturation: 1,
 				bloom: 1.2,
 				bloomThreshold: 0.65,
 				bloomKnee: 0.3,
@@ -72,6 +77,20 @@ describe('encodeScene / decodeScene round-trip', () => {
 				'mandelbrot~-0.5~0~3~300~0~-0.8~0.156~clifford~sierpinski~none~0~0~1~0~0~0.8~0.5~1~0~0~2~0~0~0~0~0~0~0~0~0~0~0~0~mandelbulb~bogus-ifs'
 			).ifs
 		).toBe('barnsley-fern');
+	});
+
+	it('round-trips the coloring algorithm, and omits it when default (smooth)', () => {
+		const s = createDefaultScene();
+		expect(decodeScene(encodeScene({ ...s, coloring: 'orbit-trap' })).coloring).toBe('orbit-trap');
+		expect(decodeScene(encodeScene({ ...s, coloring: 'domain' })).coloring).toBe('domain');
+		expect(decodeScene(encodeScene({ ...s, coloring: 'distance' })).coloring).toBe('distance');
+		// Default (smooth) trims away and decodes as undefined.
+		expect(decodeScene(encodeScene(s)).coloring).toBeUndefined();
+		expect(decodeScene(encodeScene({ ...s, coloring: 'smooth' })).coloring).toBeUndefined();
+		// Survives alongside a non-default IFS field (codec order: ifs then coloring).
+		const combo = decodeScene(encodeScene({ ...s, ifs: 'dragon-curve', coloring: 'interior' }));
+		expect(combo.coloring).toBe('interior');
+		expect(combo.ifs).toBe('dragon-curve');
 	});
 
 	it('defaults post to a no-op for legacy tokens', () => {
@@ -326,5 +345,41 @@ describe('decodeScene resilience', () => {
 		expect(
 			decodeScene(encodeScene({ ...s, camera: { ...s.camera, scale: 0 } })).camera.scale
 		).toBeGreaterThan(0);
+	});
+});
+
+describe('encodeLayers / decodeLayers (multi-layer document)', () => {
+	const scene = createDefaultScene();
+
+	it('round-trips a stack of layers with blend, opacity, visibility and active layer', () => {
+		let stack = singleStack('deep-zoom-2d', { ...scene, formula: 'julia' });
+		const flame = makeLayer(
+			'flames',
+			{ ...scene, flame: 'swirl' },
+			{
+				blend: 'screen',
+				opacity: 0.6
+			}
+		);
+		stack = addLayer(stack, flame); // active = flame
+		stack = updateLayer(stack, stack.layers[0].id, { visible: false });
+
+		const out = decodeLayers(encodeLayers(stack))!;
+		expect(out.layers).toHaveLength(2);
+		expect(out.layers[0].style).toBe('deep-zoom-2d');
+		expect(out.layers[0].scene.formula).toBe('julia');
+		expect(out.layers[0].visible).toBe(false);
+		expect(out.layers[1].style).toBe('flames');
+		expect(out.layers[1].blend).toBe('screen');
+		expect(out.layers[1].opacity).toBeCloseTo(0.6);
+		expect(out.layers[1].scene.flame).toBe('swirl');
+		// Active layer (the flame, index 1) survives.
+		expect(out.activeId).toBe(out.layers[1].id);
+	});
+
+	it('collapses a single-layer stack and rejects garbage', () => {
+		const one = decodeLayers(encodeLayers(singleStack('deep-zoom-2d', scene)))!;
+		expect(one.layers).toHaveLength(1);
+		expect(decodeLayers('garbage-with-no-separator')).toBeNull();
 	});
 });

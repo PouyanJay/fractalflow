@@ -25,6 +25,9 @@ export interface Camera2D {
 	scale: number;
 }
 
+/** Coloring algorithm for the Deep-Zoom 2D escape-time renderer. */
+export type ColoringId = 'smooth' | 'orbit-trap' | 'distance' | 'domain' | 'interior';
+
 /** The raymarched shape for the Geometric 3D renderer. */
 export type GeometricShapeId =
 	| 'mandelbulb'
@@ -51,12 +54,16 @@ export type FormulaId =
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {
-	/** Coordinate warp id ('none' | 'kaleido' | 'mirror'). */
+	/** Coordinate warp id ('none'|'kaleido'|'mirror'|'swirl'|'ripple'|'fisheye'|'fold'). */
 	warp: string;
 	warpAmount: number;
 	vignette: number;
 	gamma: number;
 	grain: number;
+	/** Hue rotation in turns ([-0.5, 0.5]); 0 leaves colour unchanged. */
+	hueShift: number;
+	/** Saturation multiplier (0 = greyscale, 1 = unchanged, >1 = boosted). */
+	saturation: number;
 	/**
 	 * Bloom (HDR glow). `bloom` is the intensity; 0 disables it entirely and the
 	 * backend keeps its direct-to-swapchain path (no render-to-texture cost).
@@ -110,6 +117,9 @@ export interface SceneState {
 	/** Which raymarched shape the Geometric 3D renderer draws. Optional, default
 	 * 'mandelbulb'; carried like the other family selectors, only read in 3D. */
 	geometricShape?: GeometricShapeId;
+	/** Coloring algorithm for the Deep-Zoom 2D escape-time formulas. Optional,
+	 * default 'smooth'; only read by the deep-zoom renderer (codes 0–9). */
+	coloring?: ColoringId;
 }
 
 export interface RenderInput {

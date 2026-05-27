@@ -7,6 +7,11 @@ import {
 	packPost,
 	warpMirror,
 	warpKaleido,
+	warpSwirl,
+	warpRipple,
+	warpFisheye,
+	warpFold,
+	warpDefaultAmount,
 	type PostSettings
 } from './post';
 
@@ -19,11 +24,71 @@ describe('post model', () => {
 		expect(DEFAULT_POST.bloom).toBe(0);
 	});
 
+	it('defaults the grade additions to a no-op (no hue rotation, full saturation)', () => {
+		expect(DEFAULT_POST.hueShift).toBe(0);
+		expect(DEFAULT_POST.saturation).toBe(1);
+	});
+
 	it('lists warps with codes that match', () => {
-		expect(WARPS.map((w) => w.id)).toEqual(['none', 'kaleido', 'mirror']);
+		expect(WARPS.map((w) => w.id)).toEqual([
+			'none',
+			'kaleido',
+			'mirror',
+			'swirl',
+			'ripple',
+			'fisheye',
+			'fold'
+		]);
 		expect(WARP_CODE.none).toBe(0);
 		expect(WARP_CODE.kaleido).toBe(1);
 		expect(WARP_CODE.mirror).toBe(2);
+		expect(WARP_CODE.swirl).toBe(3);
+		expect(WARP_CODE.ripple).toBe(4);
+		expect(WARP_CODE.fisheye).toBe(5);
+		expect(WARP_CODE.fold).toBe(6);
+	});
+
+	it('gives every amount-taking warp a default in its declared range', () => {
+		for (const w of WARPS) {
+			if (!w.amount) continue;
+			const d = warpDefaultAmount(w.id);
+			expect(d).toBeGreaterThanOrEqual(w.amount.min);
+			expect(d).toBeLessThanOrEqual(w.amount.max);
+		}
+	});
+});
+
+describe('warp CPU references', () => {
+	it('swirl preserves radius and reduces to a rotation at the origin', () => {
+		const [x, y] = warpSwirl(1, 0, 4);
+		expect(Math.hypot(x, y)).toBeCloseTo(1); // radius preserved
+		expect(warpSwirl(0, 0, 4)).toEqual([0, 0]);
+	});
+	it('ripple is the identity at zero frequency phase and scales radially', () => {
+		const [x, y] = warpRipple(1, 1, 9);
+		// radial scale keeps the direction
+		expect(Math.atan2(y, x)).toBeCloseTo(Math.PI / 4);
+	});
+	it('fisheye power 1 is the identity; >1 pushes outward past the unit circle', () => {
+		expect(warpFisheye(0.5, 0.5, 1).map((v) => +v.toFixed(6))).toEqual([0.5, 0.5]);
+		const [x, y] = warpFisheye(2, 0, 1.6); // r=2 → 2^1.6 ≈ 3.03
+		expect(x).toBeGreaterThan(2);
+		expect(y).toBeCloseTo(0);
+	});
+	it('fold maps the whole plane into one wedge (angle within [0, 2π/n))', () => {
+		const seg = (2 * Math.PI) / 6;
+		for (const [x, y] of [
+			[-1, 0],
+			[0, -1],
+			[0.5, -0.5]
+		]) {
+			const [fx, fy] = warpFold(x, y, 6);
+			let a = Math.atan2(fy, fx);
+			if (a < -1e-9) a += 2 * Math.PI;
+			expect(a).toBeGreaterThanOrEqual(-1e-6);
+			expect(a).toBeLessThan(seg + 1e-6);
+			expect(Math.hypot(fx, fy)).toBeCloseTo(Math.hypot(x, y)); // radius preserved
+		}
 	});
 });
 
@@ -36,6 +101,8 @@ describe('packPost', () => {
 			vignette: 0.4,
 			gamma: 1.5,
 			grain: 0.2,
+			hueShift: 0,
+			saturation: 1,
 			bloom: 0,
 			bloomThreshold: 0.8,
 			bloomKnee: 0.5,
@@ -57,6 +124,8 @@ describe('packPost', () => {
 			vignette: 0,
 			gamma: 1,
 			grain: 0,
+			hueShift: 0,
+			saturation: 1,
 			bloom: 0,
 			bloomThreshold: 0.8,
 			bloomKnee: 0.5,

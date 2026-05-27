@@ -25,6 +25,8 @@ const scene: SceneState = {
 		vignette: 0,
 		gamma: 1,
 		grain: 0,
+		hueShift: 0,
+		saturation: 1,
 		bloom: 0,
 		bloomThreshold: 0.8,
 		bloomKnee: 0.5,

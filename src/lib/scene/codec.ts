@@ -7,12 +7,15 @@
  * are clamped to valid ranges.
  */
 import type { FormulaId, GeometricShapeId, SceneState } from '$lib/engine/types';
+import { isValidArtStyle } from '$lib/stores/ui-logic';
+import { isBlendMode, makeLayer, singleStack, type LayerStack } from './layers';
 import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
 import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
 import { IFS_SYSTEMS } from '$lib/fractals/ifs/ifs';
+import { COLORINGS } from '$lib/fractals/deep-zoom-2d/coloring';
 import { WARP_CODE } from '$lib/fractals/post';
 
 const FORMULA_IDS: readonly FormulaId[] = [
@@ -35,6 +38,7 @@ const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const IFS_IDS: readonly string[] = IFS_SYSTEMS.map((s) => s.id);
+const COLORING_IDS: readonly string[] = COLORINGS.map((c) => c.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
 const MAX_ITER = 8000;
@@ -92,7 +96,12 @@ export function encodeScene(scene: SceneState): string {
 		scene.geometricShape ?? 'mandelbulb',
 		// IFS system — appended last so older share links are unaffected; the
 		// default 'barnsley-fern' trims away for every non-IFS scene.
-		scene.ifs
+		scene.ifs,
+		// Coloring algorithm (Deep-Zoom 2D) — appended; default 'smooth' trims away.
+		scene.coloring ?? 'smooth',
+		// Grade additions — appended; defaults (0 hue, 1 saturation) trim away.
+		scene.post.hueShift,
+		scene.post.saturation
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -123,7 +132,10 @@ export function encodeScene(scene: SceneState): string {
 		2, // default Multibrot power
 		...Array(12).fill(0), // default (absent) custom palette
 		'mandelbulb', // default Geometric 3D shape
-		d.ifs // default IFS system
+		d.ifs, // default IFS system
+		'smooth', // default coloring
+		0, // default hueShift
+		1 // default saturation
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -159,6 +171,11 @@ export function decodeScene(token: string): SceneState {
 		: undefined;
 	// IFS system (index 35) — validated, default when absent or unknown.
 	const ifs = IFS_IDS.includes(parts[35]) ? parts[35] : fallback.ifs;
+	// Coloring (index 36) — validated; absent/unknown/default decodes as undefined.
+	const coloring =
+		COLORING_IDS.includes(parts[36]) && parts[36] !== 'smooth'
+			? (parts[36] as NonNullable<SceneState['coloring']>)
+			: undefined;
 	const paletteCoeffs = hasCustom
 		? {
 				a: [pc[0], pc[1], pc[2]] as [number, number, number],
@@ -195,10 +212,56 @@ export function decodeScene(token: string): SceneState {
 			bloom: Math.max(0, num(parts[15], fallback.post.bloom)),
 			bloomThreshold: Math.max(0, num(parts[16], fallback.post.bloomThreshold)),
 			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
-			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
+			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius)),
+			// Grade additions (indices 37/38) — default no-op when absent.
+			hueShift: num(parts[37], fallback.post.hueShift),
+			saturation: num(parts[38], fallback.post.saturation)
 		},
 		...(power !== 2 ? { power } : {}),
 		...(paletteCoeffs ? { paletteCoeffs } : {}),
-		...(geometricShape ? { geometricShape } : {})
+		...(geometricShape ? { geometricShape } : {}),
+		...(coloring ? { coloring } : {})
 	};
+}
+
+// --- Multi-layer stack codec (the `?l=` document param) ---
+// A layer is `style_blend_opacity_visible_<sceneToken>` and the stack is
+// `activeIndex!layer0!layer1!…`. The field separator `_` and layer separator `!`
+// never occur in a scene token or an art-style/blend id, and both survive
+// encodeURIComponent unescaped (like `~`). Decoding is defensive: any malformed
+// part falls back, and an unparseable stack yields null (caller uses one layer).
+const LAYER_FIELD_SEP = '_';
+const LAYER_SEP = '!';
+
+export function encodeLayers(stack: LayerStack): string {
+	const activeIndex = Math.max(
+		0,
+		stack.layers.findIndex((l) => l.id === stack.activeId)
+	);
+	const parts = stack.layers.map((l) =>
+		[l.style, l.blend, l.opacity, l.visible ? 1 : 0, encodeScene(l.scene)].join(LAYER_FIELD_SEP)
+	);
+	return [activeIndex, ...parts].join(LAYER_SEP);
+}
+
+export function decodeLayers(token: string): LayerStack | null {
+	const groups = token.split(LAYER_SEP);
+	if (groups.length < 2) return null;
+	const activeIndex = Number(groups[0]);
+	const layers = groups.slice(1).map((g) => {
+		const [style, blend, op, vis, ...rest] = g.split(LAYER_FIELD_SEP);
+		const sceneToken = rest.join(LAYER_FIELD_SEP);
+		return makeLayer(isValidArtStyle(style) ? style : 'deep-zoom-2d', decodeScene(sceneToken), {
+			blend: isBlendMode(blend) ? blend : 'normal',
+			opacity: Number.isFinite(Number(op)) ? clamp01(Number(op)) : 1,
+			visible: vis !== '0'
+		});
+	});
+	if (layers.length === 0) return null;
+	const idx = Number.isInteger(activeIndex)
+		? Math.max(0, Math.min(activeIndex, layers.length - 1))
+		: 0;
+	// One layer behaves exactly like a plain scene — let the caller keep it simple.
+	if (layers.length === 1) return singleStack(layers[0].style, layers[0].scene);
+	return { layers, activeId: layers[idx].id };
 }

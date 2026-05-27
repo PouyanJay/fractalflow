@@ -4,6 +4,7 @@
 	import { zipSync } from 'fflate';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
+	import { getLayersStore } from '$lib/stores/layers.svelte';
 	import { getJourneyStore } from '$lib/stores/journey.svelte';
 	import { ART_STYLES } from '$lib/stores/ui-logic';
 	import { getRenderer } from '$lib/fractals/registry';
@@ -14,6 +15,7 @@
 	import {
 		EXPORT_SIZES,
 		captureScene,
+		captureLayers,
 		captureSequence,
 		downloadBlob,
 		exportFilename,
@@ -22,6 +24,7 @@
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
+	const layers = getLayersStore();
 	const journey = getJourneyStore();
 
 	/** Keep movie exports bounded regardless of duration × fps. */
@@ -89,7 +92,22 @@
 		failed = false;
 		saved = false;
 		try {
-			const blob = await captureScene(renderer, scene.scene, size.width, size.height);
+			// Multi-layer documents composite every visible layer; a single layer
+			// (the common case) captures the active renderer directly.
+			const blob =
+				layers.count > 1
+					? await captureLayers(
+							layers.current().layers.map((l) => ({
+								renderer: getRenderer(l.style),
+								scene: l.scene,
+								blend: l.blend,
+								opacity: l.opacity,
+								visible: l.visible
+							})),
+							size.width,
+							size.height
+						)
+					: await captureScene(renderer, scene.scene, size.width, size.height);
 			if (!blob) {
 				failed = true;
 				return;
