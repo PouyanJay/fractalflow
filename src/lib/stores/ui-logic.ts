@@ -9,7 +9,7 @@
 // Animation lives inside Explore as "Journeys"; output is the top-bar Export
 // action — neither is a mode. See .claude/plans/07-product-reframe.md.
 export type ModeId = 'compose' | 'explore';
-export type ArtStyleId = 'geometric-3d' | 'flames' | 'attractors' | 'deep-zoom-2d';
+export type ArtStyleId = 'geometric-3d' | 'flames' | 'attractors' | 'deep-zoom-2d' | 'ifs';
 export type PanelId = 'library' | 'inspector';
 
 export interface ModeMeta {
@@ -73,6 +73,12 @@ export const ART_STYLES: readonly ArtStyleMeta[] = [
 		label: 'Deep-Zoom 2D',
 		icon: 'spline',
 		blurb: 'Mandelbrot & Julia spirals with vivid palettes and infinite zoom.'
+	},
+	{
+		id: 'ifs',
+		label: 'Iterated Systems',
+		icon: 'sprout',
+		blurb: 'Barnsley fern, dragon & Sierpiński via the chaos game.'
 	}
 ] as const;
 

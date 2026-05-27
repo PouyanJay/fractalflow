@@ -65,6 +65,7 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 		paletteIndex: a.paletteIndex,
 		attractor: a.attractor,
 		flame: a.flame,
+		ifs: a.ifs,
 		// Numeric fields interpolate. The centre interpolates in double-double so a
 		// deep-zoom journey keeps its sub-f64 precision (see Camera2D.centerXLo).
 		camera: blendCenter(a, b, u),
@@ -120,6 +121,7 @@ export function cloneScene(scene: SceneState): SceneState {
 		juliaSeed: { ...scene.juliaSeed },
 		attractor: scene.attractor,
 		flame: scene.flame,
+		ifs: scene.ifs,
 		post: { ...scene.post },
 		...(scene.geometricShape ? { geometricShape: scene.geometricShape } : {}),
 		...(scene.power !== undefined ? { power: scene.power } : {}),

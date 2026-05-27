@@ -244,7 +244,17 @@ test('Compose exposes the attractor family selector', async ({ page }) => {
 	await pickStyle(page, /Glowing Attractors/);
 	await page.locator('button[aria-label="Attractor family"]:visible').first().click();
 	const list = page.getByRole('listbox', { name: 'Attractor family' });
-	await expect(list.getByRole('option')).toHaveText(['Clifford', 'de Jong', 'Lorenz', 'Thomas']);
+	await expect(list.getByRole('option')).toHaveText([
+		'Clifford',
+		'de Jong',
+		'Lorenz',
+		'Thomas',
+		'Aizawa',
+		'Rössler',
+		'Halvorsen',
+		'Chen',
+		'Dadras'
+	]);
 	await list.getByRole('option', { name: 'Lorenz', exact: true }).click();
 	await expect(page.locator('button[aria-label="Attractor family"]:visible').first()).toContainText(
 		'Lorenz'
@@ -277,7 +287,12 @@ test('Compose exposes the flame selector', async ({ page }) => {
 		'Sierpinski',
 		'Sinusoidal Web',
 		'Swirl Bloom',
-		'Horseshoe'
+		'Horseshoe',
+		'Polar Bloom',
+		'Disc',
+		'Heartfield',
+		'Bubbles',
+		'Popcorn'
 	]);
 	await list.getByRole('option', { name: 'Swirl Bloom', exact: true }).click();
 	await expect(page.locator('button[aria-label="Flame"]:visible').first()).toContainText(
@@ -288,6 +303,68 @@ test('Compose exposes the flame selector', async ({ page }) => {
 test('loading the Sinusoidal Web preset switches to the flames renderer', async ({ page }) => {
 	await loadPreset(page, 'Sinusoidal Web');
 	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Flame');
+});
+
+test('selecting Iterated Systems shows its Codex and renders (or asks for WebGPU)', async ({
+	page
+}) => {
+	await pickStyle(page, /Iterated Systems/);
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText(
+		'Iterated Function System'
+	);
+	// WebGPU-only compute renderer: a live canvas or the designed notice, never a crash.
+	const canvasOrNotice = page
+		.locator('canvas')
+		.or(page.getByText(/needs WebGPU/i))
+		.first();
+	await expect(canvasOrNotice).toBeVisible();
+});
+
+test('Compose exposes the IFS system selector', async ({ page }) => {
+	await pickStyle(page, /Iterated Systems/);
+	await page.locator('button[aria-label="IFS system"]:visible').first().click();
+	const list = page.getByRole('listbox', { name: 'IFS system' });
+	await expect(list.getByRole('option')).toHaveText([
+		'Barnsley Fern',
+		'Sierpiński Triangle',
+		'Dragon Curve',
+		'Koch Curve',
+		'Lévy C Curve',
+		'Sierpiński Carpet'
+	]);
+	await list.getByRole('option', { name: 'Dragon Curve', exact: true }).click();
+	await expect(page.locator('button[aria-label="IFS system"]:visible').first()).toContainText(
+		'Dragon Curve'
+	);
+});
+
+test('loading the Barnsley Fern preset switches to the IFS renderer', async ({ page }) => {
+	await loadPreset(page, 'Barnsley Fern');
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText(
+		'Iterated Function System'
+	);
+});
+
+test('selecting Lyapunov reframes into (a,b) space and describes it', async ({ page }) => {
+	await page.goto('/compose');
+	await choose(page, 'Formula', 'Lyapunov');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Lyapunov');
+	// The camera reframes into logistic-rate space (a ≈ 3.2), not the Mandelbrot
+	// origin — the scene token carries the formula and its (a,b) home centre.
+	await expect
+		.poll(() => decodeURIComponent(page.url()), { timeout: 5000 })
+		.toContain('lyapunov~3.2');
+});
+
+test('selecting Apollonian describes the gasket', async ({ page }) => {
+	await page.goto('/compose');
+	await choose(page, 'Formula', 'Apollonian');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Apollonian');
 });
 
 test('the Journey tab plays a curated journey', async ({ page }) => {
@@ -416,6 +493,32 @@ test('visual: Julia set', async ({ page }) => {
 	await waitForEngine(page);
 	await page.waitForTimeout(300);
 	await expect(page).toHaveScreenshot('explore-julia.png', {
+		fullPage: true,
+		maxDiffPixelRatio: 0.02
+	});
+});
+
+test('visual: Lyapunov fractal', async ({ page }) => {
+	// Deep-zoom GLSL/WGSL path → renders in headless like the Mandelbrot. The
+	// (a,b) home view is static for a fixed scene, so the page is deterministic.
+	await page.goto('/compose');
+	await choose(page, 'Formula', 'Lyapunov');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await page.waitForTimeout(300);
+	await expect(page).toHaveScreenshot('explore-lyapunov.png', {
+		fullPage: true,
+		maxDiffPixelRatio: 0.02
+	});
+});
+
+test('visual: Apollonian gasket', async ({ page }) => {
+	await page.goto('/compose');
+	await choose(page, 'Formula', 'Apollonian');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await page.waitForTimeout(300);
+	await expect(page).toHaveScreenshot('explore-apollonian.png', {
 		fullPage: true,
 		maxDiffPixelRatio: 0.02
 	});

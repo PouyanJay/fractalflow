@@ -37,7 +37,7 @@ import {
 	type ReferenceOrbit,
 	type SeriesApprox
 } from './perturbation';
-import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
+import type { FormulaId, FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
 const POST_BASE = 144;
@@ -76,6 +76,7 @@ export function createDefaultScene(): SceneState {
 		juliaSeed: { x: -0.8, y: 0.156 },
 		attractor: 'clifford',
 		flame: 'sierpinski',
+		ifs: 'barnsley-fern',
 		post: { ...DEFAULT_POST }
 	};
 }
@@ -99,12 +100,31 @@ let memoData = new Float32Array(2);
 let memoSeriesKey = '';
 let memoSeries: SeriesApprox = ZERO_SERIES;
 
+// Only these formulas reach the shader's perturbation fall-through and read the
+// reference orbit/series. The rest (abs-variants, Multibrot, Newton, Phoenix,
+// Lyapunov, Apollonian) iterate directly in the shader. Burning Ship iterates
+// directly while shallow but still uses the orbit once deep, so it stays in.
+const PERTURBATION_FORMULAS = new Set<FormulaId>([
+	'mandelbrot',
+	'julia',
+	'burning-ship',
+	'tricorn'
+]);
+// A non-empty placeholder: signals "no orbit" via length 0 while keeping the
+// WebGL2 orbit-texture upload valid (it needs ≥ 1 texel).
+const NO_ORBIT = new Float32Array(2);
+
 function orbitFor(input: RenderInput): {
 	data: Float32Array;
 	length: number;
 	series: SeriesApprox;
 } {
 	const s = input.scene;
+	// Skip the (double-double) orbit computation and its per-frame GPU upload for
+	// formulas the shader iterates directly — they never read it.
+	if (!PERTURBATION_FORMULAS.has(s.formula)) {
+		return { data: NO_ORBIT, length: 0, series: ZERO_SERIES };
+	}
 	const cam = s.camera;
 	const iter = effectiveMaxIter(s);
 	const orbitKey = `${s.formula}|${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.juliaSeed.x}|${s.juliaSeed.y}|${iter}`;
@@ -193,6 +213,25 @@ fn newtonColor(root: i32, iter: i32) -> vec4f {
 	return vec4f(palette(t) * shade, 1.0);
 }
 
+// Lyapunov coloring: ordered regimes (λ<0) take the palette, brighter the more
+// stable; chaotic regimes (λ>0) fall to near-black so the ordered "swallows"
+// read as luminous structure on a dark field.
+fn lyapunovColor(lam: f32) -> vec4f {
+	if (lam < 0.0) {
+		let t = clamp(sqrt(-lam) * 0.9, 0.0, 1.0);
+		return vec4f(palette(t), 1.0);
+	}
+	let v = clamp(lam * 1.5, 0.0, 1.0);
+	return vec4f(INTERIOR.rgb + vec3f(0.0, 0.015, 0.04) * v, 1.0);
+}
+
+// Apollonian coloring: the orbit-trap pseudo-distance is small along the circle
+// net, so glow = 1/(1+k·de) lights the packing; the palette tints it.
+fn apollonianColor(de: f32) -> vec4f {
+	let glow = 1.0 / (1.0 + de * 26.0);
+	return vec4f(palette(fract(glow)) * glow, 1.0);
+}
+
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let uv = frag.xy / u.resolution;
@@ -247,6 +286,45 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 			i = i + 1;
 		}
 		return ffPost(INTERIOR, uv);
+	}
+
+	// Lyapunov (Markus) fractal: the world point is a pair of logistic growth
+	// rates (a, b) = center + offset. Iterate x ← r·x·(1−x) with r alternating
+	// a, b (the "AB" sequence), warm up, then average ln|r·(1−2x)| → λ. Mirrors
+	// lyapunovExponent in reference.ts (critical-point seed x₀ = 0.5).
+	if (formula == 12) {
+		let ab = u.center + offset;
+		var x = 0.5;
+		for (var k = 0; k < 100; k = k + 1) {
+			let r = select(ab.y, ab.x, (k & 1) == 0); // even → a, odd → b
+			x = r * x * (1.0 - x);
+		}
+		let n = max(1, min(maxI, 500)); // guard λ = sum/n against maxIter == 0
+		var sum = 0.0;
+		for (var k = 0; k < n; k = k + 1) {
+			let r = select(ab.y, ab.x, (k & 1) == 0); // warmup ended on an even count
+			x = r * x * (1.0 - x);
+			sum = sum + log(max(1e-12, abs(r * (1.0 - 2.0 * x))));
+		}
+		return ffPost(lyapunovColor(sum / f32(n)), uv);
+	}
+
+	// Apollonian gasket net: fold the point into the [-1,1] cell (a lattice of
+	// tangent circles) and invert it in the unit circle, tracking the scale; the
+	// orbit-trap |p|/scale reads the recursive packing. Mirrors apollonianValue
+	// (APOLLONIAN_C = 1.1).
+	if (formula == 13) {
+		var p = u.center + offset;
+		var sc = 1.0;
+		let iters = min(maxI, 24);
+		for (var k = 0; k < iters; k = k + 1) {
+			p = p - 2.0 * round(p * 0.5);
+			let r2 = max(dot(p, p), 1e-6);
+			let kk = 1.1 / r2;
+			p = p * kk;
+			sc = sc * kk;
+		}
+		return ffPost(apollonianColor(length(p) / sc), uv);
 	}
 
 	// Direct f32 iteration. Burning Ship's sign-form perturbation glitches when the
@@ -388,6 +466,20 @@ vec4 newtonColor(int root, int iter) {
 	return vec4(palette(t) * shade, 1.0);
 }
 
+vec4 lyapunovColor(float lam) {
+	if (lam < 0.0) {
+		float t = clamp(sqrt(-lam) * 0.9, 0.0, 1.0);
+		return vec4(palette(t), 1.0);
+	}
+	float v = clamp(lam * 1.5, 0.0, 1.0);
+	return vec4(INTERIOR.rgb + vec3(0.0, 0.015, 0.04) * v, 1.0);
+}
+
+vec4 apollonianColor(float de) {
+	float glow = 1.0 / (1.0 + de * 26.0);
+	return vec4(palette(fract(glow)) * glow, 1.0);
+}
+
 void main() {
 	vec2 uv = gl_FragCoord.xy / uResolution;
 	float perPixel = uScale / uResolution.y;
@@ -436,6 +528,44 @@ void main() {
 			z = zn;
 		}
 		fragColor = ffPost(INTERIOR, uv);
+		return;
+	}
+
+	// Lyapunov (Markus) fractal: (a, b) = the world point; iterate the logistic
+	// map with the alternating AB sequence and read the Lyapunov exponent λ.
+	// Mirrors lyapunovExponent in reference.ts (critical-point seed x₀ = 0.5).
+	if (formula == 12) {
+		vec2 ab = uCenter + offset;
+		float x = 0.5;
+		for (int k = 0; k < 100; k++) {
+			float r = (k & 1) == 0 ? ab.x : ab.y;
+			x = r * x * (1.0 - x);
+		}
+		int n = max(1, min(maxI, 500)); // guard λ = sum/n against maxIter == 0
+		float sum = 0.0;
+		for (int k = 0; k < n; k++) {
+			float r = (k & 1) == 0 ? ab.x : ab.y;
+			x = r * x * (1.0 - x);
+			sum += log(max(1e-12, abs(r * (1.0 - 2.0 * x))));
+		}
+		fragColor = ffPost(lyapunovColor(sum / float(n)), uv);
+		return;
+	}
+
+	// Apollonian gasket net: fold into the [-1,1] cell and circle-invert, tracking
+	// scale; |p|/scale is the orbit-trap distance. Mirrors apollonianValue (C = 1.1).
+	if (formula == 13) {
+		vec2 p = uCenter + offset;
+		float sc = 1.0;
+		int iters = min(maxI, 24);
+		for (int k = 0; k < iters; k++) {
+			p = p - 2.0 * round(p * 0.5);
+			float r2 = max(dot(p, p), 1e-6);
+			float kk = 1.1 / r2;
+			p *= kk;
+			sc *= kk;
+		}
+		fragColor = ffPost(apollonianColor(length(p) / sc), uv);
 		return;
 	}
 

@@ -321,6 +321,62 @@ export function phoenixEscape(
 	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
 }
 
+/**
+ * Markus–Lyapunov fractal. Each point is a pair of logistic-map growth rates
+ * (a, b); the map x ← r·x·(1−x) is iterated with r drawn from the fixed binary
+ * sequence LYAPUNOV_SEQUENCE (A→a, B→b), and the Lyapunov exponent λ — the
+ * average of ln|f′(x)| = ln|r·(1−2x)| — is returned. λ < 0 marks stable
+ * (ordered) regimes, λ > 0 chaotic ones; the boundary is the fractal.
+ *
+ * Not escape-time: every point yields a real λ, coloured directly (the shader
+ * mirrors this). The orbit is warmed up before accumulating so λ reflects the
+ * attractor, and the derivative is floored to keep λ finite when x ≈ 0.5.
+ */
+export const LYAPUNOV_SEQUENCE: readonly (0 | 1)[] = [0, 1]; // "AB"
+const LYAPUNOV_WARMUP = 100;
+
+export function lyapunovExponent(a: number, b: number, n: number): number {
+	const len = LYAPUNOV_SEQUENCE.length;
+	const rateAt = (i: number): number => (LYAPUNOV_SEQUENCE[i % len] === 0 ? a : b);
+	let x = 0.5;
+	for (let i = 0; i < LYAPUNOV_WARMUP; i++) {
+		x = rateAt(i) * x * (1 - x);
+	}
+	let sum = 0;
+	for (let i = 0; i < n; i++) {
+		const r = rateAt(LYAPUNOV_WARMUP + i);
+		x = r * x * (1 - x);
+		sum += Math.log(Math.max(1e-12, Math.abs(r * (1 - 2 * x))));
+	}
+	return sum / n;
+}
+
+/**
+ * Apollonian-gasket net value at a point. Repeatedly folds the point into the
+ * unit cell [-1,1]² (a lattice of mutually tangent circles) and inverts it in
+ * the unit circle, tracking the accumulated scale; the orbit-trap distance
+ * `|p|/scale` reads out the recursive circle packing. A pure pseudo-distance,
+ * coloured directly by the shader (which mirrors this fold and constant).
+ */
+export const APOLLONIAN_C = 1.1;
+
+export function apollonianValue(x: number, y: number, iters: number): number {
+	let px = x;
+	let py = y;
+	let scale = 1;
+	for (let i = 0; i < iters; i++) {
+		// Fold into [-1, 1] in each axis (period-2 lattice of tangent circles).
+		px = px - 2 * Math.round(px * 0.5);
+		py = py - 2 * Math.round(py * 0.5);
+		const r2 = px * px + py * py;
+		const k = APOLLONIAN_C / Math.max(r2, 1e-6); // circle inversion
+		px *= k;
+		py *= k;
+		scale *= k;
+	}
+	return Math.hypot(px, py) / scale;
+}
+
 export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'mandelbrot', label: 'Mandelbrot' },
 	{ id: 'julia', label: 'Julia' },
@@ -333,7 +389,9 @@ export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'celtic-mandelbar', label: 'Celtic Mandelbar' },
 	{ id: 'multibrot', label: 'Multibrot' },
 	{ id: 'newton', label: 'Newton' },
-	{ id: 'phoenix', label: 'Phoenix' }
+	{ id: 'phoenix', label: 'Phoenix' },
+	{ id: 'lyapunov', label: 'Lyapunov' },
+	{ id: 'apollonian', label: 'Apollonian' }
 ];
 
 /** Stable integer codes passed to the shaders to select the iteration. */
@@ -349,7 +407,24 @@ export const FORMULA_CODES: Record<FormulaId, number> = {
 	'celtic-mandelbar': 8,
 	multibrot: 9,
 	newton: 10,
-	phoenix: 11
+	phoenix: 11,
+	lyapunov: 12,
+	apollonian: 13
+};
+
+/**
+ * The natural "home" view for formulas that live somewhere other than the
+ * Mandelbrot's origin framing. Picking such a formula reframes the camera there
+ * (see the scene store) so it opens on its interesting region rather than an
+ * empty corner. Lyapunov lives in (a, b) logistic-rate space around (3, 3);
+ * Apollonian's gasket fills the unit cell around the origin. Formulas absent
+ * here keep the current camera, as before.
+ */
+export const FORMULA_HOME: Partial<
+	Record<FormulaId, { centerX: number; centerY: number; scale: number }>
+> = {
+	lyapunov: { centerX: 3.2, centerY: 3.2, scale: 1.9 },
+	apollonian: { centerX: 0, centerY: 0, scale: 2.4 }
 };
 
 export interface ComplexPoint {

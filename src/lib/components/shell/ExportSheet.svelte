@@ -50,7 +50,8 @@
 		exportTagFor(ui.selectedStyle, {
 			formula: scene.formula,
 			attractor: scene.attractor,
-			flame: scene.flame
+			flame: scene.flame,
+			ifs: scene.ifs
 		})
 	);
 	const zoom = $derived(formatZoom(scene.camera.scale));

@@ -113,6 +113,22 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'Introduced by Shigehiro Ushiki as a higher-order map; studied for how a second-order recurrence enriches the dynamics over the classic quadratic.',
 		tips: 'Set c (Re) and p (Im) in the Source node — the famous plumes appear around c ≈ 0.5667, p ≈ −0.5. A flip to the imaginary axis is conventional for this one.'
+	},
+	lyapunov: {
+		title: 'Lyapunov',
+		body: 'The Markus–Lyapunov fractal — not escape-time at all. Each point is a pair of growth rates (a, b) for the logistic map, coloured by whether that rhythm settles into order or tips into chaos.',
+		math: 'Iterate x ← r·x·(1−x), drawing r from the fixed sequence A,B,A,B… (A→a, B→b), and average ln|r·(1−2x)| → the Lyapunov exponent λ. λ < 0 (ordered) is shaded by the palette; λ > 0 (chaotic) falls to black. The seed is the critical point x₀ = 0.5, so periodic windows turn superstable and richly dark.',
+		applications:
+			'Lyapunov exponents are the standard measure of chaos — sensitivity to initial conditions — across dynamical systems, from population biology to circuits and climate.',
+		tips: 'The plane is logistic-rate space, not the complex plane: pan around (a, b) ∈ [2, 4]² to find the “swallow” curves. Raise iterations to sharpen the order/chaos boundary; a green or gold palette suits the ordered filaments.'
+	},
+	apollonian: {
+		title: 'Apollonian Gasket',
+		body: 'The Apollonian gasket — a fractal packing of circles, each snug in the curved gaps between three others, nested forever. Rendered here by folding and inverting the plane rather than iterating a polynomial.',
+		math: 'Repeatedly fold the point into the unit cell [−1, 1]² — a lattice of mutually tangent circles — then invert it in the unit circle, tracking the accumulated scale. The orbit-trap |p|/scale is small along the circle net, lighting up the recursive packing.',
+		applications:
+			'Apollonian packings link geometry to number theory (integer curvatures via Descartes’ Circle Theorem) and model foams, granular packing and conformal tilings.',
+		tips: 'Zoom into any triple of kissing circles — the same packing recurs at every scale. A touch of Bloom makes the net glow; cool palettes read it as fine filigree.'
 	}
 };
 
@@ -140,6 +156,14 @@ const STYLE_TEXT: Record<Exclude<ArtStyleId, 'deep-zoom-2d'>, SceneDescription> 
 		applications:
 			'The algorithm behind Electric Sheep and a staple of generative art; also a vivid demonstration of iterated function systems (IFS).',
 		tips: 'Pick a flame in the Source node, then pair a warm palette with a touch of Bloom for a painterly, lit-from-within look.'
+	},
+	ifs: {
+		title: 'Iterated Function System',
+		body: 'An IFS attractor — a handful of contractive affine maps played as a chaos game. Famous fractals like the Barnsley fern, Sierpiński triangle and Heighway dragon are each just a few such maps.',
+		math: 'Seed a point, then repeatedly pick one of the affine maps at random — weighted by its probability — and apply it. The orbit converges onto the system’s unique attractor regardless of where it started (Hutchinson’s theorem); density and a per-map colour accumulate.',
+		applications:
+			'IFS is the mathematics behind procedural plants and terrains, fractal image compression, and a canonical demonstration that simple contraction maps encode intricate self-similar shapes.',
+		tips: 'Choose a system in the Source node. Raise Exposure to coax out the faint outer fronds; a green-to-gold palette suits the fern, a cool palette the dragon.'
 	}
 };
 

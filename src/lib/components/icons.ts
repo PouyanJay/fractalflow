@@ -17,6 +17,7 @@ import {
 	SwatchBook,
 	Bookmark,
 	Shapes,
+	Sprout,
 	ChevronRight,
 	Share2,
 	X
@@ -37,6 +38,7 @@ export const icons = {
 	'swatch-book': SwatchBook,
 	bookmark: Bookmark,
 	shapes: Shapes,
+	sprout: Sprout,
 	'chevron-right': ChevronRight,
 	'share-2': Share2,
 	x: X

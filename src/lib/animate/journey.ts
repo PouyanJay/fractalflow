@@ -68,7 +68,11 @@ export const SHOWCASE_DIVES: Record<FormulaId, DiveTarget> = {
 	// Newton: a seam where all three root-basins meet, near the origin.
 	newton: { centerX: 0, centerY: 0, scale: 0.35 },
 	// Phoenix: into the feathered plumes (good across the common seed values).
-	phoenix: { centerX: 0, centerY: 0, scale: 1.0 }
+	phoenix: { centerX: 0, centerY: 0, scale: 1.0 },
+	// Lyapunov: the "Zircon Zity" corner where ordered swallows crowd the chaos.
+	lyapunov: { centerX: 3.6, centerY: 3.6, scale: 0.5 },
+	// Apollonian: into a triple of kissing circles, where the packing recurses.
+	apollonian: { centerX: 0.5, centerY: 0.28, scale: 0.4 }
 };
 
 /**

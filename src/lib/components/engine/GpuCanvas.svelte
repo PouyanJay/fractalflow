@@ -71,8 +71,8 @@
 		<div class="error" role="alert">
 			<p class="error-title">This art style needs WebGPU</p>
 			<p class="error-body">
-				Glowing Attractors renders on the GPU compute pipeline, which your browser doesn't expose.
-				Try a recent Chrome, Edge, or Safari — or pick Deep-Zoom 2D, which runs on WebGL2.
+				This art style renders on the GPU compute pipeline, which your browser doesn't expose. Try a
+				recent Chrome, Edge, or Safari — or pick Deep-Zoom 2D or Geometric 3D, which run on WebGL2.
 			</p>
 		</div>
 	{:else if failed}

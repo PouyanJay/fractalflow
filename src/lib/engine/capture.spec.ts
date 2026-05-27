@@ -2,15 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { EXPORT_SIZES, exportFilename, exportTagFor } from './capture';
 
 describe('exportTagFor', () => {
-	const scene = { formula: 'julia', attractor: 'lorenz', flame: 'swirl' };
+	const scene = { formula: 'julia', attractor: 'lorenz', flame: 'swirl', ifs: 'dragon-curve' };
 
 	it('tags Deep-Zoom 2D exports with the active formula', () => {
 		expect(exportTagFor('deep-zoom-2d', scene)).toBe('julia');
 	});
 
-	it('tags attractor and flame exports with their variant', () => {
+	it('tags attractor, flame and IFS exports with their variant', () => {
 		expect(exportTagFor('attractors', scene)).toBe('attractor-lorenz');
 		expect(exportTagFor('flames', scene)).toBe('flame-swirl');
+		expect(exportTagFor('ifs', scene)).toBe('ifs-dragon-curve');
 	});
 
 	it('falls back to the style id, then a generic tag', () => {

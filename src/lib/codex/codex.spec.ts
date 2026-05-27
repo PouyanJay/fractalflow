@@ -11,6 +11,7 @@ function sceneAt(formula: SceneState['formula'], centerX: number, centerY: numbe
 		juliaSeed: { x: 0, y: 0 },
 		attractor: 'clifford',
 		flame: 'sierpinski',
+		ifs: 'barnsley-fern',
 		post: {
 			warp: 'none',
 			warpAmount: 0,
@@ -39,6 +40,7 @@ describe('describeScene', () => {
 		expect(describeScene('attractors', sceneAt('mandelbrot', 0, 0)).title).toMatch(/Attractor/i);
 		expect(describeScene('flames', sceneAt('mandelbrot', 0, 0)).title).toMatch(/Flame/i);
 		expect(describeScene('geometric-3d', sceneAt('mandelbrot', 0, 0)).title).toMatch(/Mandelbulb/i);
+		expect(describeScene('ifs', sceneAt('mandelbrot', 0, 0)).title).toMatch(/Iterated/i);
 	});
 
 	it('falls back to a generic description when no style is selected', () => {

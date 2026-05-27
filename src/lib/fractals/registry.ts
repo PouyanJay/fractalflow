@@ -8,12 +8,14 @@ import { mandelbrotRenderer } from './deep-zoom-2d/renderer';
 import { mandelbulbRenderer } from './geometric-3d/renderer';
 import { attractorsRenderer } from './glowing-attractors/renderer';
 import { flamesRenderer } from './painterly-flames/renderer';
+import { ifsRenderer } from './ifs/renderer';
 
 const RENDERERS: Partial<Record<ArtStyleId, FractalRenderer>> = {
 	'deep-zoom-2d': mandelbrotRenderer,
 	'geometric-3d': mandelbulbRenderer,
 	attractors: attractorsRenderer,
-	flames: flamesRenderer
+	flames: flamesRenderer,
+	ifs: ifsRenderer
 };
 
 export function getRenderer(styleId: ArtStyleId | null): FractalRenderer | null {
@@ -25,6 +27,7 @@ export function getRenderer(styleId: ArtStyleId | null): FractalRenderer | null 
 export function defaultCameraFor(styleId: ArtStyleId | null): Camera2D {
 	switch (styleId) {
 		case 'flames':
+		case 'ifs':
 			return { centerX: 0, centerY: 0, scale: 2.5 };
 		case 'geometric-3d':
 		case 'attractors':

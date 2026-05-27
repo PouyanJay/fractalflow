@@ -17,6 +17,7 @@ const DEEP_ZOOM: ArtStyleId = 'deep-zoom-2d';
 const DEFAULT_SEED = { x: -0.8, y: 0.156 };
 const DEFAULT_ATTRACTOR = 'clifford';
 const DEFAULT_FLAME = 'sierpinski';
+const DEFAULT_IFS = 'barnsley-fern';
 
 export const PRESETS: Preset[] = [
 	{
@@ -31,6 +32,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -46,6 +48,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -61,6 +64,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -76,6 +80,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: { x: -0.8, y: 0.156 },
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -91,6 +96,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: { x: 0.285, y: 0.01 },
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -106,6 +112,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -121,6 +128,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -136,6 +144,7 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: 'lorenz',
 			flame: DEFAULT_FLAME,
+			ifs: DEFAULT_IFS,
 			post: { ...DEFAULT_POST }
 		}
 	},
@@ -151,6 +160,23 @@ export const PRESETS: Preset[] = [
 			juliaSeed: DEFAULT_SEED,
 			attractor: DEFAULT_ATTRACTOR,
 			flame: 'sinusoidal',
+			ifs: DEFAULT_IFS,
+			post: { ...DEFAULT_POST }
+		}
+	},
+	{
+		id: 'barnsley-fern',
+		label: 'Barnsley Fern',
+		styleId: 'ifs',
+		scene: {
+			formula: 'mandelbrot',
+			camera: { centerX: 0, centerY: 0, scale: 2.4 },
+			maxIter: 600,
+			paletteIndex: 6,
+			juliaSeed: DEFAULT_SEED,
+			attractor: DEFAULT_ATTRACTOR,
+			flame: DEFAULT_FLAME,
+			ifs: 'barnsley-fern',
 			post: { ...DEFAULT_POST }
 		}
 	}

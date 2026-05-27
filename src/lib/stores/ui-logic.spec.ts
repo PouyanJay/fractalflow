@@ -35,12 +35,13 @@ describe('mode metadata', () => {
 });
 
 describe('art styles', () => {
-	it('defines the four selectable art styles', () => {
+	it('defines the five selectable art styles', () => {
 		expect(ART_STYLES.map((s) => s.id)).toEqual([
 			'geometric-3d',
 			'flames',
 			'attractors',
-			'deep-zoom-2d'
+			'deep-zoom-2d',
+			'ifs'
 		]);
 	});
 });
