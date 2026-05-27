@@ -114,11 +114,112 @@ export function tricornEscape(
 	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
 }
 
+/**
+ * The "abs-variant" Mandelbrot family — each folds the orbit with an absolute
+ * value in a different place, so the smooth z²+c symmetry breaks into a distinct
+ * silhouette. All iterate z from 0 with c = the pixel, like the Mandelbrot.
+ * They share the smooth/bailout machinery; only the per-step map differs:
+ *   - Celtic:                zₓ ← |x²−y²| + cₓ,  z_y ← 2xy + c_y
+ *   - Buffalo:               zₓ ← |x²−y²| + cₓ,  z_y ← 2|xy| + c_y
+ *   - Perpendicular:         zₓ ← x²−y² + cₓ,    z_y ← 2|x|y + c_y
+ *   - Perpendicular Ship:    zₓ ← x²−y² + cₓ,    z_y ← 2x|y| + c_y
+ *   - Celtic Mandelbar:      zₓ ← |x²−y²| + cₓ,  z_y ← −2xy + c_y
+ */
+type AbsVariant =
+	| 'celtic'
+	| 'buffalo'
+	| 'perpendicular'
+	| 'perpendicular-ship'
+	| 'celtic-mandelbar';
+
+function absVariantEscape(
+	variant: AbsVariant,
+	cx: number,
+	cy: number,
+	maxIter: number,
+	bailoutRadius = DEFAULT_BAILOUT_RADIUS
+): EscapeResult {
+	const r2 = bailoutRadius * bailoutRadius;
+	let zx = 0;
+	let zy = 0;
+	let i = 0;
+	for (; i < maxIter; i++) {
+		const x2 = zx * zx;
+		const y2 = zy * zy;
+		if (x2 + y2 > r2) break;
+		let ny: number;
+		let nx: number;
+		switch (variant) {
+			case 'celtic':
+				ny = 2 * zx * zy + cy;
+				nx = Math.abs(x2 - y2) + cx;
+				break;
+			case 'buffalo':
+				ny = 2 * Math.abs(zx * zy) + cy;
+				nx = Math.abs(x2 - y2) + cx;
+				break;
+			case 'perpendicular':
+				ny = 2 * Math.abs(zx) * zy + cy;
+				nx = x2 - y2 + cx;
+				break;
+			case 'perpendicular-ship':
+				ny = 2 * zx * Math.abs(zy) + cy;
+				nx = x2 - y2 + cx;
+				break;
+			case 'celtic-mandelbar':
+				ny = -2 * zx * zy + cy;
+				nx = Math.abs(x2 - y2) + cx;
+				break;
+		}
+		zy = ny;
+		zx = nx;
+	}
+	if (i >= maxIter) return { escaped: false, iter: maxIter, smooth: maxIter };
+	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
+}
+
+/** Celtic Mandelbrot: zₓ ← |x²−y²| + cₓ. */
+export const celticEscape = (cx: number, cy: number, maxIter: number, b = DEFAULT_BAILOUT_RADIUS) =>
+	absVariantEscape('celtic', cx, cy, maxIter, b);
+/** Buffalo: |x²−y²| real fold plus a Burning-Ship-style |xy| cross term. */
+export const buffaloEscape = (
+	cx: number,
+	cy: number,
+	maxIter: number,
+	b = DEFAULT_BAILOUT_RADIUS
+) => absVariantEscape('buffalo', cx, cy, maxIter, b);
+/** Perpendicular Mandelbrot: abs on the real part inside the cross term. */
+export const perpendicularEscape = (
+	cx: number,
+	cy: number,
+	maxIter: number,
+	b = DEFAULT_BAILOUT_RADIUS
+) => absVariantEscape('perpendicular', cx, cy, maxIter, b);
+/** Perpendicular Burning Ship: abs on the imaginary part inside the cross term. */
+export const perpendicularShipEscape = (
+	cx: number,
+	cy: number,
+	maxIter: number,
+	b = DEFAULT_BAILOUT_RADIUS
+) => absVariantEscape('perpendicular-ship', cx, cy, maxIter, b);
+/** Celtic Mandelbar: the Celtic real fold with the Tricorn's conjugated cross term. */
+export const celticMandelbarEscape = (
+	cx: number,
+	cy: number,
+	maxIter: number,
+	b = DEFAULT_BAILOUT_RADIUS
+) => absVariantEscape('celtic-mandelbar', cx, cy, maxIter, b);
+
 export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'mandelbrot', label: 'Mandelbrot' },
 	{ id: 'julia', label: 'Julia' },
 	{ id: 'burning-ship', label: 'Burning Ship' },
-	{ id: 'tricorn', label: 'Tricorn' }
+	{ id: 'tricorn', label: 'Tricorn' },
+	{ id: 'celtic', label: 'Celtic' },
+	{ id: 'buffalo', label: 'Buffalo' },
+	{ id: 'perpendicular', label: 'Perpendicular' },
+	{ id: 'perpendicular-ship', label: 'Perpendicular Ship' },
+	{ id: 'celtic-mandelbar', label: 'Celtic Mandelbar' }
 ];
 
 /** Stable integer codes passed to the shaders to select the iteration. */
@@ -126,7 +227,12 @@ export const FORMULA_CODES: Record<FormulaId, number> = {
 	mandelbrot: 0,
 	julia: 1,
 	'burning-ship': 2,
-	tricorn: 3
+	tricorn: 3,
+	celtic: 4,
+	buffalo: 5,
+	perpendicular: 6,
+	'perpendicular-ship': 7,
+	'celtic-mandelbar': 8
 };
 
 export interface ComplexPoint {

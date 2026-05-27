@@ -190,20 +190,35 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let formula = i32(u.formula);
 	let maxI = i32(u.maxIter);
 
-	// Burning Ship's sign-form perturbation glitches when the per-pixel delta is
-	// large (zoomed out), so iterate it directly until deep enough that direct f32
-	// would itself break down (~scale 0.002 ≈ 1500×); below that, fall through to
-	// perturbation. The analytic formulas have no such issue.
-	if (formula == 2 && u.scale > 0.002) {
+	// Direct f32 iteration. Burning Ship's sign-form perturbation glitches when the
+	// per-pixel delta is large (zoomed out), so iterate it directly until deep enough
+	// that direct f32 would itself break down (~scale 0.002 ≈ 1500×); below that, fall
+	// through to perturbation. The abs-variant formulas (codes ≥ 4) have no
+	// perturbation path yet, so they always iterate directly (f32 depth limit applies).
+	if ((formula == 2 && u.scale > 0.002) || formula >= 4) {
 		let c = u.center + offset;
 		var z = vec2f(0.0, 0.0);
 		var i = 0;
 		loop {
 			if (i >= maxI) { break; }
-			if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(color(f32(i), z), uv); }
-			let ax = abs(z.x);
-			let ay = abs(z.y);
-			z = vec2f(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
+			let x2 = z.x * z.x;
+			let y2 = z.y * z.y;
+			if (x2 + y2 > 65536.0) { return ffPost(color(f32(i), z), uv); }
+			if (formula == 2) {
+				let ax = abs(z.x);
+				let ay = abs(z.y);
+				z = vec2f(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
+			} else if (formula == 4) {        // celtic
+				z = vec2f(abs(x2 - y2) + c.x, 2.0 * z.x * z.y + c.y);
+			} else if (formula == 5) {        // buffalo
+				z = vec2f(abs(x2 - y2) + c.x, 2.0 * abs(z.x * z.y) + c.y);
+			} else if (formula == 6) {        // perpendicular
+				z = vec2f(x2 - y2 + c.x, 2.0 * abs(z.x) * z.y + c.y);
+			} else if (formula == 7) {        // perpendicular-ship
+				z = vec2f(x2 - y2 + c.x, 2.0 * z.x * abs(z.y) + c.y);
+			} else {                          // celtic-mandelbar (8)
+				z = vec2f(abs(x2 - y2) + c.x, -2.0 * z.x * z.y + c.y);
+			}
 			i = i + 1;
 		}
 		return ffPost(INTERIOR, uv);
@@ -309,16 +324,31 @@ void main() {
 	int formula = int(uFormula);
 	int maxI = int(uMaxIter);
 
-	// Burning Ship: direct iteration while shallow (its sign-form perturbation
-	// glitches when the per-pixel delta is large), perturbation once deep.
-	if (formula == 2 && uScale > 0.002) {
+	// Direct f32 iteration: Burning Ship while shallow (its sign-form perturbation
+	// glitches when the per-pixel delta is large), and the abs-variant formulas
+	// (codes >= 4) which have no perturbation path yet. Perturbation once deep.
+	if ((formula == 2 && uScale > 0.002) || formula >= 4) {
 		vec2 c = uCenter + offset;
 		vec2 z = vec2(0.0);
 		for (int i = 0; i < maxI; i++) {
-			if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
-			float ax = abs(z.x);
-			float ay = abs(z.y);
-			z = vec2(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
+			float x2 = z.x * z.x;
+			float y2 = z.y * z.y;
+			if (x2 + y2 > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
+			if (formula == 2) {
+				float ax = abs(z.x);
+				float ay = abs(z.y);
+				z = vec2(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
+			} else if (formula == 4) {        // celtic
+				z = vec2(abs(x2 - y2) + c.x, 2.0 * z.x * z.y + c.y);
+			} else if (formula == 5) {        // buffalo
+				z = vec2(abs(x2 - y2) + c.x, 2.0 * abs(z.x * z.y) + c.y);
+			} else if (formula == 6) {        // perpendicular
+				z = vec2(x2 - y2 + c.x, 2.0 * abs(z.x) * z.y + c.y);
+			} else if (formula == 7) {        // perpendicular-ship
+				z = vec2(x2 - y2 + c.x, 2.0 * z.x * abs(z.y) + c.y);
+			} else {                          // celtic-mandelbar (8)
+				z = vec2(abs(x2 - y2) + c.x, -2.0 * z.x * z.y + c.y);
+			}
 		}
 		fragColor = ffPost(INTERIOR, uv);
 		return;

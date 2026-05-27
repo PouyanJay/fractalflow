@@ -25,7 +25,16 @@ export interface Camera2D {
 	scale: number;
 }
 
-export type FormulaId = 'mandelbrot' | 'julia' | 'burning-ship' | 'tricorn';
+export type FormulaId =
+	| 'mandelbrot'
+	| 'julia'
+	| 'burning-ship'
+	| 'tricorn'
+	| 'celtic'
+	| 'buffalo'
+	| 'perpendicular'
+	| 'perpendicular-ship'
+	| 'celtic-mandelbar';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {

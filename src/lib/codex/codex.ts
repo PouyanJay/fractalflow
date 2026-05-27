@@ -49,6 +49,46 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'Studied as the “Mandelbar” — a standard example of an anti-holomorphic dynamical system and its period-doubling behaviour.',
 		tips: 'Zoom the cusps where the three lobes meet for the most faceted detail; higher iterations crisp up the edges.'
+	},
+	celtic: {
+		title: 'Celtic',
+		body: 'The Celtic Mandelbrot — fold only the real part of z² with an absolute value. The cardioid splits into knotwork-like loops reminiscent of Celtic braids.',
+		math: 'Iterate zₙ₊₁ = (|Re(zₙ²)| + i·Im(zₙ²)) + c — i.e. Re ← |x²−y²| + cₓ, Im ← 2xy + c_y. Folding the real part alone breaks the smooth symmetry into rounded, interlocking lobes.',
+		applications:
+			'One of the classic “abs-variant” Mandelbrots used to explore how a single folded term reshapes escape-time dynamics.',
+		tips: 'Explore along the real axis where the lobes interlock; a symmetric palette plays up the knotwork.'
+	},
+	buffalo: {
+		title: 'Buffalo',
+		body: 'The Buffalo fractal — fold the real part like the Celtic and the cross term like the Burning Ship. The silhouette suggests a buffalo’s horned head.',
+		math: 'Re ← |x²−y²| + cₓ, Im ← 2|xy| + c_y. Combining both folds yields sharp, horn-like protrusions with angular interior structure.',
+		applications:
+			'A composite abs-variant studied alongside the Burning Ship for its angular, non-analytic boundary.',
+		tips: 'Drop below the main body and pan the “horns”; higher iterations sharpen the spines.'
+	},
+	perpendicular: {
+		title: 'Perpendicular',
+		body: 'The Perpendicular Mandelbrot — fold the real part of z inside the cross term only. The set leans into an asymmetric, blade-like form.',
+		math: 'Re ← x²−y² + cₓ, Im ← 2|x|·y + c_y. The absolute value on x alone removes the left–right symmetry, tilting the familiar bulbs.',
+		applications:
+			'A standard member of the abs-variant family, illustrating how asymmetric folding distorts the bulb structure.',
+		tips: 'Look for the leaning seahorse-like valleys along the boundary; raise iterations to resolve them.'
+	},
+	'perpendicular-ship': {
+		title: 'Perpendicular Ship',
+		body: 'The Perpendicular Burning Ship — fold the imaginary part of z inside the cross term. A leaner, more skeletal cousin of the Burning Ship.',
+		math: 'Re ← x²−y² + cₓ, Im ← 2x·|y| + c_y. Folding y alone gives sharp masts and a sparser, rigging-like lattice.',
+		applications:
+			'Used with the Burning Ship to compare how folding different components reshapes the same base map.',
+		tips: 'Hunt the antenna region for delicate mini-ships, then sharpen with more iterations.'
+	},
+	'celtic-mandelbar': {
+		title: 'Celtic Mandelbar',
+		body: 'The Celtic Mandelbar — the Celtic real fold combined with the Tricorn’s conjugation. Faceted, three-fold knotwork.',
+		math: 'Re ← |x²−y²| + cₓ, Im ← −2xy + c_y. Conjugating the cross term adds the Tricorn’s anti-holomorphic facets to the Celtic loops.',
+		applications:
+			'A hybrid abs-variant showcasing how stacking folds compounds their symmetry-breaking effects.',
+		tips: 'Zoom the faceted cusps where the lobes meet; a high-contrast palette emphasises the facets.'
 	}
 };
 

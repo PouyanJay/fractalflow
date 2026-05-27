@@ -13,7 +13,17 @@ import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
 import { WARP_CODE } from '$lib/fractals/post';
 
-const FORMULA_IDS: readonly FormulaId[] = ['mandelbrot', 'julia', 'burning-ship', 'tricorn'];
+const FORMULA_IDS: readonly FormulaId[] = [
+	'mandelbrot',
+	'julia',
+	'burning-ship',
+	'tricorn',
+	'celtic',
+	'buffalo',
+	'perpendicular',
+	'perpendicular-ship',
+	'celtic-mandelbar'
+];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
