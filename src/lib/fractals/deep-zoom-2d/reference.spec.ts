@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { mandelbrotEscape, pixelToComplex } from './reference';
+import {
+	mandelbrotEscape,
+	pixelToComplex,
+	lyapunovExponent,
+	apollonianValue,
+	FORMULA_CODES,
+	FORMULA_HOME
+} from './reference';
 
 describe('mandelbrotEscape', () => {
 	it('keeps the origin inside the set', () => {
@@ -24,6 +31,65 @@ describe('mandelbrotEscape', () => {
 		expect(Number.isFinite(r.smooth)).toBe(true);
 		// Smooth coloring is a small fractional adjustment around the escape iteration.
 		expect(Math.abs(r.smooth - r.iter)).toBeLessThan(5);
+	});
+});
+
+describe('lyapunovExponent', () => {
+	it('is negative in stable (periodic) regimes', () => {
+		// r = 2.5 has a stable fixed point; r = 3.2 is period-2 — both λ < 0. The
+		// critical-point seed (x₀ = 0.5) makes these regimes strongly negative.
+		expect(lyapunovExponent(2.5, 2.5, 2000)).toBeLessThan(0);
+		expect(lyapunovExponent(3.2, 3.2, 2000)).toBeLessThan(0);
+	});
+
+	it('is positive in chaotic regimes', () => {
+		expect(lyapunovExponent(3.9, 3.9, 4000)).toBeGreaterThan(0);
+		expect(lyapunovExponent(3.7, 3.7, 4000)).toBeGreaterThan(0);
+	});
+
+	it('responds to the A/B sequence — a stable a with chaotic b lands between', () => {
+		// Alternating a deep-stable rate with a chaotic one yields an intermediate λ.
+		const lam = lyapunovExponent(2.5, 3.9, 4000);
+		expect(Number.isFinite(lam)).toBe(true);
+		expect(lam).toBeLessThan(lyapunovExponent(3.9, 3.9, 4000));
+	});
+
+	it('is finite even when the orbit passes through the critical point', () => {
+		expect(Number.isFinite(lyapunovExponent(4, 4, 500))).toBe(true);
+	});
+
+	it('is registered as formula code 12 with a home camera in (a,b) space', () => {
+		expect(FORMULA_CODES.lyapunov).toBe(12);
+		expect(FORMULA_HOME.lyapunov?.centerX).toBeGreaterThan(2);
+		expect(FORMULA_HOME.lyapunov?.centerX).toBeLessThan(4);
+	});
+});
+
+describe('apollonianValue', () => {
+	it('is finite and positive everywhere in the cell', () => {
+		for (const [x, y] of [
+			[0, 0],
+			[0.3, -0.2],
+			[-0.7, 0.5],
+			[0.9, 0.9]
+		]) {
+			const v = apollonianValue(x, y, 12);
+			expect(Number.isFinite(v)).toBe(true);
+			expect(v).toBeGreaterThanOrEqual(0);
+		}
+	});
+
+	it('is deterministic for a given point and iteration count', () => {
+		expect(apollonianValue(0.31, 0.17, 16)).toBe(apollonianValue(0.31, 0.17, 16));
+	});
+
+	it('is symmetric under the gasket lattice fold (period 2 in each axis)', () => {
+		// The fold maps p → p mod 2 into [-1,1], so shifting by 2 is invariant.
+		expect(apollonianValue(0.3, 0.4, 14)).toBeCloseTo(apollonianValue(0.3 + 2, 0.4, 14), 6);
+	});
+
+	it('is registered as formula code 13', () => {
+		expect(FORMULA_CODES.apollonian).toBe(13);
 	});
 });
 

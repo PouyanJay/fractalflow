@@ -6,6 +6,7 @@
 import { getContext, setContext } from 'svelte';
 import type { Camera2D, FormulaId, PostSettings, SceneState } from '$lib/engine/types';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
+import { FORMULA_HOME } from '$lib/fractals/deep-zoom-2d/reference';
 
 const KEY = Symbol('ff-scene-store');
 
@@ -52,7 +53,15 @@ export function createSceneStore() {
 		get geometricShape() {
 			return scene.geometricShape ?? 'mandelbulb';
 		},
-		setFormula: (formula: FormulaId) => (scene.formula = formula),
+		// Switching formula reframes the camera to that formula's natural home when
+		// it has one (Lyapunov lives in (a,b) space, Apollonian in the unit cell),
+		// so it opens on its interesting region instead of an empty corner.
+		// Escape-time formulas share the Mandelbrot framing and keep the camera.
+		setFormula: (formula: FormulaId) => {
+			scene.formula = formula;
+			const home = FORMULA_HOME[formula];
+			if (home) scene.camera = { centerX: home.centerX, centerY: home.centerY, scale: home.scale };
+		},
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
 		// Picking a built-in preset exits custom mode (clears any inline coeffs).

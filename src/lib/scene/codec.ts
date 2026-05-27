@@ -27,7 +27,9 @@ const FORMULA_IDS: readonly FormulaId[] = [
 	'celtic-mandelbar',
 	'multibrot',
 	'newton',
-	'phoenix'
+	'phoenix',
+	'lyapunov',
+	'apollonian'
 ];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);

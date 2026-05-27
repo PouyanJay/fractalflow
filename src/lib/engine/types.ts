@@ -45,7 +45,9 @@ export type FormulaId =
 	| 'celtic-mandelbar'
 	| 'multibrot'
 	| 'newton'
-	| 'phoenix';
+	| 'phoenix'
+	| 'lyapunov'
+	| 'apollonian';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {

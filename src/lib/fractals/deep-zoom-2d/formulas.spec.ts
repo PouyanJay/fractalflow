@@ -219,7 +219,9 @@ describe('formula metadata', () => {
 			'celtic-mandelbar',
 			'multibrot',
 			'newton',
-			'phoenix'
+			'phoenix',
+			'lyapunov',
+			'apollonian'
 		]);
 		expect(FORMULA_CODES.mandelbrot).toBe(0);
 		expect(FORMULA_CODES.julia).toBe(1);
@@ -233,5 +235,7 @@ describe('formula metadata', () => {
 		expect(FORMULA_CODES.multibrot).toBe(9);
 		expect(FORMULA_CODES.newton).toBe(10);
 		expect(FORMULA_CODES.phoenix).toBe(11);
+		expect(FORMULA_CODES.lyapunov).toBe(12);
+		expect(FORMULA_CODES.apollonian).toBe(13);
 	});
 });

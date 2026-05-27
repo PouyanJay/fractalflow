@@ -44,7 +44,14 @@ describe('JOURNEYS', () => {
 
 describe('SHOWCASE_DIVES', () => {
 	it('has a deep, finite destination for every 2D formula', () => {
-		for (const formula of ['mandelbrot', 'julia', 'burning-ship', 'tricorn'] as const) {
+		for (const formula of [
+			'mandelbrot',
+			'julia',
+			'burning-ship',
+			'tricorn',
+			'lyapunov',
+			'apollonian'
+		] as const) {
 			const t = SHOWCASE_DIVES[formula];
 			expect(Number.isFinite(t.centerX)).toBe(true);
 			expect(Number.isFinite(t.centerY)).toBe(true);
