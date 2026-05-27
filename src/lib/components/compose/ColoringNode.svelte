@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Sparkles, Save, Trash2, SlidersHorizontal } from '@lucide/svelte';
+	import { Sparkles, Save, Trash2, SlidersHorizontal, Dices } from '@lucide/svelte';
 	import NodeShell from './NodeShell.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { getCustomPalettesStore } from '$lib/stores/custom-palettes.svelte';
+	import { randomizeScene, mutateScene } from '$lib/scene/randomize';
 	import {
 		PALETTES,
 		paletteGradient,
@@ -51,6 +52,10 @@
 		customs.add(name.trim() || `Custom ${customs.list.length + 1}`, cc);
 		name = '';
 	}
+
+	const newSeed = () => (Math.random() * 2 ** 32) >>> 0;
+	const randomize = () => scene.setScene(randomizeScene(scene.scene, ui.selectedStyle, newSeed()));
+	const mutate = () => scene.setScene(mutateScene(scene.scene, ui.selectedStyle, newSeed()));
 </script>
 
 <NodeShell title="Coloring" target source>
@@ -216,6 +221,23 @@
 			<span class="ff-num val">{scene.maxIter}</span>
 		</div>
 	</label>
+
+	<div class="field">
+		<span>Variations</span>
+		<div class="variations">
+			<button
+				type="button"
+				class="ed-btn nodrag"
+				onclick={randomize}
+				aria-label="Randomize the look"
+			>
+				<Dices size={13} aria-hidden="true" /> Randomize
+			</button>
+			<button type="button" class="ed-btn nodrag" onclick={mutate} aria-label="Mutate the look">
+				<Sparkles size={13} aria-hidden="true" /> Mutate
+			</button>
+		</div>
+	</div>
 </NodeShell>
 
 <style>
@@ -320,6 +342,14 @@
 		align-items: center;
 		gap: var(--ff-space-1);
 		margin-top: var(--ff-space-2);
+	}
+	.variations {
+		display: flex;
+		gap: var(--ff-space-2);
+	}
+	.variations .ed-btn {
+		flex: 1;
+		justify-content: center;
 	}
 	.ed-btn {
 		display: inline-flex;

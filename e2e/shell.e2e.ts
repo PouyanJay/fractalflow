@@ -398,6 +398,25 @@ test('Compose Post-FX hue rotation drives the shared scene', async ({ page }) =>
 	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('0.33');
 });
 
+test('Compose Randomize and Mutate vary the look without breaking the render', async ({ page }) => {
+	await page.goto('/compose');
+	// Randomize throws fresh dice: it sets a custom palette + post, so the scene
+	// token grows well past the bare default — but keeps the subject (Mandelbrot).
+	await page.getByRole('button', { name: 'Randomize the look' }).click();
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Mandelbrot');
+	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('s=');
+	const randomized = page.url();
+	// Mutate nudges from there — a different scene again, still rendering.
+	await page.getByRole('link', { name: 'Compose' }).click();
+	await page.getByRole('button', { name: 'Mutate the look' }).click();
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect.poll(() => page.url(), { timeout: 5000 }).not.toBe(randomized);
+});
+
 test('Compose exposes the coloring-algorithm selector for Deep-Zoom 2D', async ({ page }) => {
 	await page.goto('/compose');
 	await page.locator('button[aria-label="Coloring algorithm"]:visible').first().click();
