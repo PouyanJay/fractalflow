@@ -35,8 +35,20 @@ const ddLerp = (aHi: number, aLo: number, bHi: number, bLo: number, u: number) =
 
 /** Interpolate the camera, keeping the centre in double-double precision. */
 function blendCenter(a: SceneState, b: SceneState, u: number): SceneState['camera'] {
-	const cx = ddLerp(a.camera.centerX, a.camera.centerXLo ?? 0, b.camera.centerX, b.camera.centerXLo ?? 0, u);
-	const cy = ddLerp(a.camera.centerY, a.camera.centerYLo ?? 0, b.camera.centerY, b.camera.centerYLo ?? 0, u);
+	const cx = ddLerp(
+		a.camera.centerX,
+		a.camera.centerXLo ?? 0,
+		b.camera.centerX,
+		b.camera.centerXLo ?? 0,
+		u
+	);
+	const cy = ddLerp(
+		a.camera.centerY,
+		a.camera.centerYLo ?? 0,
+		b.camera.centerY,
+		b.camera.centerYLo ?? 0,
+		u
+	);
 	return {
 		centerX: cx.hi,
 		centerXLo: cx.lo,

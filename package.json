@@ -1,8 +1,28 @@
 {
 	"name": "fractalflow",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"type": "module",
+	"description": "A GPU-native, local-first studio for crafting beautiful, colorful fractal art in the browser.",
+	"license": "MIT",
+	"author": "Pouyan Jahangiri",
+	"homepage": "https://pouyanjay.github.io/fractalflow/",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/PouyanJay/fractalflow.git"
+	},
+	"keywords": [
+		"fractal",
+		"mandelbrot",
+		"webgpu",
+		"sveltekit",
+		"generative-art",
+		"deep-zoom",
+		"perturbation-theory"
+	],
+	"engines": {
+		"node": ">=20"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",

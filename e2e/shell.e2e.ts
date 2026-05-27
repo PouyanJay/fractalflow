@@ -130,8 +130,9 @@ test('Compose Post-FX bloom intensity drives the shared scene', async ({ page })
 	await intensity.dispatchEvent('input');
 	await expect(intensity).toHaveValue('1.4');
 	await page.getByRole('link', { name: 'Explore' }).click();
-	// The scene token (?s=) carries the bloom amount past the grade fields.
-	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('~1.4~');
+	// The scene token (?s=) carries the bloom amount. It's the last non-default
+	// field here, so the compact codec trims everything after it — match `~1.4`.
+	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('~1.4');
 });
 
 test('command palette opens with the keyboard and navigates', async ({ page }) => {

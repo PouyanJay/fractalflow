@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import { modeFromPath } from '$lib/stores/ui-logic';
 	import { provideUiStore } from '$lib/stores/ui.svelte';
@@ -35,7 +34,6 @@
 
 <svelte:head>
 	<title>FractalFlow Studio</title>
-	<link rel="icon" href={favicon} />
 </svelte:head>
 
 <svelte:window {onkeydown} />

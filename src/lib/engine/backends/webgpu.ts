@@ -100,8 +100,7 @@ export async function createWebGPUBackend(
 		render(input: RenderInput) {
 			const useBloom = !!bloom && input.scene.post.bloom > 0;
 			// Bloom requested but unavailable → keep the in-shader grade (clear the flag).
-			const packInput =
-				!useBloom && input.scene.post.bloom > 0 ? withBloomDisabled(input) : input;
+			const packInput = !useBloom && input.scene.post.bloom > 0 ? withBloomDisabled(input) : input;
 			renderer.packUniforms(view, packInput);
 			device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 
