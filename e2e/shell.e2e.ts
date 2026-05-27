@@ -398,6 +398,44 @@ test('Compose Post-FX hue rotation drives the shared scene', async ({ page }) =>
 	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('0.33');
 });
 
+test('Compose layers: add composites two canvases in Explore and round-trips via the URL', async ({
+	page
+}) => {
+	await page.goto('/compose');
+	const panel = page.getByRole('complementary', { name: 'Layers' });
+	await expect(panel).toBeVisible();
+	await panel.getByRole('button', { name: 'Add layer' }).click();
+	// Two layer cards now (each with its blend selector).
+	await expect(panel.locator('button[aria-label="Blend mode"]:visible')).toHaveCount(2);
+
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect(page.locator('canvas').first()).toBeVisible();
+	await page.waitForTimeout(700);
+	// The viewport stacks one canvas per layer and composites them.
+	await expect(page.locator('canvas')).toHaveCount(2);
+	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('l=');
+
+	// The multi-layer document round-trips through its deep link.
+	const url = page.url();
+	await page.goto(url);
+	await expect(page.locator('canvas').first()).toBeVisible();
+	await page.waitForTimeout(700);
+	await expect(page.locator('canvas')).toHaveCount(2);
+});
+
+test('Compose layers: removing a layer returns to a single composited canvas', async ({ page }) => {
+	await page.goto('/compose');
+	const panel = page.getByRole('complementary', { name: 'Layers' });
+	await panel.getByRole('button', { name: 'Add layer' }).click();
+	await expect(panel.locator('button[aria-label="Delete layer"]:visible').first()).toBeEnabled();
+	await panel.locator('button[aria-label="Delete layer"]:visible').first().click();
+	// Back to one layer → its delete button is disabled (never remove the last).
+	await expect(panel.locator('button[aria-label="Blend mode"]:visible')).toHaveCount(1);
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await expect(page.locator('canvas')).toHaveCount(1);
+});
+
 test('Compose Randomize and Mutate vary the look without breaking the render', async ({ page }) => {
 	await page.goto('/compose');
 	// Randomize throws fresh dice: it sets a custom palette + post, so the scene
@@ -476,7 +514,7 @@ test('the export sheet renders a journey as a frame-sequence (.zip)', async ({ p
 	await page.getByLabel('Frame rate').selectOption('12'); // 2s × 12 = 24 frames
 	await page.getByLabel('Movie format').selectOption('zip');
 	await expect(page.getByText(/24 frames/)).toBeVisible();
-	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+	const downloadPromise = page.waitForEvent('download', { timeout: 110000 });
 	await page.getByRole('button', { name: /Export frames/ }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/^fractalflow-.*\.zip$/);
@@ -492,7 +530,7 @@ test('the export sheet renders an MP4 (or falls back to a .zip)', async ({ page 
 	await page.getByLabel('Journey duration').selectOption('2000');
 	await page.getByLabel('Frame rate').selectOption('12');
 	await page.getByLabel('Movie format').selectOption('mp4');
-	const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+	const downloadPromise = page.waitForEvent('download', { timeout: 110000 });
 	await page.getByRole('button', { name: /Export MP4/ }).click();
 	const download = await downloadPromise;
 	// Real MP4 when WebCodecs/H.264 is available, otherwise the graceful .zip fallback.

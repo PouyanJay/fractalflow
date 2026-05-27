@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { encodeScene, decodeScene } from './codec';
+import { encodeScene, decodeScene, encodeLayers, decodeLayers } from './codec';
+import { addLayer, makeLayer, singleStack, updateLayer } from './layers';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { PALETTES } from '$lib/fractals/palette';
 import type { SceneState } from '$lib/engine/types';
@@ -344,5 +345,41 @@ describe('decodeScene resilience', () => {
 		expect(
 			decodeScene(encodeScene({ ...s, camera: { ...s.camera, scale: 0 } })).camera.scale
 		).toBeGreaterThan(0);
+	});
+});
+
+describe('encodeLayers / decodeLayers (multi-layer document)', () => {
+	const scene = createDefaultScene();
+
+	it('round-trips a stack of layers with blend, opacity, visibility and active layer', () => {
+		let stack = singleStack('deep-zoom-2d', { ...scene, formula: 'julia' });
+		const flame = makeLayer(
+			'flames',
+			{ ...scene, flame: 'swirl' },
+			{
+				blend: 'screen',
+				opacity: 0.6
+			}
+		);
+		stack = addLayer(stack, flame); // active = flame
+		stack = updateLayer(stack, stack.layers[0].id, { visible: false });
+
+		const out = decodeLayers(encodeLayers(stack))!;
+		expect(out.layers).toHaveLength(2);
+		expect(out.layers[0].style).toBe('deep-zoom-2d');
+		expect(out.layers[0].scene.formula).toBe('julia');
+		expect(out.layers[0].visible).toBe(false);
+		expect(out.layers[1].style).toBe('flames');
+		expect(out.layers[1].blend).toBe('screen');
+		expect(out.layers[1].opacity).toBeCloseTo(0.6);
+		expect(out.layers[1].scene.flame).toBe('swirl');
+		// Active layer (the flame, index 1) survives.
+		expect(out.activeId).toBe(out.layers[1].id);
+	});
+
+	it('collapses a single-layer stack and rejects garbage', () => {
+		const one = decodeLayers(encodeLayers(singleStack('deep-zoom-2d', scene)))!;
+		expect(one.layers).toHaveLength(1);
+		expect(decodeLayers('garbage-with-no-separator')).toBeNull();
 	});
 });
