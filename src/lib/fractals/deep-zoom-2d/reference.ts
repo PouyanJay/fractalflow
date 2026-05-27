@@ -240,6 +240,87 @@ export function multibrotEscape(
 	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
 }
 
+/** The three cube roots of unity — the attractors of Newton's method on z³−1. */
+export const NEWTON_ROOTS: ReadonlyArray<[number, number]> = [
+	[1, 0],
+	[-0.5, Math.sqrt(3) / 2],
+	[-0.5, -Math.sqrt(3) / 2]
+];
+
+export interface NewtonResult {
+	/** Index into NEWTON_ROOTS of the basin the orbit fell into (−1 = none yet). */
+	root: number;
+	/** Iterations taken to converge (maxIter if it never did). */
+	iter: number;
+}
+
+/**
+ * Newton fractal for z³ − 1: from z₀ = the pixel, iterate Newton's method
+ * z ← z − (z³−1)/(3z²) and record which root it converges to and how fast. Not
+ * escape-time — every point (bar a measure-zero set) converges; the fractal is
+ * the basin boundary. Colored by basin + convergence speed.
+ */
+export function newtonRoot(px: number, py: number, maxIter: number, tol = 1e-3): NewtonResult {
+	const tol2 = tol * tol;
+	let zx = px;
+	let zy = py;
+	for (let i = 0; i < maxIter; i++) {
+		// f = z³ − 1, f' = 3z².
+		const x2 = zx * zx - zy * zy;
+		const y2 = 2 * zx * zy; // z²
+		const fx = x2 * zx - y2 * zy - 1; // Re(z³) − 1
+		const fy = x2 * zy + y2 * zx; // Im(z³)
+		const px2 = 3 * x2;
+		const py2 = 3 * y2; // 3z²
+		const d = px2 * px2 + py2 * py2 + 1e-12;
+		// q = f / f' = f · conj(f') / |f'|².
+		const qx = (fx * px2 + fy * py2) / d;
+		const qy = (fy * px2 - fx * py2) / d;
+		zx -= qx;
+		zy -= qy;
+		for (let r = 0; r < NEWTON_ROOTS.length; r++) {
+			const dx = zx - NEWTON_ROOTS[r][0];
+			const dy = zy - NEWTON_ROOTS[r][1];
+			if (dx * dx + dy * dy < tol2) return { root: r, iter: i };
+		}
+	}
+	return { root: -1, iter: maxIter };
+}
+
+/**
+ * Phoenix set: z_{n+1} = z_n² + c + p·z_{n−1}, from z₀ = the pixel (Julia-style)
+ * and z_{−1} = 0, with real constant c and real coupling p. Reuses the Julia
+ * seed: seedX = c, seedY = p (so p = 0 collapses to a real-seed Julia).
+ */
+export function phoenixEscape(
+	px: number,
+	py: number,
+	c: number,
+	p: number,
+	maxIter: number,
+	bailoutRadius = DEFAULT_BAILOUT_RADIUS
+): EscapeResult {
+	const r2 = bailoutRadius * bailoutRadius;
+	let zx = px;
+	let zy = py;
+	let zpx = 0;
+	let zpy = 0;
+	let i = 0;
+	for (; i < maxIter; i++) {
+		const x2 = zx * zx;
+		const y2 = zy * zy;
+		if (x2 + y2 > r2) break;
+		const nx = x2 - y2 + c + p * zpx;
+		const ny = 2 * zx * zy + p * zpy;
+		zpx = zx;
+		zpy = zy;
+		zx = nx;
+		zy = ny;
+	}
+	if (i >= maxIter) return { escaped: false, iter: maxIter, smooth: maxIter };
+	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
+}
+
 export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'mandelbrot', label: 'Mandelbrot' },
 	{ id: 'julia', label: 'Julia' },
@@ -250,7 +331,9 @@ export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'perpendicular', label: 'Perpendicular' },
 	{ id: 'perpendicular-ship', label: 'Perpendicular Ship' },
 	{ id: 'celtic-mandelbar', label: 'Celtic Mandelbar' },
-	{ id: 'multibrot', label: 'Multibrot' }
+	{ id: 'multibrot', label: 'Multibrot' },
+	{ id: 'newton', label: 'Newton' },
+	{ id: 'phoenix', label: 'Phoenix' }
 ];
 
 /** Stable integer codes passed to the shaders to select the iteration. */
@@ -264,7 +347,9 @@ export const FORMULA_CODES: Record<FormulaId, number> = {
 	perpendicular: 6,
 	'perpendicular-ship': 7,
 	'celtic-mandelbar': 8,
-	multibrot: 9
+	multibrot: 9,
+	newton: 10,
+	phoenix: 11
 };
 
 export interface ComplexPoint {

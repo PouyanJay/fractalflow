@@ -28,30 +28,31 @@
 				onchange={(v) => scene.setFormula(v as FormulaId)}
 			/>
 		</label>
-		{#if scene.formula === 'julia'}
+		{#if scene.formula === 'julia' || scene.formula === 'phoenix'}
+			{@const phoenix = scene.formula === 'phoenix'}
 			<div class="field">
-				<span>Julia seed</span>
+				<span>{phoenix ? 'Constant & coupling' : 'Julia seed'}</span>
 				<div class="seeds">
 					<label class="seed">
-						<span class="seed-label">Re</span>
+						<span class="seed-label">{phoenix ? 'c' : 'Re'}</span>
 						<input
 							class="nodrag"
 							type="number"
 							step="0.01"
 							value={scene.juliaSeed.x}
 							oninput={(e) => scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
-							aria-label="Julia seed real part"
+							aria-label={phoenix ? 'Phoenix constant c' : 'Julia seed real part'}
 						/>
 					</label>
 					<label class="seed">
-						<span class="seed-label">Im</span>
+						<span class="seed-label">{phoenix ? 'p' : 'Im'}</span>
 						<input
 							class="nodrag"
 							type="number"
 							step="0.01"
 							value={scene.juliaSeed.y}
 							oninput={(e) => scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
-							aria-label="Julia seed imaginary part"
+							aria-label={phoenix ? 'Phoenix coupling p' : 'Julia seed imaginary part'}
 						/>
 					</label>
 				</div>

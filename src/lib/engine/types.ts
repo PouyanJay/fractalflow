@@ -35,7 +35,9 @@ export type FormulaId =
 	| 'perpendicular'
 	| 'perpendicular-ship'
 	| 'celtic-mandelbar'
-	| 'multibrot';
+	| 'multibrot'
+	| 'newton'
+	| 'phoenix';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {

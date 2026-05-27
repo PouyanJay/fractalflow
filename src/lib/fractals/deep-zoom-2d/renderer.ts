@@ -179,6 +179,15 @@ fn color(n: f32, z: vec2f) -> vec4f {
 
 const INTERIOR = vec4f(0.02, 0.02, 0.03, 1.0);
 
+// Newton basin coloring: each of the three roots takes a third of the palette,
+// shaded by how fast the orbit converged (faster = brighter band).
+fn newtonColor(root: i32, iter: i32) -> vec4f {
+	if (root < 0) { return INTERIOR; }
+	let t = fract(f32(root) / 3.0 + f32(iter) * 0.035);
+	let shade = clamp(1.0 - f32(iter) * 0.02, 0.25, 1.0);
+	return vec4f(palette(t) * shade, 1.0);
+}
+
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let uv = frag.xy / u.resolution;
@@ -190,12 +199,57 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let formula = i32(u.formula);
 	let maxI = i32(u.maxIter);
 
+	// Newton fractal (z³ − 1): root-basin coloring, not escape-time. z starts at
+	// the pixel and follows Newton's method until it lands in a root's basin.
+	if (formula == 10) {
+		var zz = u.center + offset;
+		var root = -1;
+		var iter = 0;
+		loop {
+			if (iter >= maxI) { break; }
+			let z2 = cmul(zz, zz);
+			let f = cmul(z2, zz) - vec2f(1.0, 0.0); // z³ − 1
+			let fp = 3.0 * z2;                       // 3z²
+			let d = fp.x * fp.x + fp.y * fp.y + 1e-12;
+			let q = vec2f((f.x * fp.x + f.y * fp.y) / d, (f.y * fp.x - f.x * fp.y) / d);
+			zz = zz - q;
+			let d0 = zz - vec2f(1.0, 0.0);
+			let d1 = zz - vec2f(-0.5, 0.8660254);
+			let d2 = zz - vec2f(-0.5, -0.8660254);
+			if (dot(d0, d0) < 1e-6) { root = 0; break; }
+			if (dot(d1, d1) < 1e-6) { root = 1; break; }
+			if (dot(d2, d2) < 1e-6) { root = 2; break; }
+			iter = iter + 1;
+		}
+		return ffPost(newtonColor(root, iter), uv);
+	}
+
+	// Phoenix: escape-time with a previous-z coupling term. z₀ = pixel, z₋₁ = 0,
+	// real constant c = seed.x and real coupling p = seed.y.
+	if (formula == 11) {
+		var z = u.center + offset;
+		var zp = vec2f(0.0, 0.0);
+		var i = 0;
+		loop {
+			if (i >= maxI) { break; }
+			if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(color(f32(i), z), uv); }
+			let zn = vec2f(
+				z.x * z.x - z.y * z.y + u.seed.x + u.seed.y * zp.x,
+				2.0 * z.x * z.y + u.seed.y * zp.y
+			);
+			zp = z;
+			z = zn;
+			i = i + 1;
+		}
+		return ffPost(INTERIOR, uv);
+	}
+
 	// Direct f32 iteration. Burning Ship's sign-form perturbation glitches when the
 	// per-pixel delta is large (zoomed out), so iterate it directly until deep enough
 	// that direct f32 would itself break down (~scale 0.002 ≈ 1500×); below that, fall
-	// through to perturbation. The abs-variant formulas (codes ≥ 4) have no
+	// through to perturbation. The abs-variant formulas (codes 4–9) have no
 	// perturbation path yet, so they always iterate directly (f32 depth limit applies).
-	if ((formula == 2 && u.scale > 0.002) || formula >= 4) {
+	if ((formula == 2 && u.scale > 0.002) || (formula >= 4 && formula <= 9)) {
 		let c = u.center + offset;
 		var z = vec2f(0.0, 0.0);
 		var i = 0;
@@ -318,6 +372,13 @@ vec4 colorOf(float n, vec2 z) {
 
 const vec4 INTERIOR = vec4(0.02, 0.02, 0.03, 1.0);
 
+vec4 newtonColor(int root, int iter) {
+	if (root < 0) return INTERIOR;
+	float t = fract(float(root) / 3.0 + float(iter) * 0.035);
+	float shade = clamp(1.0 - float(iter) * 0.02, 0.25, 1.0);
+	return vec4(palette(t) * shade, 1.0);
+}
+
 void main() {
 	vec2 uv = gl_FragCoord.xy / uResolution;
 	float perPixel = uScale / uResolution.y;
@@ -328,10 +389,51 @@ void main() {
 	int formula = int(uFormula);
 	int maxI = int(uMaxIter);
 
+	// Newton fractal (z³ − 1): root-basin coloring, not escape-time.
+	if (formula == 10) {
+		vec2 zz = uCenter + offset;
+		int root = -1;
+		int iter = 0;
+		for (int k = 0; k < maxI; k++) {
+			vec2 z2 = cmul(zz, zz);
+			vec2 f = cmul(z2, zz) - vec2(1.0, 0.0);
+			vec2 fp = 3.0 * z2;
+			float d = fp.x * fp.x + fp.y * fp.y + 1e-12;
+			vec2 q = vec2((f.x * fp.x + f.y * fp.y) / d, (f.y * fp.x - f.x * fp.y) / d);
+			zz = zz - q;
+			vec2 d0 = zz - vec2(1.0, 0.0);
+			vec2 d1 = zz - vec2(-0.5, 0.8660254);
+			vec2 d2 = zz - vec2(-0.5, -0.8660254);
+			if (dot(d0, d0) < 1e-6) { root = 0; iter = k; break; }
+			if (dot(d1, d1) < 1e-6) { root = 1; iter = k; break; }
+			if (dot(d2, d2) < 1e-6) { root = 2; iter = k; break; }
+			iter = k;
+		}
+		fragColor = ffPost(newtonColor(root, iter), uv);
+		return;
+	}
+
+	// Phoenix: escape-time with a previous-z coupling term (c = seed.x, p = seed.y).
+	if (formula == 11) {
+		vec2 z = uCenter + offset;
+		vec2 zp = vec2(0.0);
+		for (int i = 0; i < maxI; i++) {
+			if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
+			vec2 zn = vec2(
+				z.x * z.x - z.y * z.y + uSeed.x + uSeed.y * zp.x,
+				2.0 * z.x * z.y + uSeed.y * zp.y
+			);
+			zp = z;
+			z = zn;
+		}
+		fragColor = ffPost(INTERIOR, uv);
+		return;
+	}
+
 	// Direct f32 iteration: Burning Ship while shallow (its sign-form perturbation
 	// glitches when the per-pixel delta is large), and the abs-variant formulas
-	// (codes >= 4) which have no perturbation path yet. Perturbation once deep.
-	if ((formula == 2 && uScale > 0.002) || formula >= 4) {
+	// (codes 4–9) which have no perturbation path yet. Perturbation once deep.
+	if ((formula == 2 && uScale > 0.002) || (formula >= 4 && formula <= 9)) {
 		vec2 c = uCenter + offset;
 		vec2 z = vec2(0.0);
 		for (int i = 0; i < maxI; i++) {

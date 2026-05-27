@@ -64,7 +64,11 @@ export const SHOWCASE_DIVES: Record<FormulaId, DiveTarget> = {
 	'celtic-mandelbar': { centerX: -0.2, centerY: 0.75, scale: 0.04 },
 	// Multibrot: Seahorse Valley (gorgeous at the default power 2; stays within the
 	// f32 direct-iteration range since Multibrot has no perturbation path).
-	multibrot: { centerX: -0.745, centerY: 0.113, scale: 0.012 }
+	multibrot: { centerX: -0.745, centerY: 0.113, scale: 0.012 },
+	// Newton: a seam where all three root-basins meet, near the origin.
+	newton: { centerX: 0, centerY: 0, scale: 0.35 },
+	// Phoenix: into the feathered plumes (good across the common seed values).
+	phoenix: { centerX: 0, centerY: 0, scale: 1.0 }
 };
 
 /**

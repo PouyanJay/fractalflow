@@ -97,6 +97,22 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'A standard generalisation used to study how the degree of an iterated polynomial controls the number and arrangement of its bulbs.',
 		tips: 'Set the exponent in the Source node — integers 3–8 give clean 2-, 3-, …, 7-fold flowers; fractional powers warp them into asymmetric blooms.'
+	},
+	newton: {
+		title: 'Newton',
+		body: 'The Newton fractal for z³ = 1 — colour each point by which of the three roots Newton’s method carries it to. The basin boundaries are a fractal lacework.',
+		math: 'From z₀ = the pixel, iterate Newton’s method zₙ₊₁ = zₙ − (zₙ³ − 1)/(3zₙ²). Almost every start converges to one of the three cube roots of unity; the hue marks the root and the shading the convergence speed.',
+		applications:
+			'The classic picture of a root-finding method’s basins of attraction — a staple example of chaos on the boundary between deterministic outcomes.',
+		tips: 'There is no “inside” here — the whole plane is coloured. Zoom the seams where the three basins meet for infinitely nested detail.'
+	},
+	phoenix: {
+		title: 'Phoenix',
+		body: 'The Phoenix set — like a Julia, but each step also feels the *previous* z. That memory term twists the filaments into swirling, feathered plumes.',
+		math: 'Iterate zₙ₊₁ = zₙ² + c + p·zₙ₋₁ from z₀ = the pixel and z₋₁ = 0, with real constant c and real coupling p (here c = seed Re, p = seed Im). p = 0 collapses to a real-seed Julia.',
+		applications:
+			'Introduced by Shigehiro Ushiki as a higher-order map; studied for how a second-order recurrence enriches the dynamics over the classic quadratic.',
+		tips: 'Set c (Re) and p (Im) in the Source node — the famous plumes appear around c ≈ 0.5667, p ≈ −0.5. A flip to the imaginary axis is conventional for this one.'
 	}
 };
 

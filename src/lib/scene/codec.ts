@@ -23,7 +23,9 @@ const FORMULA_IDS: readonly FormulaId[] = [
 	'perpendicular',
 	'perpendicular-ship',
 	'celtic-mandelbar',
-	'multibrot'
+	'multibrot',
+	'newton',
+	'phoenix'
 ];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
