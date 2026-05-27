@@ -76,6 +76,7 @@ export function createDefaultScene(): SceneState {
 		juliaSeed: { x: -0.8, y: 0.156 },
 		attractor: 'clifford',
 		flame: 'sierpinski',
+		ifs: 'barnsley-fern',
 		post: { ...DEFAULT_POST }
 	};
 }

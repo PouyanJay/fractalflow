@@ -18,6 +18,7 @@ const scene: SceneState = {
 	juliaSeed: { x: 0, y: 0 },
 	attractor: 'clifford',
 	flame: 'sierpinski',
+	ifs: 'barnsley-fern',
 	post: {
 		warp: 'none',
 		warpAmount: 0,

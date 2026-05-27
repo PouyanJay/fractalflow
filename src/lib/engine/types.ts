@@ -100,6 +100,9 @@ export interface SceneState {
 	/** Fractal-flame id (Painterly Flames). Carried like attractor; unused
 	 * unless the flames renderer is active. */
 	flame: string;
+	/** Iterated-function-system id (IFS art style). Carried like attractor;
+	 * unused unless the ifs renderer is active. */
+	ifs: string;
 	/** Screen-space post-processing (warp + grade), edited in Compose. */
 	post: PostSettings;
 	/** Which raymarched shape the Geometric 3D renderer draws. Optional, default

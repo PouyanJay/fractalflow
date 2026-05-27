@@ -19,6 +19,7 @@ describe('encodeScene / decodeScene round-trip', () => {
 			juliaSeed: { x: -0.8, y: 0.156 },
 			attractor: 'clifford',
 			flame: 'sierpinski',
+			ifs: 'barnsley-fern',
 			post: {
 				warp: 'none',
 				warpAmount: 6,
@@ -55,6 +56,22 @@ describe('encodeScene / decodeScene round-trip', () => {
 		expect(out.attractor).toBe('lorenz');
 		expect(out.flame).toBe('swirl');
 		expect(out.post).toEqual(s.post);
+	});
+
+	it('round-trips the IFS system, and omits it when default', () => {
+		const s = createDefaultScene();
+		expect(decodeScene(encodeScene({ ...s, ifs: 'dragon-curve' })).ifs).toBe('dragon-curve');
+		expect(decodeScene(encodeScene({ ...s, ifs: 'sierpinski-carpet' })).ifs).toBe(
+			'sierpinski-carpet'
+		);
+		// The default IFS trims away, so a plain scene's token carries no IFS field.
+		expect(encodeScene(s)).not.toContain('barnsley-fern');
+		// An unknown IFS id decodes back to the default.
+		expect(
+			decodeScene(
+				'mandelbrot~-0.5~0~3~300~0~-0.8~0.156~clifford~sierpinski~none~0~0~1~0~0~0.8~0.5~1~0~0~2~0~0~0~0~0~0~0~0~0~0~0~0~mandelbulb~bogus-ifs'
+			).ifs
+		).toBe('barnsley-fern');
 	});
 
 	it('defaults post to a no-op for legacy tokens', () => {

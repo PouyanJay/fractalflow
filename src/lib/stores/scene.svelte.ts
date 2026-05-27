@@ -43,6 +43,9 @@ export function createSceneStore() {
 		get flame() {
 			return scene.flame;
 		},
+		get ifs() {
+			return scene.ifs;
+		},
 		get post() {
 			return scene.post;
 		},
@@ -62,6 +65,7 @@ export function createSceneStore() {
 		setPower: (d: number) => (scene.power = d),
 		setAttractor: (id: string) => (scene.attractor = id),
 		setFlame: (id: string) => (scene.flame = id),
+		setIfs: (id: string) => (scene.ifs = id),
 		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),
 		setGeometricShape: (id: SceneState['geometricShape']) => (scene.geometricShape = id),
 		setScene: (next: SceneState) => (scene = next),

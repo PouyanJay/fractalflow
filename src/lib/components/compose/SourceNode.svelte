@@ -7,6 +7,7 @@
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
 	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 	import { FLAMES } from '$lib/fractals/painterly-flames/flames';
+	import { IFS_SYSTEMS } from '$lib/fractals/ifs/ifs';
 	import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
 	import type { FormulaId, GeometricShapeId } from '$lib/engine/types';
 
@@ -97,6 +98,17 @@
 				onchange={(v) => scene.setFlame(v)}
 			/>
 		</label>
+	{:else if style === 'ifs'}
+		<label class="field">
+			<span>System</span>
+			<Select
+				ariaLabel="IFS system"
+				options={toOptions(IFS_SYSTEMS)}
+				value={scene.ifs}
+				onchange={(v) => scene.setIfs(v)}
+			/>
+		</label>
+		<p class="hint">Chaos-game attractor — pan and zoom in Explore.</p>
 	{:else}
 		<label class="field">
 			<span>Shape</span>

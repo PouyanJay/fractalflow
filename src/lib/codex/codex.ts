@@ -140,6 +140,14 @@ const STYLE_TEXT: Record<Exclude<ArtStyleId, 'deep-zoom-2d'>, SceneDescription> 
 		applications:
 			'The algorithm behind Electric Sheep and a staple of generative art; also a vivid demonstration of iterated function systems (IFS).',
 		tips: 'Pick a flame in the Source node, then pair a warm palette with a touch of Bloom for a painterly, lit-from-within look.'
+	},
+	ifs: {
+		title: 'Iterated Function System',
+		body: 'An IFS attractor — a handful of contractive affine maps played as a chaos game. Famous fractals like the Barnsley fern, Sierpiński triangle and Heighway dragon are each just a few such maps.',
+		math: 'Seed a point, then repeatedly pick one of the affine maps at random — weighted by its probability — and apply it. The orbit converges onto the system’s unique attractor regardless of where it started (Hutchinson’s theorem); density and a per-map colour accumulate.',
+		applications:
+			'IFS is the mathematics behind procedural plants and terrains, fractal image compression, and a canonical demonstration that simple contraction maps encode intricate self-similar shapes.',
+		tips: 'Choose a system in the Source node. Raise Exposure to coax out the faint outer fronds; a green-to-gold palette suits the fern, a cool palette the dragon.'
 	}
 };
 

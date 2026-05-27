@@ -28,6 +28,13 @@ describe('getRenderer', () => {
 		expect(r?.pipeline).toBe('compute');
 	});
 
+	it('returns the IFS compute renderer for that style', () => {
+		const r = getRenderer('ifs');
+		expect(r?.id).toBe('ifs');
+		expect(r?.kind).toBe('2d'); // planar pan/zoom
+		expect(r?.pipeline).toBe('compute');
+	});
+
 	it('returns null for an unknown art style', () => {
 		expect(getRenderer('nonexistent' as Parameters<typeof getRenderer>[0])).toBeNull();
 	});

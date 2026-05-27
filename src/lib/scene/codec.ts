@@ -12,6 +12,7 @@ import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
 import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
+import { IFS_SYSTEMS } from '$lib/fractals/ifs/ifs';
 import { WARP_CODE } from '$lib/fractals/post';
 
 const FORMULA_IDS: readonly FormulaId[] = [
@@ -31,6 +32,7 @@ const FORMULA_IDS: readonly FormulaId[] = [
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
+const IFS_IDS: readonly string[] = IFS_SYSTEMS.map((s) => s.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
 const MAX_ITER = 8000;
@@ -85,7 +87,10 @@ export function encodeScene(scene: SceneState): string {
 		// Inline custom cosine palette (12 values) — absent → all 0 → trimmed away.
 		...paletteCoeffsFields(scene),
 		// Geometric 3D shape — default 'mandelbulb' trims away.
-		scene.geometricShape ?? 'mandelbulb'
+		scene.geometricShape ?? 'mandelbulb',
+		// IFS system — appended last so older share links are unaffected; the
+		// default 'barnsley-fern' trims away for every non-IFS scene.
+		scene.ifs
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -115,7 +120,8 @@ export function encodeScene(scene: SceneState): string {
 		0,
 		2, // default Multibrot power
 		...Array(12).fill(0), // default (absent) custom palette
-		'mandelbulb' // default Geometric 3D shape
+		'mandelbulb', // default Geometric 3D shape
+		d.ifs // default IFS system
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -149,6 +155,8 @@ export function decodeScene(token: string): SceneState {
 	const geometricShape = SHAPE_IDS.includes(parts[34])
 		? (parts[34] as GeometricShapeId)
 		: undefined;
+	// IFS system (index 35) — validated, default when absent or unknown.
+	const ifs = IFS_IDS.includes(parts[35]) ? parts[35] : fallback.ifs;
 	const paletteCoeffs = hasCustom
 		? {
 				a: [pc[0], pc[1], pc[2]] as [number, number, number],
@@ -175,6 +183,7 @@ export function decodeScene(token: string): SceneState {
 		},
 		attractor: ATTRACTOR_IDS.includes(parts[8]) ? parts[8] : fallback.attractor,
 		flame: FLAME_IDS.includes(parts[9]) ? parts[9] : fallback.flame,
+		ifs,
 		post: {
 			warp: WARP_IDS.includes(parts[10]) ? parts[10] : fallback.post.warp,
 			warpAmount: num(parts[11], fallback.post.warpAmount),

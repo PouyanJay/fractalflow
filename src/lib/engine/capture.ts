@@ -35,11 +35,12 @@ export function exportFilename(formula: string, date = new Date()): string {
  */
 export function exportTagFor(
 	style: string | null,
-	scene: { formula: string; attractor: string; flame: string }
+	scene: { formula: string; attractor: string; flame: string; ifs: string }
 ): string {
 	if (style === 'deep-zoom-2d') return scene.formula;
 	if (style === 'attractors') return `attractor-${scene.attractor}`;
 	if (style === 'flames') return `flame-${scene.flame}`;
+	if (style === 'ifs') return `ifs-${scene.ifs}`;
 	return style ?? 'fractal';
 }
 
