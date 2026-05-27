@@ -4,9 +4,19 @@ import { ATTRACTORS, getAttractor, orbit, boundsOf, type Vec3 } from './attracto
 const finite = (p: Vec3) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
 
 describe('ATTRACTORS catalog', () => {
-	it('lists the four families with unique ids and labels', () => {
+	it('lists the families with unique ids and labels', () => {
 		const ids = ATTRACTORS.map((a) => a.id);
-		expect(ids).toEqual(['clifford', 'de-jong', 'lorenz', 'thomas']);
+		expect(ids).toEqual([
+			'clifford',
+			'de-jong',
+			'lorenz',
+			'thomas',
+			'aizawa',
+			'rossler',
+			'halvorsen',
+			'chen',
+			'dadras'
+		]);
 		expect(new Set(ids).size).toBe(ids.length);
 		for (const a of ATTRACTORS) {
 			expect(a.label.length).toBeGreaterThan(0);
@@ -71,6 +81,25 @@ describe('orbit', () => {
 			expect(orbit(a, 16)).toEqual(orbit(a, 16));
 		}
 	});
+});
+
+describe('new strange-attractor flows settle onto a non-degenerate manifold', () => {
+	// Each should be chaotic-but-bounded: a real spatial extent, no collapse to a
+	// point and no blow-up (RK4 stable at the chosen FLOW_DT).
+	for (const id of ['aizawa', 'rossler', 'halvorsen', 'chen', 'dadras'] as const) {
+		it(`${id} fills a finite 3D volume`, () => {
+			const a = getAttractor(id);
+			expect(a.dims).toBe(3);
+			const b = boundsOf(orbit(a, 6000));
+			const span = (lo: number, hi: number) => hi - lo;
+			const sx = span(b.min.x, b.max.x);
+			const sy = span(b.min.y, b.max.y);
+			const sz = span(b.min.z, b.max.z);
+			expect(Number.isFinite(sx + sy + sz)).toBe(true);
+			expect(Math.max(sx, sy, sz)).toBeGreaterThan(0.5); // not a fixed point
+			expect(Math.max(sx, sy, sz)).toBeLessThan(500); // not diverging
+		});
+	}
 });
 
 describe('boundsOf', () => {
