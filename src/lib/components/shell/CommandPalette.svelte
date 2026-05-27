@@ -38,13 +38,6 @@
 			hint: 'Layout',
 			icon: 'panel-right',
 			run: () => ui.togglePanel('inspector')
-		},
-		{
-			id: 'toggle-density',
-			label: 'Toggle density',
-			hint: 'Layout',
-			icon: 'rows-3',
-			run: () => ui.cycleDensity()
 		}
 	];
 

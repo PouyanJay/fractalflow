@@ -187,7 +187,7 @@
 
 	.menu {
 		position: absolute;
-		top: calc(100% + 4px);
+		top: calc(100% + var(--ff-space-1));
 		left: 0;
 		right: 0;
 		z-index: var(--ff-z-overlay);

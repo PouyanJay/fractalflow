@@ -25,11 +25,6 @@
 	provideBookmarksStore();
 	provideJourneyStore();
 
-	// Reflect density on the root element so tokens can respond.
-	$effect(() => {
-		document.documentElement.dataset.density = ui.density;
-	});
-
 	function onkeydown(event: KeyboardEvent) {
 		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
 			event.preventDefault();

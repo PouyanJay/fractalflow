@@ -5,7 +5,7 @@
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getIcon } from '$lib/components/icons';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import { Command, PanelLeft, PanelRight, Rows3, Share2, Check, Download } from '@lucide/svelte';
+	import { Command, PanelLeft, PanelRight, Share2, Check, Download } from '@lucide/svelte';
 
 	const ui = getUiStore();
 	const activeMode = $derived(modeFromPath(page.url.pathname));
@@ -90,12 +90,6 @@
 		>
 			<PanelRight size={16} aria-hidden="true" />
 		</IconButton>
-		<IconButton
-			label={`Density: ${ui.density} — click to toggle`}
-			onclick={() => ui.cycleDensity()}
-		>
-			<Rows3 size={16} aria-hidden="true" />
-		</IconButton>
 		<div class="divider" aria-hidden="true"></div>
 		<button class="export" type="button" onclick={() => ui.openExport()}>
 			<Download size={15} aria-hidden="true" />
@@ -154,7 +148,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--ff-space-2);
-		height: 26px;
+		height: 28px;
 		padding: 0 var(--ff-space-3);
 		border-radius: var(--ff-radius-sm);
 		color: var(--ff-text-muted);

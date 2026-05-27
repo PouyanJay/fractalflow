@@ -8,7 +8,6 @@ import {
 	createInitialUiState,
 	togglePanel,
 	setPanel,
-	setDensity,
 	toggleCommandPalette,
 	setCommandPalette,
 	setExport,
@@ -76,12 +75,11 @@ describe('pathForMode / modeFromPath', () => {
 });
 
 describe('ui state transitions (pure & immutable)', () => {
-	it('starts with both panels open, comfortable density, palette + export closed, deep-zoom selected', () => {
+	it('starts with both panels open, palette + export closed, deep-zoom selected', () => {
 		const s = createInitialUiState();
 		expect(s).toEqual({
 			panels: { library: true, inspector: true },
 			panelWidths: { library: 264, inspector: 264 },
-			density: 'comfortable',
 			commandPaletteOpen: false,
 			exportOpen: false,
 			selectedStyle: 'deep-zoom-2d'
@@ -99,10 +97,6 @@ describe('ui state transitions (pure & immutable)', () => {
 	it('setPanel sets an explicit visibility', () => {
 		const s = setPanel(createInitialUiState(), 'inspector', false);
 		expect(s.panels.inspector).toBe(false);
-	});
-
-	it('setDensity changes density', () => {
-		expect(setDensity(createInitialUiState(), 'compact').density).toBe('compact');
 	});
 
 	it('toggleCommandPalette and setCommandPalette control the palette', () => {

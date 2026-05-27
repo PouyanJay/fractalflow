@@ -7,7 +7,6 @@ import {
 	createInitialUiState,
 	setPanel,
 	togglePanel,
-	setDensity,
 	setCommandPalette,
 	toggleCommandPalette,
 	setExport,
@@ -15,7 +14,6 @@ import {
 	selectArtStyle,
 	setPanelWidth,
 	type ArtStyleId,
-	type Density,
 	type PanelId,
 	type UiState
 } from './ui-logic';
@@ -32,9 +30,6 @@ export function createUiStore() {
 		get panelWidths() {
 			return state.panelWidths;
 		},
-		get density() {
-			return state.density;
-		},
 		get commandPaletteOpen() {
 			return state.commandPaletteOpen;
 		},
@@ -47,9 +42,6 @@ export function createUiStore() {
 		togglePanel: (panel: PanelId) => (state = togglePanel(state, panel)),
 		setPanel: (panel: PanelId, visible: boolean) => (state = setPanel(state, panel, visible)),
 		setPanelWidth: (panel: PanelId, width: number) => (state = setPanelWidth(state, panel, width)),
-		setDensity: (density: Density) => (state = setDensity(state, density)),
-		cycleDensity: () =>
-			(state = setDensity(state, state.density === 'comfortable' ? 'compact' : 'comfortable')),
 		openCommandPalette: () => (state = setCommandPalette(state, true)),
 		closeCommandPalette: () => (state = setCommandPalette(state, false)),
 		toggleCommandPalette: () => (state = toggleCommandPalette(state)),

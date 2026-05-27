@@ -11,7 +11,6 @@
 export type ModeId = 'compose' | 'explore';
 export type ArtStyleId = 'geometric-3d' | 'flames' | 'attractors' | 'deep-zoom-2d';
 export type PanelId = 'library' | 'inspector';
-export type Density = 'comfortable' | 'compact';
 
 export interface ModeMeta {
 	id: ModeId;
@@ -114,7 +113,6 @@ export const DEFAULT_PANEL_WIDTH = 264;
 export interface UiState {
 	panels: Record<PanelId, boolean>;
 	panelWidths: Record<PanelId, number>;
-	density: Density;
 	commandPaletteOpen: boolean;
 	exportOpen: boolean;
 	selectedStyle: ArtStyleId | null;
@@ -124,7 +122,6 @@ export function createInitialUiState(): UiState {
 	return {
 		panels: { library: true, inspector: true },
 		panelWidths: { library: DEFAULT_PANEL_WIDTH, inspector: DEFAULT_PANEL_WIDTH },
-		density: 'comfortable',
 		commandPaletteOpen: false,
 		exportOpen: false,
 		// Deep-Zoom 2D is the implemented renderer, so it's selected by default.
@@ -144,10 +141,6 @@ export function setPanel(state: UiState, panel: PanelId, visible: boolean): UiSt
 
 export function togglePanel(state: UiState, panel: PanelId): UiState {
 	return setPanel(state, panel, !state.panels[panel]);
-}
-
-export function setDensity(state: UiState, density: Density): UiState {
-	return { ...state, density };
 }
 
 export function setCommandPalette(state: UiState, open: boolean): UiState {

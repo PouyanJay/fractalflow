@@ -100,12 +100,3 @@
 	--ff-z-statusbar: 20;
 	--ff-z-overlay: 100;
 }
-
-/* Compact density: tighter panels and base type. */
-:root[data-density='compact'] {
-	--ff-panel-w: 224px;
-	--ff-topbar-h: 42px;
-	--ff-statusbar-h: 24px;
-	--ff-text-base: 12px;
-	--ff-text-md: 13px;
-}
