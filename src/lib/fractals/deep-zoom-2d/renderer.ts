@@ -54,25 +54,24 @@ export function createDefaultScene(): SceneState {
 }
 
 // One-entry memo so packUniforms and packData share a single orbit computation
-// per frame (they are called with the same input each frame).
-const EMPTY_DATA = new Float32Array(2);
+// per frame (they are called with the same input each frame). All four formulas
+// now deep-zoom via a per-formula reference orbit.
 let memoKey = '';
 let memoData = new Float32Array(2);
 let memoLength = 0;
 
 function orbitFor(input: RenderInput): { data: Float32Array; length: number } {
 	const s = input.scene;
-	if (s.formula !== 'mandelbrot') {
-		// Other formulas use direct iteration; no reference orbit needed.
-		return { data: EMPTY_DATA, length: 0 };
-	}
 	const cam = s.camera;
-	const key = `${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.maxIter}`;
+	const key = `${s.formula}|${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.juliaSeed.x}|${s.juliaSeed.y}|${s.maxIter}`;
 	if (key !== memoKey) {
 		const iter = Math.min(s.maxIter, MAX_ITER_CAP);
 		const orbit = computeReferenceOrbitDD(
+			s.formula,
 			{ hi: cam.centerX, lo: cam.centerXLo ?? 0 },
 			{ hi: cam.centerY, lo: cam.centerYLo ?? 0 },
+			s.juliaSeed.x,
+			s.juliaSeed.y,
 			iter
 		);
 		const data = new Float32Array(orbit.length * 2);
@@ -137,56 +136,59 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let formula = i32(u.formula);
 	let maxI = i32(u.maxIter);
 
-	if (formula == 0) {
-		// Mandelbrot via perturbation + rebasing around the reference orbit.
-		let lim = i32(u.orbitLength);
-		var dz = vec2f(0.0, 0.0);
-		var refIdx = 0;
-		var iter = 0;
+	// Burning Ship's sign-form perturbation glitches when the per-pixel delta is
+	// large (zoomed out), so iterate it directly until deep enough that direct f32
+	// would itself break down (~scale 0.002 ≈ 1500×); below that, fall through to
+	// perturbation. The analytic formulas have no such issue.
+	if (formula == 2 && u.scale > 0.002) {
+		let c = u.center + offset;
+		var z = vec2f(0.0, 0.0);
+		var i = 0;
 		loop {
-			if (iter >= maxI) { break; }
-			let Z = orbit[refIdx];
-			let twoZd = vec2f(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
-			let d2 = vec2f(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
-			dz = twoZd + d2 + offset;
-			refIdx = refIdx + 1;
-			let z = orbit[refIdx] + dz;
-			let zmag = z.x * z.x + z.y * z.y;
-			if (zmag > 65536.0) { return ffPost(color(f32(iter + 1), z), uv); }
-			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
-				dz = z;
-				refIdx = 0;
-			}
-			iter = iter + 1;
+			if (i >= maxI) { break; }
+			if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(color(f32(i), z), uv); }
+			let ax = abs(z.x);
+			let ay = abs(z.y);
+			z = vec2f(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
+			i = i + 1;
 		}
 		return ffPost(INTERIOR, uv);
 	}
 
-	// Julia / Burning Ship / Tricorn: direct f32 iteration.
-	let cc = u.center + offset;
-	var z: vec2f;
-	var cparam: vec2f;
-	if (formula == 1) {
-		z = cc;
-		cparam = u.seed;
-	} else {
-		z = vec2f(0.0, 0.0);
-		cparam = cc;
-	}
-	var i = 0;
+	// Perturbation + rebasing for every formula. Shared increment w = 2·Z·δ + δ²;
+	// the per-formula assembly mirrors perturbation.ts. Julia threads the
+	// perturbation through the initial delta (no per-step δc); the rest start at 0.
+	let lim = i32(u.orbitLength);
+	let z0 = orbit[0];
+	var dz = select(vec2f(0.0, 0.0), offset, formula == 1);
+	var refIdx = 0;
+	var iter = 0;
 	loop {
-		if (i >= maxI) { break; }
-		if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(color(f32(i), z), uv); }
-		if (formula == 2) {
-			let ax = abs(z.x);
-			let ay = abs(z.y);
-			z = vec2f(ax * ax - ay * ay + cparam.x, 2.0 * ax * ay + cparam.y);
+		if (iter >= maxI) { break; }
+		let Z = orbit[refIdx];
+		let w = vec2f(
+			2.0 * (Z.x * dz.x - Z.y * dz.y) + (dz.x * dz.x - dz.y * dz.y),
+			2.0 * (Z.x * dz.y + Z.y * dz.x) + 2.0 * dz.x * dz.y
+		);
+		if (formula == 1) {
+			dz = w;
 		} else if (formula == 3) {
-			z = vec2f(z.x * z.x - z.y * z.y + cparam.x, -2.0 * z.x * z.y + cparam.y);
+			dz = vec2f(w.x + offset.x, -w.y + offset.y);
+		} else if (formula == 2) {
+			let s = sign(Z.x) * sign(Z.y);
+			dz = vec2f(w.x + offset.x, s * w.y + offset.y);
 		} else {
-			z = vec2f(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
+			dz = w + offset;
 		}
-		i = i + 1;
+		refIdx = refIdx + 1;
+		let z = orbit[refIdx] + dz;
+		let zmag = z.x * z.x + z.y * z.y;
+		if (zmag > 65536.0) { return ffPost(color(f32(iter + 1), z), uv); }
+		if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
+			dz = z - z0;
+			refIdx = 0;
+		}
+		iter = iter + 1;
 	}
 	return ffPost(INTERIOR, uv);
 }
@@ -236,44 +238,49 @@ void main() {
 	int formula = int(uFormula);
 	int maxI = int(uMaxIter);
 
-	if (formula == 0) {
-		int lim = int(uOrbitLength);
-		vec2 dz = vec2(0.0);
-		int refIdx = 0;
-		for (int iter = 0; iter < maxI; iter++) {
-			vec2 Z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg;
-			vec2 twoZd = vec2(2.0 * (Z.x * dz.x - Z.y * dz.y), 2.0 * (Z.x * dz.y + Z.y * dz.x));
-			vec2 d2 = vec2(dz.x * dz.x - dz.y * dz.y, 2.0 * dz.x * dz.y);
-			dz = twoZd + d2 + offset;
-			refIdx += 1;
-			vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
-			float zmag = z.x * z.x + z.y * z.y;
-			if (zmag > 65536.0) { fragColor = ffPost(colorOf(float(iter + 1), z), uv); return; }
-			if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
-				dz = z;
-				refIdx = 0;
-			}
+	// Burning Ship: direct iteration while shallow (its sign-form perturbation
+	// glitches when the per-pixel delta is large), perturbation once deep.
+	if (formula == 2 && uScale > 0.002) {
+		vec2 c = uCenter + offset;
+		vec2 z = vec2(0.0);
+		for (int i = 0; i < maxI; i++) {
+			if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
+			float ax = abs(z.x);
+			float ay = abs(z.y);
+			z = vec2(ax * ax - ay * ay + c.x, 2.0 * ax * ay + c.y);
 		}
 		fragColor = ffPost(INTERIOR, uv);
 		return;
 	}
 
-	vec2 cc = uCenter + offset;
-	vec2 z;
-	vec2 cparam;
-	if (formula == 1) { z = cc; cparam = uSeed; }
-	else { z = vec2(0.0); cparam = cc; }
-	int i = 0;
-	for (; i < maxI; i++) {
-		if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
-		if (formula == 2) {
-			float ax = abs(z.x);
-			float ay = abs(z.y);
-			z = vec2(ax * ax - ay * ay + cparam.x, 2.0 * ax * ay + cparam.y);
+	// Perturbation + rebasing for every formula (mirrors the WGSL + perturbation.ts).
+	int lim = int(uOrbitLength);
+	vec2 z0 = texelFetch(uOrbit, ivec2(0, 0), 0).rg;
+	vec2 dz = formula == 1 ? offset : vec2(0.0);
+	int refIdx = 0;
+	for (int iter = 0; iter < maxI; iter++) {
+		vec2 Z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg;
+		vec2 w = vec2(
+			2.0 * (Z.x * dz.x - Z.y * dz.y) + (dz.x * dz.x - dz.y * dz.y),
+			2.0 * (Z.x * dz.y + Z.y * dz.x) + 2.0 * dz.x * dz.y
+		);
+		if (formula == 1) {
+			dz = w;
 		} else if (formula == 3) {
-			z = vec2(z.x * z.x - z.y * z.y + cparam.x, -2.0 * z.x * z.y + cparam.y);
+			dz = vec2(w.x + offset.x, -w.y + offset.y);
+		} else if (formula == 2) {
+			float s = sign(Z.x) * sign(Z.y);
+			dz = vec2(w.x + offset.x, s * w.y + offset.y);
 		} else {
-			z = vec2(z.x * z.x - z.y * z.y + cparam.x, 2.0 * z.x * z.y + cparam.y);
+			dz = w + offset;
+		}
+		refIdx += 1;
+		vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
+		float zmag = z.x * z.x + z.y * z.y;
+		if (zmag > 65536.0) { fragColor = ffPost(colorOf(float(iter + 1), z), uv); return; }
+		if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
+			dz = z - z0;
+			refIdx = 0;
 		}
 	}
 	fragColor = ffPost(INTERIOR, uv);

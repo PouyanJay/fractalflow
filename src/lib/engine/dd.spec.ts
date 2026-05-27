@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { fromNumber, toNumber, add, sub, neg, mul, sqr, addNumber, mulNumber, type DD } from './dd';
+import {
+	fromNumber,
+	toNumber,
+	add,
+	sub,
+	neg,
+	mul,
+	sqr,
+	addNumber,
+	mulNumber,
+	absDD,
+	type DD
+} from './dd';
 
 /** The whole point: hold ~31 significant digits, well past f64's ~16. */
 describe('double-double precision', () => {
@@ -60,5 +72,14 @@ describe('double-double arithmetic', () => {
 		const a = add(fromNumber(0.3), fromNumber(1e-20));
 		const doubled = mulNumber(a, 2);
 		expect(toNumber(sub(doubled, add(a, a)))).toBe(0);
+	});
+
+	it('absDD flips a negative value (tail included) and leaves a positive one', () => {
+		const negVal = add(fromNumber(-2), fromNumber(-1e-25));
+		const pos = absDD(negVal);
+		expect(pos.hi).toBe(2);
+		expect(toNumber(sub(pos, fromNumber(2)))).toBeCloseTo(1e-25, 35);
+		const already = add(fromNumber(2), fromNumber(1e-25));
+		expect(absDD(already)).toEqual(already);
 	});
 });

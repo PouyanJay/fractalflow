@@ -98,6 +98,11 @@ export function addNumber(a: DD, b: number): DD {
 	return { hi: r.s, lo: r.e };
 }
 
+/** |a| — needed for the Burning Ship reference orbit (z = (|x| + i|y|)² + c). */
+export function absDD(a: DD): DD {
+	return a.hi < 0 || (a.hi === 0 && a.lo < 0) ? neg(a) : a;
+}
+
 /** a × b where b is a plain f64. */
 export function mulNumber(a: DD, b: number): DD {
 	const { p, e } = twoProd(a.hi, b);
