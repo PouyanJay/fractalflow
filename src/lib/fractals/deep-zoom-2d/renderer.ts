@@ -30,6 +30,7 @@ import {
 	POST_GLSL_FN
 } from '$lib/fractals/post';
 import { FORMULA_CODES, DEFAULT_POWER } from './reference';
+import { COLORING_CODES, DEFAULT_COLORING } from './coloring';
 import {
 	computeReferenceOrbitDD,
 	computeSeriesApprox,
@@ -232,6 +233,49 @@ fn apollonianColor(de: f32) -> vec4f {
 	return vec4f(palette(fract(glow)) * glow, 1.0);
 }
 
+// --- Coloring modes (series1.w): 0 smooth, 1 orbit-trap, 2 distance, 3 domain,
+// 4 interior. shade() dispatches on the mode using quantities the iteration
+// loops accumulate; mirrors $lib/fractals/deep-zoom-2d/coloring.ts. ---
+fn hsv2rgb(h: f32, s: f32, v: f32) -> vec3f {
+	let hue = h - floor(h);
+	let seg = floor(hue * 6.0);
+	let f = hue * 6.0 - seg;
+	let p = v * (1.0 - s);
+	let q = v * (1.0 - f * s);
+	let t = v * (1.0 - (1.0 - f) * s);
+	let i = i32(seg) % 6;
+	if (i == 0) { return vec3f(v, t, p); }
+	if (i == 1) { return vec3f(q, v, p); }
+	if (i == 2) { return vec3f(p, v, t); }
+	if (i == 3) { return vec3f(p, q, v); }
+	if (i == 4) { return vec3f(t, p, v); }
+	return vec3f(v, p, q);
+}
+
+fn domainColor(z: vec2f) -> vec3f {
+	let h = atan2(z.y, z.x) / 6.2831853 + 0.5;
+	let mag = length(z);
+	let band = select(0.0, log2(mag), mag > 0.0);
+	let v = 0.55 + 0.45 * (band - floor(band));
+	return hsv2rgb(h, 0.75, min(1.0, v));
+}
+
+fn shade(mode: i32, escaped: bool, n: f32, z: vec2f, trap: f32, derivMag: f32, minZ: f32, perPixel: f32) -> vec4f {
+	if (mode == 3) { return vec4f(domainColor(z), 1.0); } // domain: whole plane
+	if (mode == 1) { return vec4f(palette(clamp(sqrt(trap) * 1.5, 0.0, 1.0)), 1.0); } // orbit trap
+	if (escaped) {
+		if (mode == 2) { // distance estimate (thin filaments → dark, open → bright)
+			let mag = length(z);
+			let de = mag * log(max(mag, 1.0000001)) / max(derivMag, 1e-12);
+			let t = clamp(pow(de / perPixel, 0.35) * 0.4, 0.0, 1.0);
+			return vec4f(palette(t), 1.0);
+		}
+		return color(n, z); // smooth + interior share the exterior smooth shading
+	}
+	if (mode == 4) { return vec4f(palette(fract(minZ * 0.8)), 1.0); } // interior structure
+	return INTERIOR; // smooth / distance interiors stay dark
+}
+
 @fragment
 fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	let uv = frag.xy / u.resolution;
@@ -334,13 +378,22 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	// perturbation path yet, so they always iterate directly (f32 depth limit applies).
 	if ((formula == 2 && u.scale > 0.002) || (formula >= 4 && formula <= 9)) {
 		let c = u.center + offset;
+		let cmode = i32(u.series1.w);
 		var z = vec2f(0.0, 0.0);
+		var trap = 1e30;
+		var minZ = 1e30;
+		var deriv = vec2f(0.0, 0.0);
 		var i = 0;
 		loop {
 			if (i >= maxI) { break; }
 			let x2 = z.x * z.x;
 			let y2 = z.y * z.y;
-			if (x2 + y2 > 65536.0) { return ffPost(color(f32(i), z), uv); }
+			if (x2 + y2 > 65536.0) { return ffPost(shade(cmode, true, f32(i), z, trap, length(deriv), minZ, perPixel), uv); }
+			// Per-mode accumulation (cmode is uniform → coherent branch, no divergence).
+			// Skip the seed z₀ = 0 for the trap/minZ (it would pin them to 0).
+			if (cmode == 1 && i > 0) { trap = min(trap, min(abs(z.x), abs(z.y))); }
+			if (cmode == 2) { deriv = vec2f(2.0 * (z.x * deriv.x - z.y * deriv.y) + 1.0, 2.0 * (z.x * deriv.y + z.y * deriv.x)); }
+			if (cmode == 4 && i > 0) { minZ = min(minZ, sqrt(x2 + y2)); }
 			if (formula == 2) {
 				let ax = abs(z.x);
 				let ay = abs(z.y);
@@ -362,7 +415,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 			}
 			i = i + 1;
 		}
-		return ffPost(INTERIOR, uv);
+		return ffPost(shade(cmode, false, f32(maxI), z, trap, length(deriv), minZ, perPixel), uv);
 	}
 
 	// Perturbation + rebasing for every formula. Shared increment w = 2·Z·δ + δ²;
@@ -374,6 +427,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	// iteration N=skip with dz = A1*dc + A2*dc^2 + A3*dc^3 instead of iterating the
 	// early, well-approximated steps. skip == 0 means iterate from 0 as before.
 	let skip = i32(u.series1.z);
+	let cmode = i32(u.series1.w);
 	var dz = select(vec2f(0.0, 0.0), offset, formula == 1);
 	var refIdx = 0;
 	var iter = 0;
@@ -384,9 +438,20 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		refIdx = skip;
 		iter = skip;
 	}
+	var trap = 1e30;
+	var minZ = 1e30;
+	var deriv = select(vec2f(0.0, 0.0), vec2f(1.0, 0.0), formula == 1); // Julia: dz/dz₀ starts at 1
+	let dterm = select(1.0, 0.0, formula == 1); // Julia has no per-step +δc in the derivative
+	var zLast = vec2f(0.0, 0.0);
 	loop {
 		if (iter >= maxI) { break; }
 		let Z = orbit[refIdx];
+		let zn = Z + dz; // the full current iterate zₙ
+		// Per-mode accumulation on zₙ (cmode is uniform → coherent branch). Skip the
+		// seed z₀ (iter 0, when not series-skipping) so trap/minZ aren't pinned to 0.
+		if (cmode == 1 && iter > 0) { trap = min(trap, min(abs(zn.x), abs(zn.y))); }
+		if (cmode == 2) { deriv = vec2f(2.0 * (zn.x * deriv.x - zn.y * deriv.y) + dterm, 2.0 * (zn.x * deriv.y + zn.y * deriv.x)); }
+		if (cmode == 4 && iter > 0) { minZ = min(minZ, length(zn)); }
 		let w = vec2f(
 			2.0 * (Z.x * dz.x - Z.y * dz.y) + (dz.x * dz.x - dz.y * dz.y),
 			2.0 * (Z.x * dz.y + Z.y * dz.x) + 2.0 * dz.x * dz.y
@@ -403,15 +468,16 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 		}
 		refIdx = refIdx + 1;
 		let z = orbit[refIdx] + dz;
+		zLast = z;
 		let zmag = z.x * z.x + z.y * z.y;
-		if (zmag > 65536.0) { return ffPost(color(f32(iter + 1), z), uv); }
+		if (zmag > 65536.0) { return ffPost(shade(cmode, true, f32(iter + 1), z, trap, length(deriv), minZ, perPixel), uv); }
 		if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 			dz = z - z0;
 			refIdx = 0;
 		}
 		iter = iter + 1;
 	}
-	return ffPost(INTERIOR, uv);
+	return ffPost(shade(cmode, false, f32(maxI), zLast, trap, length(deriv), minZ, perPixel), uv);
 }
 `;
 
@@ -478,6 +544,48 @@ vec4 lyapunovColor(float lam) {
 vec4 apollonianColor(float de) {
 	float glow = 1.0 / (1.0 + de * 26.0);
 	return vec4(palette(fract(glow)) * glow, 1.0);
+}
+
+// Coloring modes (uSeries1.w): 0 smooth, 1 orbit-trap, 2 distance, 3 domain,
+// 4 interior — mirrors $lib/fractals/deep-zoom-2d/coloring.ts and the WGSL.
+vec3 hsv2rgb(float h, float s, float v) {
+	float hue = h - floor(h);
+	float seg = floor(hue * 6.0);
+	float f = hue * 6.0 - seg;
+	float p = v * (1.0 - s);
+	float q = v * (1.0 - f * s);
+	float t = v * (1.0 - (1.0 - f) * s);
+	int i = int(seg) - 6 * (int(seg) / 6);
+	if (i == 0) return vec3(v, t, p);
+	if (i == 1) return vec3(q, v, p);
+	if (i == 2) return vec3(p, v, t);
+	if (i == 3) return vec3(p, q, v);
+	if (i == 4) return vec3(t, p, v);
+	return vec3(v, p, q);
+}
+
+vec3 domainColor(vec2 z) {
+	float h = atan(z.y, z.x) / 6.2831853 + 0.5;
+	float mag = length(z);
+	float band = mag > 0.0 ? log2(mag) : 0.0;
+	float v = 0.55 + 0.45 * (band - floor(band));
+	return hsv2rgb(h, 0.75, min(1.0, v));
+}
+
+vec4 shade(int mode, bool escaped, float n, vec2 z, float trap, float derivMag, float minZ, float perPixel) {
+	if (mode == 3) return vec4(domainColor(z), 1.0);
+	if (mode == 1) return vec4(palette(clamp(sqrt(trap) * 1.5, 0.0, 1.0)), 1.0);
+	if (escaped) {
+		if (mode == 2) {
+			float mag = length(z);
+			float de = mag * log(max(mag, 1.0000001)) / max(derivMag, 1e-12);
+			float t = clamp(pow(de / perPixel, 0.35) * 0.4, 0.0, 1.0);
+			return vec4(palette(t), 1.0);
+		}
+		return colorOf(n, z);
+	}
+	if (mode == 4) return vec4(palette(fract(minZ * 0.8)), 1.0);
+	return INTERIOR;
 }
 
 void main() {
@@ -574,11 +682,18 @@ void main() {
 	// (codes 4–9) which have no perturbation path yet. Perturbation once deep.
 	if ((formula == 2 && uScale > 0.002) || (formula >= 4 && formula <= 9)) {
 		vec2 c = uCenter + offset;
+		int cmode = int(uSeries1.w);
 		vec2 z = vec2(0.0);
+		float trap = 1e30;
+		float minZ = 1e30;
+		vec2 deriv = vec2(0.0);
 		for (int i = 0; i < maxI; i++) {
 			float x2 = z.x * z.x;
 			float y2 = z.y * z.y;
-			if (x2 + y2 > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
+			if (x2 + y2 > 65536.0) { fragColor = ffPost(shade(cmode, true, float(i), z, trap, length(deriv), minZ, perPixel), uv); return; }
+			if (cmode == 1 && i > 0) { trap = min(trap, min(abs(z.x), abs(z.y))); }
+			if (cmode == 2) { deriv = vec2(2.0 * (z.x * deriv.x - z.y * deriv.y) + 1.0, 2.0 * (z.x * deriv.y + z.y * deriv.x)); }
+			if (cmode == 4 && i > 0) { minZ = min(minZ, sqrt(x2 + y2)); }
 			if (formula == 2) {
 				float ax = abs(z.x);
 				float ay = abs(z.y);
@@ -599,7 +714,7 @@ void main() {
 				z = vec2(r * cos(theta) + c.x, r * sin(theta) + c.y);
 			}
 		}
-		fragColor = ffPost(INTERIOR, uv);
+		fragColor = ffPost(shade(cmode, false, float(maxI), z, trap, length(deriv), minZ, perPixel), uv);
 		return;
 	}
 
@@ -609,6 +724,7 @@ void main() {
 	// Series approximation (Mandelbrot/Julia): skip > 0 jumps to iteration N=skip
 	// with dz = A1*dc + A2*dc^2 + A3*dc^3; skip == 0 iterates from 0 as before.
 	int skip = int(uSeries1.z);
+	int cmode = int(uSeries1.w);
 	vec2 dz = formula == 1 ? offset : vec2(0.0);
 	int refIdx = 0;
 	int iterStart = 0;
@@ -619,8 +735,17 @@ void main() {
 		refIdx = skip;
 		iterStart = skip;
 	}
+	float trap = 1e30;
+	float minZ = 1e30;
+	vec2 deriv = formula == 1 ? vec2(1.0, 0.0) : vec2(0.0); // Julia: dz/dz₀ starts at 1
+	float dterm = formula == 1 ? 0.0 : 1.0;
+	vec2 zLast = vec2(0.0);
 	for (int iter = iterStart; iter < maxI; iter++) {
 		vec2 Z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg;
+		vec2 zn = Z + dz; // full current iterate zₙ
+		if (cmode == 1 && iter > 0) { trap = min(trap, min(abs(zn.x), abs(zn.y))); }
+		if (cmode == 2) { deriv = vec2(2.0 * (zn.x * deriv.x - zn.y * deriv.y) + dterm, 2.0 * (zn.x * deriv.y + zn.y * deriv.x)); }
+		if (cmode == 4 && iter > 0) { minZ = min(minZ, length(zn)); }
 		vec2 w = vec2(
 			2.0 * (Z.x * dz.x - Z.y * dz.y) + (dz.x * dz.x - dz.y * dz.y),
 			2.0 * (Z.x * dz.y + Z.y * dz.x) + 2.0 * dz.x * dz.y
@@ -637,14 +762,15 @@ void main() {
 		}
 		refIdx += 1;
 		vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
+		zLast = z;
 		float zmag = z.x * z.x + z.y * z.y;
-		if (zmag > 65536.0) { fragColor = ffPost(colorOf(float(iter + 1), z), uv); return; }
+		if (zmag > 65536.0) { fragColor = ffPost(shade(cmode, true, float(iter + 1), z, trap, length(deriv), minZ, perPixel), uv); return; }
 		if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 			dz = z - z0;
 			refIdx = 0;
 		}
 	}
-	fragColor = ffPost(INTERIOR, uv);
+	fragColor = ffPost(shade(cmode, false, float(maxI), zLast, trap, length(deriv), minZ, perPixel), uv);
 }`;
 
 export const mandelbrotRenderer: FractalRenderer = {
@@ -686,7 +812,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(96, c.d[0]);
 		f(100, c.d[1]);
 		f(104, c.d[2]);
-		// series0 = (A1.x, A1.y, A2.x, A2.y), series1 = (A3.x, A3.y, skip, pad).
+		// series0 = (A1.x, A1.y, A2.x, A2.y), series1 = (A3.x, A3.y, skip, coloring).
 		const series = orbitFor(input).series;
 		f(112, series.a1x);
 		f(116, series.a1y);
@@ -695,7 +821,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(128, series.a3x);
 		f(132, series.a3y);
 		f(136, series.skip);
-		f(140, 0);
+		f(140, COLORING_CODES[scene.coloring ?? DEFAULT_COLORING]); // was pad; now coloring mode
 		packPost(view, POST_BASE, scene.post);
 	}
 };

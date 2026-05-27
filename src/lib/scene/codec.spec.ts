@@ -74,6 +74,20 @@ describe('encodeScene / decodeScene round-trip', () => {
 		).toBe('barnsley-fern');
 	});
 
+	it('round-trips the coloring algorithm, and omits it when default (smooth)', () => {
+		const s = createDefaultScene();
+		expect(decodeScene(encodeScene({ ...s, coloring: 'orbit-trap' })).coloring).toBe('orbit-trap');
+		expect(decodeScene(encodeScene({ ...s, coloring: 'domain' })).coloring).toBe('domain');
+		expect(decodeScene(encodeScene({ ...s, coloring: 'distance' })).coloring).toBe('distance');
+		// Default (smooth) trims away and decodes as undefined.
+		expect(decodeScene(encodeScene(s)).coloring).toBeUndefined();
+		expect(decodeScene(encodeScene({ ...s, coloring: 'smooth' })).coloring).toBeUndefined();
+		// Survives alongside a non-default IFS field (codec order: ifs then coloring).
+		const combo = decodeScene(encodeScene({ ...s, ifs: 'dragon-curve', coloring: 'interior' }));
+		expect(combo.coloring).toBe('interior');
+		expect(combo.ifs).toBe('dragon-curve');
+	});
+
 	it('defaults post to a no-op for legacy tokens', () => {
 		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 10).join('~');
 		expect(decodeScene(legacy).post).toEqual(createDefaultScene().post);

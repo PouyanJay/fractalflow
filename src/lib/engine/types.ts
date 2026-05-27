@@ -25,6 +25,9 @@ export interface Camera2D {
 	scale: number;
 }
 
+/** Coloring algorithm for the Deep-Zoom 2D escape-time renderer. */
+export type ColoringId = 'smooth' | 'orbit-trap' | 'distance' | 'domain' | 'interior';
+
 /** The raymarched shape for the Geometric 3D renderer. */
 export type GeometricShapeId =
 	| 'mandelbulb'
@@ -110,6 +113,9 @@ export interface SceneState {
 	/** Which raymarched shape the Geometric 3D renderer draws. Optional, default
 	 * 'mandelbulb'; carried like the other family selectors, only read in 3D. */
 	geometricShape?: GeometricShapeId;
+	/** Coloring algorithm for the Deep-Zoom 2D escape-time formulas. Optional,
+	 * default 'smooth'; only read by the deep-zoom renderer (codes 0–9). */
+	coloring?: ColoringId;
 }
 
 export interface RenderInput {

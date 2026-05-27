@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Sparkles, Save, Trash2, SlidersHorizontal } from '@lucide/svelte';
 	import NodeShell from './NodeShell.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
 	import { getCustomPalettesStore } from '$lib/stores/custom-palettes.svelte';
@@ -10,6 +11,8 @@
 		defaultCustomCoeffs,
 		randomCustomCoeffs
 	} from '$lib/fractals/palette';
+	import { COLORINGS } from '$lib/fractals/deep-zoom-2d/coloring';
+	import type { ColoringId } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
@@ -51,6 +54,18 @@
 </script>
 
 <NodeShell title="Coloring" target source>
+	{#if ui.selectedStyle === 'deep-zoom-2d'}
+		<label class="field">
+			<span>Algorithm</span>
+			<Select
+				ariaLabel="Coloring algorithm"
+				options={COLORINGS.map((c) => ({ value: c.id, label: c.label }))}
+				value={scene.coloring}
+				onchange={(v) => scene.setColoring(v as ColoringId)}
+			/>
+		</label>
+	{/if}
+
 	<div class="field">
 		<span>Palette</span>
 		<div class="palettes">

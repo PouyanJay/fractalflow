@@ -367,6 +367,25 @@ test('selecting Apollonian describes the gasket', async ({ page }) => {
 	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Apollonian');
 });
 
+test('Compose exposes the coloring-algorithm selector for Deep-Zoom 2D', async ({ page }) => {
+	await page.goto('/compose');
+	await page.locator('button[aria-label="Coloring algorithm"]:visible').first().click();
+	const list = page.getByRole('listbox', { name: 'Coloring algorithm' });
+	await expect(list.getByRole('option')).toHaveText([
+		'Smooth',
+		'Orbit Trap',
+		'Distance',
+		'Domain',
+		'Interior'
+	]);
+	await list.getByRole('option', { name: 'Orbit Trap', exact: true }).click();
+	// The coloring rides the shared scene → encoded into Explore's deep-link.
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect
+		.poll(() => decodeURIComponent(page.url()), { timeout: 5000 })
+		.toContain('orbit-trap');
+});
+
 test('the Journey tab plays a curated journey', async ({ page }) => {
 	await page.goto('/explore');
 	await waitForEngine(page);
@@ -519,6 +538,30 @@ test('visual: Apollonian gasket', async ({ page }) => {
 	await waitForEngine(page);
 	await page.waitForTimeout(300);
 	await expect(page).toHaveScreenshot('explore-apollonian.png', {
+		fullPage: true,
+		maxDiffPixelRatio: 0.02
+	});
+});
+
+test('visual: orbit-trap coloring (Pickover stalks)', async ({ page }) => {
+	await page.goto('/compose');
+	await choose(page, 'Coloring algorithm', 'Orbit Trap');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await page.waitForTimeout(300);
+	await expect(page).toHaveScreenshot('explore-orbit-trap.png', {
+		fullPage: true,
+		maxDiffPixelRatio: 0.02
+	});
+});
+
+test('visual: domain coloring (phase field)', async ({ page }) => {
+	await page.goto('/compose');
+	await choose(page, 'Coloring algorithm', 'Domain');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await waitForEngine(page);
+	await page.waitForTimeout(300);
+	await expect(page).toHaveScreenshot('explore-domain.png', {
 		fullPage: true,
 		maxDiffPixelRatio: 0.02
 	});
