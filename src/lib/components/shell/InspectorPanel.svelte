@@ -18,6 +18,7 @@
 	import { getJourneyStore } from '$lib/stores/journey.svelte';
 	import { getBookmarksStore } from '$lib/stores/bookmarks.svelte';
 	import { getRenderer } from '$lib/fractals/registry';
+	import { effectiveMaxIter } from '$lib/fractals/deep-zoom-2d/renderer';
 	import { formatZoom } from '$lib/engine/camera';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
 	import { describeScene, nearestLandmark } from '$lib/codex/codex';
@@ -48,6 +49,8 @@
 	const desc = $derived(describeScene(ui.selectedStyle, scene.scene));
 	const landmark = $derived(nearestLandmark(ui.selectedStyle, scene.scene));
 	const isDeepZoom = $derived(ui.selectedStyle === 'deep-zoom-2d');
+	// Deep zoom auto-lifts the iteration count with depth; show what's actually used.
+	const detailValue = $derived(isDeepZoom ? effectiveMaxIter(scene.scene) : scene.maxIter);
 	const detailLabel = $derived(
 		isDeepZoom ? 'Iterations' : ui.selectedStyle === 'geometric-3d' ? 'Detail' : 'Exposure'
 	);
@@ -204,7 +207,7 @@
 				</div>
 				<div>
 					<dt>{detailLabel}</dt>
-					<dd class="ff-num">{scene.maxIter}</dd>
+					<dd class="ff-num">{detailValue}</dd>
 				</div>
 			</dl>
 		</section>

@@ -40,6 +40,24 @@ const MAX_ITER_CAP = 8000;
 const MAX_ORBIT = MAX_ITER_CAP + 1;
 const DATA_BUFFER_SIZE = MAX_ORBIT * 2 * 4;
 
+/**
+ * Iteration floor that grows with zoom depth so deep views resolve without the
+ * user manually cranking the slider (escape times climb as you zoom in). It's 0
+ * until ~300× — there the manual setting rules and shallow renders are unchanged
+ * — then climbs ~400 iterations per decade of magnification, capped at the orbit
+ * limit. Deep-Zoom 2D only (the other styles read maxIter as exposure, not iters).
+ */
+export function autoMaxIter(scale: number, baseScale = 3): number {
+	const zoom = baseScale / Math.max(scale, 1e-300);
+	const floor = Math.round(400 * (Math.log10(zoom) - 2.5));
+	return Math.max(0, Math.min(MAX_ITER_CAP, floor));
+}
+
+/** The manual iteration count, floored by the zoom curve and capped. */
+export function effectiveMaxIter(scene: SceneState): number {
+	return Math.min(MAX_ITER_CAP, Math.max(scene.maxIter, autoMaxIter(scene.camera.scale)));
+}
+
 export function createDefaultScene(): SceneState {
 	return {
 		formula: 'mandelbrot',
@@ -63,9 +81,9 @@ let memoLength = 0;
 function orbitFor(input: RenderInput): { data: Float32Array; length: number } {
 	const s = input.scene;
 	const cam = s.camera;
-	const key = `${s.formula}|${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.juliaSeed.x}|${s.juliaSeed.y}|${s.maxIter}`;
+	const iter = effectiveMaxIter(s);
+	const key = `${s.formula}|${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.juliaSeed.x}|${s.juliaSeed.y}|${iter}`;
 	if (key !== memoKey) {
-		const iter = Math.min(s.maxIter, MAX_ITER_CAP);
 		const orbit = computeReferenceOrbitDD(
 			s.formula,
 			{ hi: cam.centerX, lo: cam.centerXLo ?? 0 },
@@ -304,7 +322,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(8, scene.camera.centerX);
 		f(12, scene.camera.centerY);
 		f(16, scene.camera.scale);
-		f(20, scene.maxIter);
+		f(20, effectiveMaxIter(scene));
 		f(24, timeMs);
 		f(28, FORMULA_CODES[scene.formula]);
 		f(32, scene.juliaSeed.x);
