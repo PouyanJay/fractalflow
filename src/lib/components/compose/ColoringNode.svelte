@@ -15,13 +15,15 @@
 	const scene = getSceneStore();
 	const customs = getCustomPalettesStore();
 
-	const detailLabel = $derived(
-		ui.selectedStyle === 'deep-zoom-2d'
-			? 'Iterations'
-			: ui.selectedStyle === 'attractors' || ui.selectedStyle === 'flames'
-				? 'Exposure'
-				: 'Detail'
-	);
+	// Deep-Zoom counts iterations; the compute styles (attractors/flames/ifs) read
+	// maxIter as a tone-map exposure; everything else is generic "detail".
+	const DETAIL_LABELS: Partial<Record<string, string>> = {
+		'deep-zoom-2d': 'Iterations',
+		attractors: 'Exposure',
+		flames: 'Exposure',
+		ifs: 'Exposure'
+	};
+	const detailLabel = $derived(DETAIL_LABELS[ui.selectedStyle ?? ''] ?? 'Detail');
 	const detailMax = $derived(ui.selectedStyle === 'deep-zoom-2d' ? 8000 : 1200);
 
 	let editing = $state(false);

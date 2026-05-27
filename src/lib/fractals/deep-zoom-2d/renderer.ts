@@ -37,7 +37,7 @@ import {
 	type ReferenceOrbit,
 	type SeriesApprox
 } from './perturbation';
-import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
+import type { FormulaId, FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
 const POST_BASE = 144;
@@ -100,12 +100,31 @@ let memoData = new Float32Array(2);
 let memoSeriesKey = '';
 let memoSeries: SeriesApprox = ZERO_SERIES;
 
+// Only these formulas reach the shader's perturbation fall-through and read the
+// reference orbit/series. The rest (abs-variants, Multibrot, Newton, Phoenix,
+// Lyapunov, Apollonian) iterate directly in the shader. Burning Ship iterates
+// directly while shallow but still uses the orbit once deep, so it stays in.
+const PERTURBATION_FORMULAS = new Set<FormulaId>([
+	'mandelbrot',
+	'julia',
+	'burning-ship',
+	'tricorn'
+]);
+// A non-empty placeholder: signals "no orbit" via length 0 while keeping the
+// WebGL2 orbit-texture upload valid (it needs ≥ 1 texel).
+const NO_ORBIT = new Float32Array(2);
+
 function orbitFor(input: RenderInput): {
 	data: Float32Array;
 	length: number;
 	series: SeriesApprox;
 } {
 	const s = input.scene;
+	// Skip the (double-double) orbit computation and its per-frame GPU upload for
+	// formulas the shader iterates directly — they never read it.
+	if (!PERTURBATION_FORMULAS.has(s.formula)) {
+		return { data: NO_ORBIT, length: 0, series: ZERO_SERIES };
+	}
 	const cam = s.camera;
 	const iter = effectiveMaxIter(s);
 	const orbitKey = `${s.formula}|${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.juliaSeed.x}|${s.juliaSeed.y}|${iter}`;
@@ -280,7 +299,7 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 			let r = select(ab.y, ab.x, (k & 1) == 0); // even → a, odd → b
 			x = r * x * (1.0 - x);
 		}
-		let n = min(maxI, 500);
+		let n = max(1, min(maxI, 500)); // guard λ = sum/n against maxIter == 0
 		var sum = 0.0;
 		for (var k = 0; k < n; k = k + 1) {
 			let r = select(ab.y, ab.x, (k & 1) == 0); // warmup ended on an even count
@@ -522,7 +541,7 @@ void main() {
 			float r = (k & 1) == 0 ? ab.x : ab.y;
 			x = r * x * (1.0 - x);
 		}
-		int n = min(maxI, 500);
+		int n = max(1, min(maxI, 500)); // guard λ = sum/n against maxIter == 0
 		float sum = 0.0;
 		for (int k = 0; k < n; k++) {
 			float r = (k & 1) == 0 ? ab.x : ab.y;
