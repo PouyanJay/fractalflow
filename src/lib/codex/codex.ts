@@ -148,9 +148,47 @@ const GENERIC: SceneDescription = {
 	body: 'Pick an art style in the Start palette to explore a fractal here.'
 };
 
+/** Per-shape narration for the Geometric 3D renderer (chosen in the Source node). */
+const SHAPE_TEXT: Record<NonNullable<SceneState['geometricShape']>, SceneDescription> = {
+	mandelbulb: STYLE_TEXT['geometric-3d'],
+	mandelbox: {
+		title: 'Mandelbox',
+		body: 'The Mandelbox — a box-folding cousin of the Mandelbulb. Alternating reflections and sphere inversions build cathedral-like recursive architecture.',
+		math: 'Iterate z ← scale·s(b(z)) + c, where b box-folds each component about ±1 and s sphere-inverts inside a radius. Rendered by raymarching the folded distance estimate.',
+		applications:
+			'A favourite of distance-field demoscene art for its endless “alien architecture”; a clear study of how folding maps generate structure.',
+		tips: 'Orbit slowly — the box reveals corridors and halls. Lower Detail for a cleaner read; Bloom lifts the lit edges.'
+	},
+	menger: {
+		title: 'Menger Sponge',
+		body: 'The Menger sponge — a cube with square tunnels bored through every face, repeated at every scale. A 3-D Cantor/Sierpiński set.',
+		math: 'Start from a cube and, at each level, remove the central cross of 7 of 27 sub-cubes; the limit has zero volume and infinite surface. Raymarched by an exact folded box estimate.',
+		applications:
+			'A textbook fractal of Hausdorff dimension log20/log3 ≈ 2.73 — used to teach self-similarity and as a metamaterial/antenna geometry.',
+		tips: 'Orbit to look down the tunnels; a high-contrast palette makes the depth pop.'
+	},
+	juliabulb: {
+		title: 'Juliabulb',
+		body: 'The Juliabulb — the Mandelbulb’s Julia twin: the same power map, but every point follows a single fixed constant, growing coral-like bulbs and florets.',
+		math: 'Iterate zₙ₊₁ = zₙⁿ + c (spherical-coordinate power map, n = 8) from z₀ = the pixel with a fixed 3D constant c, raymarching the distance estimate.',
+		applications:
+			'Shows how fixing the additive constant turns the Mandelbulb parameter space into a family of organic Julia solids.',
+		tips: 'Orbit to catch light in the florets; Bloom gives the bulbs a soft, lit-from-within glow.'
+	},
+	'quaternion-julia': {
+		title: 'Quaternion Julia',
+		body: 'A quaternion Julia set — the classic z² + c iteration carried out in 4D quaternion algebra, then sliced into 3D. Smooth, swirling, liquid-metal forms.',
+		math: 'Iterate z ← z² + c with z, c ∈ ℍ (quaternions); the rendered solid is a 3D slice (4th coordinate fixed). The Hubbard distance estimate uses the running derivative.',
+		applications:
+			'The historic first “true 3D” fractal (Norton, 1982); a standard demonstration of hypercomplex dynamics.',
+		tips: 'Orbit to read the folds; pair with a metallic palette and a little Bloom for a chrome look.'
+	}
+};
+
 /** A one-line title + paragraph describing the active scene. */
 export function describeScene(style: ArtStyleId | null, scene: SceneState): SceneDescription {
 	if (style === 'deep-zoom-2d') return FORMULA_TEXT[scene.formula];
+	if (style === 'geometric-3d') return SHAPE_TEXT[scene.geometricShape ?? 'mandelbulb'];
 	if (style && style in STYLE_TEXT) return STYLE_TEXT[style as keyof typeof STYLE_TEXT];
 	return GENERIC;
 }

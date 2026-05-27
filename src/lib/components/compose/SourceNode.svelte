@@ -7,7 +7,8 @@
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
 	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 	import { FLAMES } from '$lib/fractals/painterly-flames/flames';
-	import type { FormulaId } from '$lib/engine/types';
+	import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
+	import type { FormulaId, GeometricShapeId } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
@@ -97,7 +98,16 @@
 			/>
 		</label>
 	{:else}
-		<p class="hint">Raymarched Mandelbulb — orbit and zoom in Explore.</p>
+		<label class="field">
+			<span>Shape</span>
+			<Select
+				ariaLabel="3D shape"
+				options={toOptions(GEOMETRIC_SHAPES)}
+				value={scene.geometricShape}
+				onchange={(v) => scene.setGeometricShape(v as GeometricShapeId)}
+			/>
+		</label>
+		<p class="hint">Raymarched 3D fractal — orbit and zoom in Explore.</p>
 	{/if}
 </NodeShell>
 

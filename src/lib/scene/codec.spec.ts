@@ -167,6 +167,21 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 		expect(out.camera.centerYLo).toBe(-2.3e-18);
 	});
 
+	it('round-trips the Geometric 3D shape, and omits it when default', () => {
+		const s = createDefaultScene();
+		expect(decodeScene(encodeScene({ ...s, geometricShape: 'menger' })).geometricShape).toBe(
+			'menger'
+		);
+		expect(
+			decodeScene(encodeScene({ ...s, geometricShape: 'quaternion-julia' })).geometricShape
+		).toBe('quaternion-julia');
+		// Default (mandelbulb) is trimmed and decodes as undefined.
+		expect(decodeScene(encodeScene(s)).geometricShape).toBeUndefined();
+		expect(
+			decodeScene(encodeScene({ ...s, geometricShape: 'mandelbulb' })).geometricShape
+		).toBeUndefined();
+	});
+
 	it('round-trips an inline custom palette, and omits it when absent', () => {
 		const s = createDefaultScene();
 		const coeffs = {

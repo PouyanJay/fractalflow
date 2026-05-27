@@ -25,6 +25,14 @@ export interface Camera2D {
 	scale: number;
 }
 
+/** The raymarched shape for the Geometric 3D renderer. */
+export type GeometricShapeId =
+	| 'mandelbulb'
+	| 'mandelbox'
+	| 'menger'
+	| 'juliabulb'
+	| 'quaternion-julia';
+
 export type FormulaId =
 	| 'mandelbrot'
 	| 'julia'
@@ -94,6 +102,9 @@ export interface SceneState {
 	flame: string;
 	/** Screen-space post-processing (warp + grade), edited in Compose. */
 	post: PostSettings;
+	/** Which raymarched shape the Geometric 3D renderer draws. Optional, default
+	 * 'mandelbulb'; carried like the other family selectors, only read in 3D. */
+	geometricShape?: GeometricShapeId;
 }
 
 export interface RenderInput {

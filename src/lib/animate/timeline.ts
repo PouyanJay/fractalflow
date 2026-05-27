@@ -121,6 +121,7 @@ export function cloneScene(scene: SceneState): SceneState {
 		attractor: scene.attractor,
 		flame: scene.flame,
 		post: { ...scene.post },
+		...(scene.geometricShape ? { geometricShape: scene.geometricShape } : {}),
 		...(scene.power !== undefined ? { power: scene.power } : {}),
 		...(scene.paletteCoeffs
 			? {

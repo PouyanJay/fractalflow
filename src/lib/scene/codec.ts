@@ -6,11 +6,12 @@
  * defensive: unknown/garbage input falls back to the default scene, and values
  * are clamped to valid ranges.
  */
-import type { FormulaId, SceneState } from '$lib/engine/types';
+import type { FormulaId, GeometricShapeId, SceneState } from '$lib/engine/types';
 import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
+import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
 import { WARP_CODE } from '$lib/fractals/post';
 
 const FORMULA_IDS: readonly FormulaId[] = [
@@ -28,6 +29,7 @@ const FORMULA_IDS: readonly FormulaId[] = [
 	'phoenix'
 ];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
+const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
@@ -81,7 +83,9 @@ export function encodeScene(scene: SceneState): string {
 		// Multibrot exponent — default 2, so non-Multibrot scenes trim it away.
 		scene.power ?? 2,
 		// Inline custom cosine palette (12 values) — absent → all 0 → trimmed away.
-		...paletteCoeffsFields(scene)
+		...paletteCoeffsFields(scene),
+		// Geometric 3D shape — default 'mandelbulb' trims away.
+		scene.geometricShape ?? 'mandelbulb'
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -110,7 +114,8 @@ export function encodeScene(scene: SceneState): string {
 		0,
 		0,
 		2, // default Multibrot power
-		...Array(12).fill(0) // default (absent) custom palette
+		...Array(12).fill(0), // default (absent) custom palette
+		'mandelbulb' // default Geometric 3D shape
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -140,6 +145,10 @@ export function decodeScene(token: string): SceneState {
 	// Inline custom palette (indices 22..33). Present iff any value is non-zero.
 	const pc = Array.from({ length: 12 }, (_, i) => num(parts[22 + i], 0));
 	const hasCustom = pc.some((v) => v !== 0);
+	// Geometric 3D shape (index 34) — validated, default mandelbulb when absent.
+	const geometricShape = SHAPE_IDS.includes(parts[34])
+		? (parts[34] as GeometricShapeId)
+		: undefined;
 	const paletteCoeffs = hasCustom
 		? {
 				a: [pc[0], pc[1], pc[2]] as [number, number, number],
@@ -178,6 +187,7 @@ export function decodeScene(token: string): SceneState {
 			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
 		},
 		...(power !== 2 ? { power } : {}),
-		...(paletteCoeffs ? { paletteCoeffs } : {})
+		...(paletteCoeffs ? { paletteCoeffs } : {}),
+		...(geometricShape ? { geometricShape } : {})
 	};
 }

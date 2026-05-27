@@ -46,6 +46,9 @@ export function createSceneStore() {
 		get post() {
 			return scene.post;
 		},
+		get geometricShape() {
+			return scene.geometricShape ?? 'mandelbulb';
+		},
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
@@ -60,6 +63,7 @@ export function createSceneStore() {
 		setAttractor: (id: string) => (scene.attractor = id),
 		setFlame: (id: string) => (scene.flame = id),
 		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),
+		setGeometricShape: (id: SceneState['geometricShape']) => (scene.geometricShape = id),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};
