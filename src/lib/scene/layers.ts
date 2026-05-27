@@ -29,7 +29,7 @@ export const BLEND_MODES: { id: BlendMode; label: string }[] = [
 	{ id: 'overlay', label: 'Overlay' },
 	{ id: 'lighten', label: 'Lighten' },
 	{ id: 'darken', label: 'Darken' },
-	{ id: 'color-dodge', label: 'Color Dodge' },
+	{ id: 'color-dodge', label: 'Dodge' },
 	{ id: 'difference', label: 'Difference' }
 ];
 

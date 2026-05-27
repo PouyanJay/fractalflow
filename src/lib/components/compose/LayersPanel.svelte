@@ -55,9 +55,9 @@
 						class="name"
 						onclick={() => layers.select(layer.id)}
 						aria-pressed={active}
+						title={active ? 'Editing this layer' : 'Edit this layer'}
 					>
 						<span class="label">{styleLabel(active ? layers.activeStyle : layer.style)}</span>
-						{#if active}<span class="badge">editing</span>{/if}
 					</button>
 					<div class="ops">
 						<button
@@ -170,7 +170,6 @@
 		border: 1px solid var(--ff-border);
 		border-radius: var(--ff-radius-md);
 		background: var(--ff-surface-raised);
-		overflow: hidden; /* never let a row spill past the rounded border */
 	}
 	.layer.active {
 		border-color: var(--ff-accent);
@@ -225,21 +224,14 @@
 		cursor: pointer;
 	}
 	/* The label ellipsizes (it must be its own block child — text-overflow is
-	   ignored on the flex container .name), so the badge + ops never get pushed
-	   off the card. */
+	   ignored on the flex container .name), so long names truncate instead of
+	   pushing the ops buttons off the card. Active state = the accent border. */
 	.label {
 		flex: 1;
 		min-width: 0;
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
-	}
-	.badge {
-		flex: none;
-		font-size: 9px;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-		color: var(--ff-accent);
 	}
 	.ops {
 		flex: none;
