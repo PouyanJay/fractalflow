@@ -19,6 +19,7 @@
  *   128 series1 : vec4f  (A3.x, A3.y, seriesSkip, pad)
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { COLORMAP_WGSL, COLORMAP_GLSL } from '$lib/fractals/colormaps';
 import {
 	DEFAULT_POST,
 	POST_SIZE,
@@ -167,7 +168,11 @@ fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
 	return vec4f(p * 2.0 - 1.0, 0.0, 1.0);
 }
 
+${COLORMAP_WGSL}
+
 fn palette(t: f32) -> vec3f {
+	let cm = i32(u.palA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return clamp(u.palA.xyz + u.palB.xyz * cos(6.2831853 * (u.palC.xyz * t + u.palD.xyz)), vec3f(0.0), vec3f(1.0));
 }
 
@@ -360,7 +365,11 @@ vec2 cmul(vec2 a, vec2 b) {
 	return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
+${COLORMAP_GLSL}
+
 vec3 palette(float t) {
+	int cm = int(uPalA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
 }
 
@@ -533,10 +542,12 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(36, scene.juliaSeed.y);
 		f(40, orbitFor(input).length);
 		f(44, scene.power ?? DEFAULT_POWER); // Multibrot exponent (former pad slot)
-		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
+		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
+		const c = preset.coeffs;
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
+		f(60, preset.colormap ?? 0); // palA.w: scientific-colormap code (0 = cosine)
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);

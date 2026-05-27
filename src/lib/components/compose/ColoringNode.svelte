@@ -2,7 +2,7 @@
 	import NodeShell from './NodeShell.svelte';
 	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { getSceneStore } from '$lib/stores/scene.svelte';
-	import { PALETTES, paletteCssGradient } from '$lib/fractals/palette';
+	import { PALETTES, paletteGradient } from '$lib/fractals/palette';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
@@ -28,7 +28,7 @@
 					type="button"
 					class="swatch nodrag"
 					class:active={scene.paletteIndex === i}
-					style="background: {paletteCssGradient(p.coeffs)}"
+					style="background: {paletteGradient(p)}"
 					onclick={() => scene.setPaletteIndex(i)}
 					aria-label={p.label}
 					aria-pressed={scene.paletteIndex === i}

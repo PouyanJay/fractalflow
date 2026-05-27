@@ -2,7 +2,11 @@
  * Procedural cosine palettes (Inigo Quilez): color = a + b * cos(2π(c·t + d)).
  * Compact (four vec3 coefficients), no lookup textures, and identical to evaluate
  * on CPU (here) and GPU (shader) — so coloring stays consistent across backends.
+ *
+ * Some presets instead reference a scientific colormap (viridis/turbo/…) by code;
+ * those are evaluated by `colormaps.ts`. `evalPalette` dispatches between the two.
  */
+import { COLORMAPS, colormapRgb } from './colormaps';
 
 export type Rgb = [number, number, number];
 
@@ -17,6 +21,9 @@ export interface PalettePreset {
 	id: string;
 	label: string;
 	coeffs: PaletteCoeffs;
+	/** Scientific-colormap code (1..5). When set, the colormap is used instead of
+	 * the cosine coeffs; passed to the shader in palA.w. See `colormaps.ts`. */
+	colormap?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -28,17 +35,27 @@ export function cosinePalette(p: PaletteCoeffs, t: number): Rgb {
 	) as Rgb;
 }
 
-/** A CSS `linear-gradient(...)` sampling the palette across [0,1] for swatches. */
-export function paletteCssGradient(p: PaletteCoeffs, steps = 6): string {
+/** Evaluate a preset at t — a scientific colormap if one is set, else cosine. */
+export function evalPalette(p: PalettePreset, t: number): Rgb {
+	return p.colormap ? colormapRgb(p.colormap, t) : cosinePalette(p.coeffs, t);
+}
+
+/** A CSS `linear-gradient(...)` sampling a preset across [0,1] for swatches. */
+export function paletteGradient(p: PalettePreset, steps = 8): string {
 	const stops: string[] = [];
 	for (let i = 0; i <= steps; i++) {
 		const t = i / steps;
-		const [r, g, b] = cosinePalette(p, t);
+		const [r, g, b] = evalPalette(p, t);
 		stops.push(
 			`rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${Math.round(t * 100)}%`
 		);
 	}
 	return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
+/** Backward-compatible cosine-only swatch (used by older callers/tests). */
+export function paletteCssGradient(p: PaletteCoeffs, steps = 6): string {
+	return paletteGradient({ id: '', label: '', coeffs: p }, steps);
 }
 
 const BALANCED: Pick<PaletteCoeffs, 'a' | 'b' | 'c'> = {
@@ -119,7 +136,14 @@ export const PALETTES: PalettePreset[] = [
 		id: 'steel',
 		label: 'Steel',
 		coeffs: { a: [0.5, 0.52, 0.56], b: [0.45, 0.45, 0.5], c: [1, 1, 1], d: [0.5, 0.52, 0.58] }
-	}
+	},
+	// --- scientific colormaps (perceptually-uniform; evaluated via colormaps.ts) ---
+	...COLORMAPS.map((m) => ({
+		id: m.id,
+		label: m.label,
+		colormap: m.code,
+		coeffs: { ...BALANCED, d: [0, 0, 0] as Rgb } // unused; the colormap drives the color
+	}))
 ];
 
 export function paletteById(id: string): PalettePreset {

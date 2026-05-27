@@ -12,6 +12,7 @@
  *   32 palA  48 palB  64 palC  80 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { COLORMAP_WGSL, COLORMAP_GLSL } from '$lib/fractals/colormaps';
 import {
 	POST_SIZE,
 	packPost,
@@ -51,7 +52,11 @@ fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
 	return vec4f(p * 2.0 - 1.0, 0.0, 1.0);
 }
 
+${COLORMAP_WGSL}
+
 fn palette(t: f32) -> vec3f {
+	let cm = i32(u.palA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return clamp(u.palA.xyz + u.palB.xyz * cos(6.2831853 * (u.palC.xyz * t + u.palD.xyz)), vec3f(0.0), vec3f(1.0));
 }
 
@@ -155,7 +160,11 @@ ${POST_GLSL_FIELDS}
 out vec4 fragColor;
 ${POST_GLSL_FN}
 
+${COLORMAP_GLSL}
+
 vec3 palette(float t) {
+	int cm = int(uPalA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
 }
 
@@ -251,8 +260,10 @@ export const mandelbulbRenderer: FractalRenderer = {
 		f(20, POWER);
 		f(24, timeMs);
 		f(28, scene.maxIter); // raymarch quality
-		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
+		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
+		const c = preset.coeffs;
 		f(32, c.a[0]);
+		f(44, preset.colormap ?? 0); // palA.w: scientific-colormap code
 		f(36, c.a[1]);
 		f(40, c.a[2]);
 		f(48, c.b[0]);

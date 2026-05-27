@@ -19,6 +19,7 @@
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
 import { PALETTES } from '$lib/fractals/palette';
+import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { FLAMES, flameBounds, type VariationId } from './flames';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
@@ -200,7 +201,11 @@ fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
 	return vec4f(q * 2.0 - 1.0, 0.0, 1.0);
 }
 
+${COLORMAP_WGSL}
+
 fn pal(t: f32) -> vec3f {
+	let cm = i32(u.palA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return u.palA.rgb + u.palB.rgb * cos(6.28318530718 * (u.palC.rgb * t + u.palD.rgb));
 }
 
@@ -249,10 +254,12 @@ export const flamesRenderer: ComputeRenderer = {
 		f(36, fr.cy);
 		f(40, fr.radius);
 		f(44, timeMs);
-		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
+		const preset = PALETTES[scene.paletteIndex] ?? PALETTES[0];
+		const c = preset.coeffs;
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
+		f(60, preset.colormap ?? 0); // palA.w: scientific-colormap code
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);
