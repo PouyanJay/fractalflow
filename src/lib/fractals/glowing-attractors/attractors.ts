@@ -37,7 +37,16 @@ function rk4(p: Vec3, dt: number, deriv: (q: Vec3) => Vec3): Vec3 {
 	};
 }
 
-export type AttractorId = 'clifford' | 'de-jong' | 'lorenz' | 'thomas';
+export type AttractorId =
+	| 'clifford'
+	| 'de-jong'
+	| 'lorenz'
+	| 'thomas'
+	| 'aizawa'
+	| 'rossler'
+	| 'halvorsen'
+	| 'chen'
+	| 'dadras';
 
 export interface Attractor {
 	id: AttractorId;
@@ -63,6 +72,63 @@ const lorenzDeriv = ({ x, y, z }: Vec3): Vec3 => {
 const thomasDeriv = ({ x, y, z }: Vec3): Vec3 => {
 	const b = 0.208186;
 	return { x: Math.sin(y) - b * x, y: Math.sin(z) - b * y, z: Math.sin(x) - b * z };
+};
+
+const aizawaDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const a = 0.95,
+		b = 0.7,
+		c = 0.6,
+		d = 3.5,
+		e = 0.25,
+		f = 0.1;
+	return {
+		x: (z - b) * x - d * y,
+		y: d * x + (z - b) * y,
+		z: c + a * z - (z * z * z) / 3 - (x * x + y * y) * (1 + e * z) + f * z * x * x * x
+	};
+};
+
+const rosslerDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const a = 0.2,
+		b = 0.2,
+		c = 5.7;
+	return { x: -y - z, y: x + a * y, z: b + z * (x - c) };
+};
+
+const halvorsenDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const a = 1.4;
+	return {
+		x: -a * x - 4 * y - 4 * z - y * y,
+		y: -a * y - 4 * z - 4 * x - z * z,
+		z: -a * z - 4 * x - 4 * y - x * x
+	};
+};
+
+const chenDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const a = 35,
+		b = 3,
+		c = 28;
+	return { x: a * (y - x), y: (c - a) * x - x * z + c * y, z: x * y - b * z };
+};
+
+const dadrasDeriv = ({ x, y, z }: Vec3): Vec3 => {
+	const a = 3,
+		b = 2.7,
+		c = 1.7,
+		d = 2,
+		e = 9;
+	return { x: y - a * x + b * y * z, y: c * y - x * z + z, z: d * x * y - e * z };
+};
+
+/** Integration step per flow — small enough that RK4 stays stable for each. */
+export const FLOW_DT: Partial<Record<AttractorId, number>> = {
+	lorenz: 0.01,
+	thomas: 0.05,
+	aizawa: 0.01,
+	rossler: 0.03,
+	halvorsen: 0.01,
+	chen: 0.005,
+	dadras: 0.01
 };
 
 export const ATTRACTORS: readonly Attractor[] = [
@@ -116,6 +182,51 @@ export const ATTRACTORS: readonly Attractor[] = [
 		seed: { x: 0.1, y: 0, z: 0 },
 		step(p) {
 			return rk4(p, THOMAS_DT, thomasDeriv);
+		}
+	},
+	{
+		id: 'aizawa',
+		label: 'Aizawa',
+		dims: 3,
+		seed: { x: 0.1, y: 0, z: 0 },
+		step(p) {
+			return rk4(p, FLOW_DT.aizawa!, aizawaDeriv);
+		}
+	},
+	{
+		id: 'rossler',
+		label: 'Rössler',
+		dims: 3,
+		seed: { x: 0.1, y: 0, z: 0 },
+		step(p) {
+			return rk4(p, FLOW_DT.rossler!, rosslerDeriv);
+		}
+	},
+	{
+		id: 'halvorsen',
+		label: 'Halvorsen',
+		dims: 3,
+		seed: { x: -5, y: 0, z: 0 },
+		step(p) {
+			return rk4(p, FLOW_DT.halvorsen!, halvorsenDeriv);
+		}
+	},
+	{
+		id: 'chen',
+		label: 'Chen',
+		dims: 3,
+		seed: { x: -0.1, y: 0.5, z: -0.6 },
+		step(p) {
+			return rk4(p, FLOW_DT.chen!, chenDeriv);
+		}
+	},
+	{
+		id: 'dadras',
+		label: 'Dadras',
+		dims: 3,
+		seed: { x: 1.1, y: 2.1, z: -2 },
+		step(p) {
+			return rk4(p, FLOW_DT.dadras!, dadrasDeriv);
 		}
 	}
 ];

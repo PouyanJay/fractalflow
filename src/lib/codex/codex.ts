@@ -49,6 +49,70 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'Studied as the “Mandelbar” — a standard example of an anti-holomorphic dynamical system and its period-doubling behaviour.',
 		tips: 'Zoom the cusps where the three lobes meet for the most faceted detail; higher iterations crisp up the edges.'
+	},
+	celtic: {
+		title: 'Celtic',
+		body: 'The Celtic Mandelbrot — fold only the real part of z² with an absolute value. The cardioid splits into knotwork-like loops reminiscent of Celtic braids.',
+		math: 'Iterate zₙ₊₁ = (|Re(zₙ²)| + i·Im(zₙ²)) + c — i.e. Re ← |x²−y²| + cₓ, Im ← 2xy + c_y. Folding the real part alone breaks the smooth symmetry into rounded, interlocking lobes.',
+		applications:
+			'One of the classic “abs-variant” Mandelbrots used to explore how a single folded term reshapes escape-time dynamics.',
+		tips: 'Explore along the real axis where the lobes interlock; a symmetric palette plays up the knotwork.'
+	},
+	buffalo: {
+		title: 'Buffalo',
+		body: 'The Buffalo fractal — fold the real part like the Celtic and the cross term like the Burning Ship. The silhouette suggests a buffalo’s horned head.',
+		math: 'Re ← |x²−y²| + cₓ, Im ← 2|xy| + c_y. Combining both folds yields sharp, horn-like protrusions with angular interior structure.',
+		applications:
+			'A composite abs-variant studied alongside the Burning Ship for its angular, non-analytic boundary.',
+		tips: 'Drop below the main body and pan the “horns”; higher iterations sharpen the spines.'
+	},
+	perpendicular: {
+		title: 'Perpendicular',
+		body: 'The Perpendicular Mandelbrot — fold the real part of z inside the cross term only. The set leans into an asymmetric, blade-like form.',
+		math: 'Re ← x²−y² + cₓ, Im ← 2|x|·y + c_y. The absolute value on x alone removes the left–right symmetry, tilting the familiar bulbs.',
+		applications:
+			'A standard member of the abs-variant family, illustrating how asymmetric folding distorts the bulb structure.',
+		tips: 'Look for the leaning seahorse-like valleys along the boundary; raise iterations to resolve them.'
+	},
+	'perpendicular-ship': {
+		title: 'Perpendicular Ship',
+		body: 'The Perpendicular Burning Ship — fold the imaginary part of z inside the cross term. A leaner, more skeletal cousin of the Burning Ship.',
+		math: 'Re ← x²−y² + cₓ, Im ← 2x·|y| + c_y. Folding y alone gives sharp masts and a sparser, rigging-like lattice.',
+		applications:
+			'Used with the Burning Ship to compare how folding different components reshapes the same base map.',
+		tips: 'Hunt the antenna region for delicate mini-ships, then sharpen with more iterations.'
+	},
+	'celtic-mandelbar': {
+		title: 'Celtic Mandelbar',
+		body: 'The Celtic Mandelbar — the Celtic real fold combined with the Tricorn’s conjugation. Faceted, three-fold knotwork.',
+		math: 'Re ← |x²−y²| + cₓ, Im ← −2xy + c_y. Conjugating the cross term adds the Tricorn’s anti-holomorphic facets to the Celtic loops.',
+		applications:
+			'A hybrid abs-variant showcasing how stacking folds compounds their symmetry-breaking effects.',
+		tips: 'Zoom the faceted cusps where the lobes meet; a high-contrast palette emphasises the facets.'
+	},
+	multibrot: {
+		title: 'Multibrot',
+		body: 'The Multibrot set — the Mandelbrot generalised to any exponent. Raising the power adds lobes: a degree-d set has d−1 fold rotational symmetry.',
+		math: 'Iterate zₙ₊₁ = zₙᵈ + c with z₀ = 0 and a real exponent d (d = 2 is the Mandelbrot). The power uses the polar form zᵈ = rᵈ·(cos dθ + i·sin dθ), so even fractional exponents render.',
+		applications:
+			'A standard generalisation used to study how the degree of an iterated polynomial controls the number and arrangement of its bulbs.',
+		tips: 'Set the exponent in the Source node — integers 3–8 give clean 2-, 3-, …, 7-fold flowers; fractional powers warp them into asymmetric blooms.'
+	},
+	newton: {
+		title: 'Newton',
+		body: 'The Newton fractal for z³ = 1 — colour each point by which of the three roots Newton’s method carries it to. The basin boundaries are a fractal lacework.',
+		math: 'From z₀ = the pixel, iterate Newton’s method zₙ₊₁ = zₙ − (zₙ³ − 1)/(3zₙ²). Almost every start converges to one of the three cube roots of unity; the hue marks the root and the shading the convergence speed.',
+		applications:
+			'The classic picture of a root-finding method’s basins of attraction — a staple example of chaos on the boundary between deterministic outcomes.',
+		tips: 'There is no “inside” here — the whole plane is coloured. Zoom the seams where the three basins meet for infinitely nested detail.'
+	},
+	phoenix: {
+		title: 'Phoenix',
+		body: 'The Phoenix set — like a Julia, but each step also feels the *previous* z. That memory term twists the filaments into swirling, feathered plumes.',
+		math: 'Iterate zₙ₊₁ = zₙ² + c + p·zₙ₋₁ from z₀ = the pixel and z₋₁ = 0, with real constant c and real coupling p (here c = seed Re, p = seed Im). p = 0 collapses to a real-seed Julia.',
+		applications:
+			'Introduced by Shigehiro Ushiki as a higher-order map; studied for how a second-order recurrence enriches the dynamics over the classic quadratic.',
+		tips: 'Set c (Re) and p (Im) in the Source node — the famous plumes appear around c ≈ 0.5667, p ≈ −0.5. A flip to the imaginary axis is conventional for this one.'
 	}
 };
 
@@ -84,9 +148,47 @@ const GENERIC: SceneDescription = {
 	body: 'Pick an art style in the Start palette to explore a fractal here.'
 };
 
+/** Per-shape narration for the Geometric 3D renderer (chosen in the Source node). */
+const SHAPE_TEXT: Record<NonNullable<SceneState['geometricShape']>, SceneDescription> = {
+	mandelbulb: STYLE_TEXT['geometric-3d'],
+	mandelbox: {
+		title: 'Mandelbox',
+		body: 'The Mandelbox — a box-folding cousin of the Mandelbulb. Alternating reflections and sphere inversions build cathedral-like recursive architecture.',
+		math: 'Iterate z ← scale·s(b(z)) + c, where b box-folds each component about ±1 and s sphere-inverts inside a radius. Rendered by raymarching the folded distance estimate.',
+		applications:
+			'A favourite of distance-field demoscene art for its endless “alien architecture”; a clear study of how folding maps generate structure.',
+		tips: 'Orbit slowly — the box reveals corridors and halls. Lower Detail for a cleaner read; Bloom lifts the lit edges.'
+	},
+	menger: {
+		title: 'Menger Sponge',
+		body: 'The Menger sponge — a cube with square tunnels bored through every face, repeated at every scale. A 3-D Cantor/Sierpiński set.',
+		math: 'Start from a cube and, at each level, remove the central cross of 7 of 27 sub-cubes; the limit has zero volume and infinite surface. Raymarched by an exact folded box estimate.',
+		applications:
+			'A textbook fractal of Hausdorff dimension log20/log3 ≈ 2.73 — used to teach self-similarity and as a metamaterial/antenna geometry.',
+		tips: 'Orbit to look down the tunnels; a high-contrast palette makes the depth pop.'
+	},
+	juliabulb: {
+		title: 'Juliabulb',
+		body: 'The Juliabulb — the Mandelbulb’s Julia twin: the same power map, but every point follows a single fixed constant, growing coral-like bulbs and florets.',
+		math: 'Iterate zₙ₊₁ = zₙⁿ + c (spherical-coordinate power map, n = 8) from z₀ = the pixel with a fixed 3D constant c, raymarching the distance estimate.',
+		applications:
+			'Shows how fixing the additive constant turns the Mandelbulb parameter space into a family of organic Julia solids.',
+		tips: 'Orbit to catch light in the florets; Bloom gives the bulbs a soft, lit-from-within glow.'
+	},
+	'quaternion-julia': {
+		title: 'Quaternion Julia',
+		body: 'A quaternion Julia set — the classic z² + c iteration carried out in 4D quaternion algebra, then sliced into 3D. Smooth, swirling, liquid-metal forms.',
+		math: 'Iterate z ← z² + c with z, c ∈ ℍ (quaternions); the rendered solid is a 3D slice (4th coordinate fixed). The Hubbard distance estimate uses the running derivative.',
+		applications:
+			'The historic first “true 3D” fractal (Norton, 1982); a standard demonstration of hypercomplex dynamics.',
+		tips: 'Orbit to read the folds; pair with a metallic palette and a little Bloom for a chrome look.'
+	}
+};
+
 /** A one-line title + paragraph describing the active scene. */
 export function describeScene(style: ArtStyleId | null, scene: SceneState): SceneDescription {
 	if (style === 'deep-zoom-2d') return FORMULA_TEXT[scene.formula];
+	if (style === 'geometric-3d') return SHAPE_TEXT[scene.geometricShape ?? 'mandelbulb'];
 	if (style && style in STYLE_TEXT) return STYLE_TEXT[style as keyof typeof STYLE_TEXT];
 	return GENERIC;
 }

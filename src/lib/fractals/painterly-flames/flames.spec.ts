@@ -41,6 +41,30 @@ describe('VARIATIONS (the nonlinear functions, mirrored in WGSL)', () => {
 	it('swirl fixes the origin', () => {
 		expect(VARIATIONS.swirl(0, 0)).toEqual([0, 0]);
 	});
+
+	it('every variation maps a grid of inputs to finite outputs', () => {
+		for (const [name, fn] of Object.entries(VARIATIONS)) {
+			for (let x = -3; x <= 3; x += 0.5) {
+				for (let y = -3; y <= 3; y += 0.5) {
+					const [vx, vy] = fn(x, y);
+					expect(Number.isFinite(vx), `${name}(${x},${y}).x`).toBe(true);
+					expect(Number.isFinite(vy), `${name}(${x},${y}).y`).toBe(true);
+				}
+			}
+		}
+	});
+
+	it('the fully-bounded variations stay within unit-ish range', () => {
+		for (let x = -5; x <= 5; x += 0.7) {
+			for (let y = -5; y <= 5; y += 0.7) {
+				for (const v of ['disc', 'diamond'] as const) {
+					const [vx, vy] = VARIATIONS[v](x, y);
+					expect(Math.abs(vx)).toBeLessThanOrEqual(1.01);
+					expect(Math.abs(vy)).toBeLessThanOrEqual(1.01);
+				}
+			}
+		}
+	});
 });
 
 describe('applyTransform', () => {

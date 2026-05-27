@@ -18,7 +18,8 @@
  *   32 cx : f32   36 cy : f32     40 cz : f32    44 radius : f32
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
-import { PALETTES } from '$lib/fractals/palette';
+import { resolvePalette } from '$lib/fractals/palette';
+import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { ATTRACTORS, orbit, boundsOf } from './attractors';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
@@ -89,15 +90,51 @@ fn skipFor(fam: u32) -> u32 {
 	return select(32u, 512u, fam >= 2u);
 }
 
-// Vector field of the 3D flows (Lorenz = family 2, Thomas = 3).
+// Vector field of the 3D flows. Constants mirror attractors.ts exactly.
 fn flowDeriv(p: vec3f, fam: u32) -> vec3f {
 	if (fam == 2u) { // Lorenz
 		let s = 10.0; let r = 28.0; let be = 8.0 / 3.0;
 		return vec3f(s * (p.y - p.x), p.x * (r - p.z) - p.y, p.x * p.y - be * p.z);
 	}
-	// Thomas
-	let b = 0.208186;
-	return vec3f(sin(p.y) - b * p.x, sin(p.z) - b * p.y, sin(p.x) - b * p.z);
+	if (fam == 3u) { // Thomas
+		let b = 0.208186;
+		return vec3f(sin(p.y) - b * p.x, sin(p.z) - b * p.y, sin(p.x) - b * p.z);
+	}
+	if (fam == 4u) { // Aizawa
+		let a = 0.95; let b = 0.7; let c = 0.6; let d = 3.5; let e = 0.25; let f = 0.1;
+		return vec3f(
+			(p.z - b) * p.x - d * p.y,
+			d * p.x + (p.z - b) * p.y,
+			c + a * p.z - p.z * p.z * p.z / 3.0 - (p.x * p.x + p.y * p.y) * (1.0 + e * p.z) + f * p.z * p.x * p.x * p.x
+		);
+	}
+	if (fam == 5u) { // Rössler (a = b = 0.2, c = 5.7)
+		let a = 0.2; let c = 5.7;
+		return vec3f(-p.y - p.z, p.x + a * p.y, 0.2 + p.z * (p.x - c));
+	}
+	if (fam == 6u) { // Halvorsen
+		let a = 1.4;
+		return vec3f(
+			-a * p.x - 4.0 * p.y - 4.0 * p.z - p.y * p.y,
+			-a * p.y - 4.0 * p.z - 4.0 * p.x - p.z * p.z,
+			-a * p.z - 4.0 * p.x - 4.0 * p.y - p.x * p.x
+		);
+	}
+	if (fam == 7u) { // Chen
+		let a = 35.0; let b = 3.0; let c = 28.0;
+		return vec3f(a * (p.y - p.x), (c - a) * p.x - p.x * p.z + c * p.y, p.x * p.y - b * p.z);
+	}
+	// Dadras (8)
+	let a = 3.0; let b = 2.7; let c = 1.7; let d = 2.0; let e = 9.0;
+	return vec3f(p.y - a * p.x + b * p.y * p.z, c * p.y - p.x * p.z + p.z, d * p.x * p.y - e * p.z);
+}
+
+// Per-flow integration step (mirrors FLOW_DT in attractors.ts).
+fn dtFor(fam: u32) -> f32 {
+	if (fam == 3u) { return 0.05; }
+	if (fam == 5u) { return 0.03; }
+	if (fam == 7u) { return 0.005; }
+	return 0.01; // Lorenz, Aizawa, Halvorsen, Dadras
 }
 
 fn rk4(p: vec3f, dt: f32, fam: u32) -> vec3f {
@@ -116,10 +153,9 @@ fn stepAttractor(p: vec3f, fam: u32) -> vec3f {
 	} else if (fam == 1u) { // de Jong
 		let a = 1.4; let b = -2.3; let c = 2.4; let d = -2.1;
 		return vec3f(sin(a * p.y) - cos(b * p.x), sin(c * p.x) - cos(d * p.y), 0.0);
-	} else if (fam == 2u) { // Lorenz
-		return rk4(p, 0.01, 2u);
 	}
-	return rk4(p, 0.05, 3u); // Thomas
+	// Every other family is an integrated 3D flow.
+	return rk4(p, dtFor(fam), fam);
 }
 
 // Hash an invocation index into three [0,1) reals to scatter seed points.
@@ -179,7 +215,11 @@ fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
 	return vec4f(p * 2.0 - 1.0, 0.0, 1.0);
 }
 
+${COLORMAP_WGSL}
+
 fn pal(t: f32) -> vec3f {
+	let cm = i32(u.palA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return u.palA.rgb + u.palB.rgb * cos(6.28318530718 * (u.palC.rgb * t + u.palD.rgb));
 }
 
@@ -229,10 +269,11 @@ export const attractorsRenderer: ComputeRenderer = {
 		f(36, fr.cy);
 		f(40, fr.cz);
 		f(44, fr.radius);
-		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
+		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
+		f(60, colormap); // palA.w: scientific-colormap code
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);

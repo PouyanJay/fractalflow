@@ -54,7 +54,21 @@ export const SHOWCASE_DIVES: Record<FormulaId, DiveTarget> = {
 	// Into the "rigging" of the main Burning Ship hull — its signature masts/arches.
 	'burning-ship': { centerX: -1.775, centerY: -0.035, scale: 0.02 },
 	// The faceted antennae crowning the Tricorn's left-arm bulb.
-	tricorn: { centerX: -1.402, centerY: 0, scale: 0.02 }
+	tricorn: { centerX: -1.402, centerY: 0, scale: 0.02 },
+	// Abs-variant destinations — each chosen for a full-frame stretch of boundary
+	// "dust" / mini-set filigree (found by scoring views for balanced detail).
+	celtic: { centerX: -0.75, centerY: 1.05, scale: 0.04 },
+	buffalo: { centerX: -0.5, centerY: -1.3, scale: 0.02 },
+	perpendicular: { centerX: 0.32, centerY: 0.06, scale: 0.08 },
+	'perpendicular-ship': { centerX: -0.65, centerY: 0.65, scale: 0.02 },
+	'celtic-mandelbar': { centerX: -0.2, centerY: 0.75, scale: 0.04 },
+	// Multibrot: Seahorse Valley (gorgeous at the default power 2; stays within the
+	// f32 direct-iteration range since Multibrot has no perturbation path).
+	multibrot: { centerX: -0.745, centerY: 0.113, scale: 0.012 },
+	// Newton: a seam where all three root-basins meet, near the origin.
+	newton: { centerX: 0, centerY: 0, scale: 0.35 },
+	// Phoenix: into the feathered plumes (good across the common seed values).
+	phoenix: { centerX: 0, centerY: 0, scale: 1.0 }
 };
 
 /**

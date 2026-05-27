@@ -44,6 +44,42 @@ export const VARIATIONS = {
 		const r = Math.hypot(x, y);
 		const inv = r > 1e-12 ? 1 / r : 0;
 		return [inv * (x - y) * (x + y), inv * 2 * x * y];
+	},
+	// flam3 variations, all bounded or radius-contracting so the orbit can't run
+	// away under the (contractive) flame affines. theta = atan2(x, y), r = |p|.
+	polar: (x: number, y: number): [number, number] => {
+		return [Math.atan2(x, y) / Math.PI, Math.hypot(x, y) - 1];
+	},
+	disc: (x: number, y: number): [number, number] => {
+		const r = Math.hypot(x, y);
+		const f = Math.atan2(x, y) / Math.PI;
+		return [f * Math.sin(Math.PI * r), f * Math.cos(Math.PI * r)];
+	},
+	handkerchief: (x: number, y: number): [number, number] => {
+		const r = Math.hypot(x, y);
+		const t = Math.atan2(x, y);
+		return [r * Math.sin(t + r), r * Math.cos(t - r)];
+	},
+	heart: (x: number, y: number): [number, number] => {
+		const r = Math.hypot(x, y);
+		const t = Math.atan2(x, y);
+		return [r * Math.sin(t * r), -r * Math.cos(t * r)];
+	},
+	diamond: (x: number, y: number): [number, number] => {
+		const r = Math.hypot(x, y);
+		const t = Math.atan2(x, y);
+		return [Math.sin(t) * Math.cos(r), Math.cos(t) * Math.sin(r)];
+	},
+	fisheye: (x: number, y: number): [number, number] => {
+		const f = 2 / (Math.hypot(x, y) + 1);
+		return [f * y, f * x];
+	},
+	bubble: (x: number, y: number): [number, number] => {
+		const f = 4 / (x * x + y * y + 4);
+		return [f * x, f * y];
+	},
+	popcorn: (x: number, y: number): [number, number] => {
+		return [x + Math.sin(Math.tan(3 * y)), y + Math.sin(Math.tan(3 * x))];
 	}
 } as const;
 
@@ -120,6 +156,48 @@ export const FLAMES: readonly Flame[] = [
 			{ affine: rot(0.9, 40, 0.0, 0.0), variation: 'horseshoe', color: 0.2, weight: 1 },
 			{ affine: rot(0.7, 160, 0.6, 0.1), variation: 'horseshoe', color: 0.65, weight: 1 },
 			{ affine: rot(0.6, -70, -0.4, 0.5), variation: 'sinusoidal', color: 1.0, weight: 1 }
+		]
+	},
+	{
+		id: 'polar',
+		label: 'Polar Bloom',
+		transforms: [
+			{ affine: rot(0.9, 0, 0.0, 0.0), variation: 'polar', color: 0.1, weight: 1 },
+			{ affine: rot(0.8, 120, 0.2, 0.1), variation: 'diamond', color: 0.6, weight: 1 },
+			{ affine: rot(0.7, 240, -0.2, 0.2), variation: 'sinusoidal', color: 0.95, weight: 1 }
+		]
+	},
+	{
+		id: 'disc',
+		label: 'Disc',
+		transforms: [
+			{ affine: rot(0.95, 15, 0.0, 0.0), variation: 'disc', color: 0.15, weight: 1 },
+			{ affine: rot(0.85, -100, 0.1, 0.2), variation: 'disc', color: 0.8, weight: 1 }
+		]
+	},
+	{
+		id: 'heart',
+		label: 'Heartfield',
+		transforms: [
+			{ affine: rot(0.88, 25, 0.0, 0.0), variation: 'heart', color: 0.2, weight: 1 },
+			{ affine: rot(0.8, 150, 0.3, 0.0), variation: 'diamond', color: 0.7, weight: 1 },
+			{ affine: rot(0.7, -80, -0.3, 0.4), variation: 'sinusoidal', color: 1.0, weight: 1 }
+		]
+	},
+	{
+		id: 'bubbles',
+		label: 'Bubbles',
+		transforms: [
+			{ affine: rot(0.9, 40, 0.1, 0.0), variation: 'bubble', color: 0.25, weight: 1 },
+			{ affine: rot(0.85, -120, -0.2, 0.3), variation: 'fisheye', color: 0.85, weight: 1 }
+		]
+	},
+	{
+		id: 'popcorn',
+		label: 'Popcorn',
+		transforms: [
+			{ affine: rot(0.92, 0, 0.0, 0.0), variation: 'popcorn', color: 0.1, weight: 1 },
+			{ affine: rot(0.8, 90, 0.2, 0.2), variation: 'sinusoidal', color: 0.7, weight: 1 }
 		]
 	}
 ];

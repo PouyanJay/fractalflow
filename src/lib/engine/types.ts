@@ -25,7 +25,27 @@ export interface Camera2D {
 	scale: number;
 }
 
-export type FormulaId = 'mandelbrot' | 'julia' | 'burning-ship' | 'tricorn';
+/** The raymarched shape for the Geometric 3D renderer. */
+export type GeometricShapeId =
+	| 'mandelbulb'
+	| 'mandelbox'
+	| 'menger'
+	| 'juliabulb'
+	| 'quaternion-julia';
+
+export type FormulaId =
+	| 'mandelbrot'
+	| 'julia'
+	| 'burning-ship'
+	| 'tricorn'
+	| 'celtic'
+	| 'buffalo'
+	| 'perpendicular'
+	| 'perpendicular-ship'
+	| 'celtic-mandelbar'
+	| 'multibrot'
+	| 'newton'
+	| 'phoenix';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {
@@ -58,8 +78,22 @@ export interface SceneState {
 	maxIter: number;
 	/** Index into the palette presets. */
 	paletteIndex: number;
+	/** Inline custom cosine-palette coefficients — color = a + b·cos(2π(c·t + d)),
+	 * each component [r,g,b]. When present it overrides `paletteIndex`, so a
+	 * hand-designed palette travels with the scene (share links stay reproducible).
+	 * Optional and absent by default. */
+	paletteCoeffs?: {
+		a: [number, number, number];
+		b: [number, number, number];
+		c: [number, number, number];
+		d: [number, number, number];
+	};
 	/** Seed `c` for the Julia formula. */
 	juliaSeed: { x: number; y: number };
+	/** Exponent `d` for the Multibrot formula (z ← zᵈ + c). Optional and default
+	 * 2 (the Mandelbrot), so existing scenes are unaffected; carried for every
+	 * scene like juliaSeed but only read by the Multibrot iteration. */
+	power?: number;
 	/** Strange-attractor family id (Glowing Attractors). Carried for every scene
 	 * like juliaSeed, unused unless the attractors renderer is active. */
 	attractor: string;
@@ -68,6 +102,9 @@ export interface SceneState {
 	flame: string;
 	/** Screen-space post-processing (warp + grade), edited in Compose. */
 	post: PostSettings;
+	/** Which raymarched shape the Geometric 3D renderer draws. Optional, default
+	 * 'mandelbulb'; carried like the other family selectors, only read in 3D. */
+	geometricShape?: GeometricShapeId;
 }
 
 export interface RenderInput {

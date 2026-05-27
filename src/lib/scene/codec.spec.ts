@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { encodeScene, decodeScene } from './codec';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
+import { PALETTES } from '$lib/fractals/palette';
 import type { SceneState } from '$lib/engine/types';
 
 describe('encodeScene / decodeScene round-trip', () => {
@@ -166,6 +167,68 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 		expect(out.camera.centerYLo).toBe(-2.3e-18);
 	});
 
+	it('round-trips the Geometric 3D shape, and omits it when default', () => {
+		const s = createDefaultScene();
+		expect(decodeScene(encodeScene({ ...s, geometricShape: 'menger' })).geometricShape).toBe(
+			'menger'
+		);
+		expect(
+			decodeScene(encodeScene({ ...s, geometricShape: 'quaternion-julia' })).geometricShape
+		).toBe('quaternion-julia');
+		// Default (mandelbulb) is trimmed and decodes as undefined.
+		expect(decodeScene(encodeScene(s)).geometricShape).toBeUndefined();
+		expect(
+			decodeScene(encodeScene({ ...s, geometricShape: 'mandelbulb' })).geometricShape
+		).toBeUndefined();
+	});
+
+	it('round-trips an inline custom palette, and omits it when absent', () => {
+		const s = createDefaultScene();
+		const coeffs = {
+			a: [0.4, 0.5, 0.6] as [number, number, number],
+			b: [0.3, 0.5, 0.2] as [number, number, number],
+			c: [1, 2, 1.5] as [number, number, number],
+			d: [0.1, 0.4, 0.7] as [number, number, number]
+		};
+		const out = decodeScene(encodeScene({ ...s, paletteCoeffs: coeffs }));
+		expect(out.paletteCoeffs).toEqual(coeffs);
+		// Absent by default → not carried, decodes as undefined.
+		expect(decodeScene(encodeScene(s)).paletteCoeffs).toBeUndefined();
+		// Survives alongside a Multibrot power and deep-zoom lo-tails.
+		const combo = decodeScene(
+			encodeScene({
+				...s,
+				formula: 'multibrot',
+				power: 3,
+				paletteCoeffs: coeffs,
+				camera: { centerX: -0.5, centerY: 0, scale: 1e-12, centerXLo: 1e-17, centerYLo: 0 }
+			})
+		);
+		expect(combo.power).toBe(3);
+		expect(combo.paletteCoeffs).toEqual(coeffs);
+		expect(combo.camera.centerXLo).toBe(1e-17);
+	});
+
+	it('round-trips the Multibrot power, and omits it when default (2)', () => {
+		const s = createDefaultScene();
+		// Non-default power is carried and restored.
+		const withPower = encodeScene({ ...s, formula: 'multibrot', power: 4.5 });
+		expect(decodeScene(withPower).power).toBe(4.5);
+		// Default power (2) is trimmed away and decodes as absent.
+		const defaultPower = encodeScene({ ...s, formula: 'multibrot', power: 2 });
+		expect(decodeScene(defaultPower).power).toBeUndefined();
+		// A power set on a deeply-zoomed scene survives alongside the lo tails.
+		const deep = encodeScene({
+			...s,
+			formula: 'multibrot',
+			power: 3,
+			camera: { centerX: -0.5, centerY: 0, scale: 1e-12, centerXLo: 1e-17, centerYLo: 2e-18 }
+		});
+		const back = decodeScene(deep);
+		expect(back.power).toBe(3);
+		expect(back.camera.centerXLo).toBe(1e-17);
+	});
+
 	it('decodes a trimmed token, filling the omitted fields with defaults', () => {
 		const out = decodeScene('julia~0.1~-0.2~0.5');
 		const d = createDefaultScene();
@@ -235,7 +298,7 @@ describe('decodeScene resilience', () => {
 		const s = createDefaultScene();
 		const hi = decodeScene(encodeScene({ ...s, maxIter: 999999, paletteIndex: 999 }));
 		expect(hi.maxIter).toBeLessThanOrEqual(8000);
-		expect(hi.paletteIndex).toBeLessThanOrEqual(3);
+		expect(hi.paletteIndex).toBeLessThanOrEqual(PALETTES.length - 1);
 		const lo = decodeScene(encodeScene({ ...s, maxIter: 1, paletteIndex: -5 }));
 		expect(lo.maxIter).toBeGreaterThanOrEqual(1);
 		expect(lo.paletteIndex).toBe(0);

@@ -18,7 +18,8 @@
  *   32 cx : f32  36 cy : f32  40 radius : f32  44 time : f32
  *   48 palA  64 palB  80 palC  96 palD : vec4f
  */
-import { PALETTES } from '$lib/fractals/palette';
+import { resolvePalette } from '$lib/fractals/palette';
+import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
 import { FLAMES, flameBounds, type VariationId } from './flames';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
@@ -41,7 +42,15 @@ const VARIATION_INDEX: Record<VariationId, number> = {
 	sinusoidal: 1,
 	spherical: 2,
 	swirl: 3,
-	horseshoe: 4
+	horseshoe: 4,
+	polar: 5,
+	disc: 6,
+	handkerchief: 7,
+	heart: 8,
+	diamond: 9,
+	fisheye: 10,
+	bubble: 11,
+	popcorn: 12
 };
 
 interface Framing {
@@ -138,12 +147,21 @@ ${POST_WGSL_FN}
 
 // Nonlinear variations — mirror VARIATIONS in flames.ts exactly.
 fn variation(vid: u32, x: f32, y: f32) -> vec2f {
+	let PI = 3.14159265;
 	switch vid {
 		case 0u: { return vec2f(x, y); }
 		case 1u: { return vec2f(sin(x), sin(y)); }
 		case 2u: { let r2 = max(x * x + y * y, 1e-12); return vec2f(x / r2, y / r2); }
 		case 3u: { let r2 = x * x + y * y; let s = sin(r2); let co = cos(r2); return vec2f(x * s - y * co, x * co + y * s); }
-		default: { let r = sqrt(x * x + y * y); let inv = select(0.0, 1.0 / r, r > 1e-12); return vec2f(inv * (x - y) * (x + y), inv * 2.0 * x * y); }
+		case 4u: { let r = sqrt(x * x + y * y); let inv = select(0.0, 1.0 / r, r > 1e-12); return vec2f(inv * (x - y) * (x + y), inv * 2.0 * x * y); }
+		case 5u: { return vec2f(atan2(x, y) / PI, sqrt(x * x + y * y) - 1.0); }
+		case 6u: { let r = sqrt(x * x + y * y); let f = atan2(x, y) / PI; return vec2f(f * sin(PI * r), f * cos(PI * r)); }
+		case 7u: { let r = sqrt(x * x + y * y); let t = atan2(x, y); return vec2f(r * sin(t + r), r * cos(t - r)); }
+		case 8u: { let r = sqrt(x * x + y * y); let t = atan2(x, y); return vec2f(r * sin(t * r), -r * cos(t * r)); }
+		case 9u: { let r = sqrt(x * x + y * y); let t = atan2(x, y); return vec2f(sin(t) * cos(r), cos(t) * sin(r)); }
+		case 10u: { let f = 2.0 / (sqrt(x * x + y * y) + 1.0); return vec2f(f * y, f * x); }
+		case 11u: { let f = 4.0 / (x * x + y * y + 4.0); return vec2f(f * x, f * y); }
+		default: { return vec2f(x + sin(tan(3.0 * y)), y + sin(tan(3.0 * x))); }
 	}
 }
 ${generateFlameWgsl()}
@@ -200,7 +218,11 @@ fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
 	return vec4f(q * 2.0 - 1.0, 0.0, 1.0);
 }
 
+${COLORMAP_WGSL}
+
 fn pal(t: f32) -> vec3f {
+	let cm = i32(u.palA.w);
+	if (cm > 0) { return cmap(cm, t); }
 	return u.palA.rgb + u.palB.rgb * cos(6.28318530718 * (u.palC.rgb * t + u.palD.rgb));
 }
 
@@ -249,10 +271,11 @@ export const flamesRenderer: ComputeRenderer = {
 		f(36, fr.cy);
 		f(40, fr.radius);
 		f(44, timeMs);
-		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
+		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(48, c.a[0]);
 		f(52, c.a[1]);
 		f(56, c.a[2]);
+		f(60, colormap); // palA.w: scientific-colormap code
 		f(64, c.b[0]);
 		f(68, c.b[1]);
 		f(72, c.b[2]);

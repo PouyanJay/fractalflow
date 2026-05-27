@@ -7,6 +7,7 @@
 	import { provideEngineStore } from '$lib/stores/engine.svelte';
 	import { provideSceneStore } from '$lib/stores/scene.svelte';
 	import { provideBookmarksStore } from '$lib/stores/bookmarks.svelte';
+	import { provideCustomPalettesStore } from '$lib/stores/custom-palettes.svelte';
 	import { provideJourneyStore } from '$lib/stores/journey.svelte';
 	import TopBar from '$lib/components/shell/TopBar.svelte';
 	import StartPanel from '$lib/components/shell/StartPanel.svelte';
@@ -28,6 +29,7 @@
 	provideEngineStore();
 	provideSceneStore();
 	provideBookmarksStore();
+	provideCustomPalettesStore();
 	provideJourneyStore();
 
 	onMount(() => {

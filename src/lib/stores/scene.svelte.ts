@@ -28,8 +28,14 @@ export function createSceneStore() {
 		get paletteIndex() {
 			return scene.paletteIndex;
 		},
+		get paletteCoeffs() {
+			return scene.paletteCoeffs;
+		},
 		get juliaSeed() {
 			return scene.juliaSeed;
+		},
+		get power() {
+			return scene.power ?? 2;
 		},
 		get attractor() {
 			return scene.attractor;
@@ -40,14 +46,24 @@ export function createSceneStore() {
 		get post() {
 			return scene.post;
 		},
+		get geometricShape() {
+			return scene.geometricShape ?? 'mandelbulb';
+		},
 		setFormula: (formula: FormulaId) => (scene.formula = formula),
 		setCamera: (camera: Camera2D) => (scene.camera = camera),
 		setMaxIter: (n: number) => (scene.maxIter = n),
-		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
+		// Picking a built-in preset exits custom mode (clears any inline coeffs).
+		setPaletteIndex: (i: number) => {
+			scene.paletteIndex = i;
+			scene.paletteCoeffs = undefined;
+		},
+		setPaletteCoeffs: (coeffs: SceneState['paletteCoeffs']) => (scene.paletteCoeffs = coeffs),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
+		setPower: (d: number) => (scene.power = d),
 		setAttractor: (id: string) => (scene.attractor = id),
 		setFlame: (id: string) => (scene.flame = id),
 		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),
+		setGeometricShape: (id: SceneState['geometricShape']) => (scene.geometricShape = id),
 		setScene: (next: SceneState) => (scene = next),
 		reset: () => (scene = createDefaultScene())
 	};

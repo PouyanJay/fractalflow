@@ -7,7 +7,8 @@
 	import { FORMULAS } from '$lib/fractals/deep-zoom-2d/reference';
 	import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 	import { FLAMES } from '$lib/fractals/painterly-flames/flames';
-	import type { FormulaId } from '$lib/engine/types';
+	import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
+	import type { FormulaId, GeometricShapeId } from '$lib/engine/types';
 
 	const ui = getUiStore();
 	const scene = getSceneStore();
@@ -28,34 +29,53 @@
 				onchange={(v) => scene.setFormula(v as FormulaId)}
 			/>
 		</label>
-		{#if scene.formula === 'julia'}
+		{#if scene.formula === 'julia' || scene.formula === 'phoenix'}
+			{@const phoenix = scene.formula === 'phoenix'}
 			<div class="field">
-				<span>Julia seed</span>
+				<span>{phoenix ? 'Constant & coupling' : 'Julia seed'}</span>
 				<div class="seeds">
 					<label class="seed">
-						<span class="seed-label">Re</span>
+						<span class="seed-label">{phoenix ? 'c' : 'Re'}</span>
 						<input
 							class="nodrag"
 							type="number"
 							step="0.01"
 							value={scene.juliaSeed.x}
 							oninput={(e) => scene.setJuliaSeed(Number(e.currentTarget.value), scene.juliaSeed.y)}
-							aria-label="Julia seed real part"
+							aria-label={phoenix ? 'Phoenix constant c' : 'Julia seed real part'}
 						/>
 					</label>
 					<label class="seed">
-						<span class="seed-label">Im</span>
+						<span class="seed-label">{phoenix ? 'p' : 'Im'}</span>
 						<input
 							class="nodrag"
 							type="number"
 							step="0.01"
 							value={scene.juliaSeed.y}
 							oninput={(e) => scene.setJuliaSeed(scene.juliaSeed.x, Number(e.currentTarget.value))}
-							aria-label="Julia seed imaginary part"
+							aria-label={phoenix ? 'Phoenix coupling p' : 'Julia seed imaginary part'}
 						/>
 					</label>
 				</div>
 			</div>
+		{/if}
+		{#if scene.formula === 'multibrot'}
+			<label class="field">
+				<span>Power (d)</span>
+				<div class="power">
+					<input
+						class="nodrag"
+						type="range"
+						min="2"
+						max="8"
+						step="0.1"
+						value={scene.power}
+						oninput={(e) => scene.setPower(Number(e.currentTarget.value))}
+						aria-label="Multibrot power"
+					/>
+					<span class="ff-num val">{scene.power.toFixed(1)}</span>
+				</div>
+			</label>
 		{/if}
 	{:else if style === 'attractors'}
 		<label class="field">
@@ -78,7 +98,16 @@
 			/>
 		</label>
 	{:else}
-		<p class="hint">Raymarched Mandelbulb — orbit and zoom in Explore.</p>
+		<label class="field">
+			<span>Shape</span>
+			<Select
+				ariaLabel="3D shape"
+				options={toOptions(GEOMETRIC_SHAPES)}
+				value={scene.geometricShape}
+				onchange={(v) => scene.setGeometricShape(v as GeometricShapeId)}
+			/>
+		</label>
+		<p class="hint">Raymarched 3D fractal — orbit and zoom in Explore.</p>
 	{/if}
 </NodeShell>
 
@@ -94,6 +123,21 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: var(--ff-space-2);
+	}
+	.power {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-2);
+	}
+	.power input[type='range'] {
+		flex: 1;
+		min-width: 0;
+		accent-color: var(--ff-accent);
+	}
+	.power .val {
+		min-width: 28px;
+		text-align: right;
+		color: var(--ff-text-secondary);
 	}
 	.seed {
 		display: flex;

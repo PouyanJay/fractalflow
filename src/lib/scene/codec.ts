@@ -6,15 +6,30 @@
  * defensive: unknown/garbage input falls back to the default scene, and values
  * are clamped to valid ranges.
  */
-import type { FormulaId, SceneState } from '$lib/engine/types';
+import type { FormulaId, GeometricShapeId, SceneState } from '$lib/engine/types';
 import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
 import { FLAMES } from '$lib/fractals/painterly-flames/flames';
+import { GEOMETRIC_SHAPES } from '$lib/fractals/geometric-3d/renderer';
 import { WARP_CODE } from '$lib/fractals/post';
 
-const FORMULA_IDS: readonly FormulaId[] = ['mandelbrot', 'julia', 'burning-ship', 'tricorn'];
+const FORMULA_IDS: readonly FormulaId[] = [
+	'mandelbrot',
+	'julia',
+	'burning-ship',
+	'tricorn',
+	'celtic',
+	'buffalo',
+	'perpendicular',
+	'perpendicular-ship',
+	'celtic-mandelbar',
+	'multibrot',
+	'newton',
+	'phoenix'
+];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
+const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
@@ -31,6 +46,13 @@ function clampInt(value: number, min: number, max: number): number {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
+/** The 12 inline custom-palette fields (a,b,c,d × rgb), or 12 zeros when absent. */
+function paletteCoeffsFields(scene: SceneState): number[] {
+	const p = scene.paletteCoeffs;
+	if (!p) return Array(12).fill(0);
+	return [...p.a, ...p.b, ...p.c, ...p.d];
+}
 
 export function encodeScene(scene: SceneState): string {
 	const deep = scene.camera.scale < LO_PRECISION_SCALE;
@@ -57,7 +79,13 @@ export function encodeScene(scene: SceneState): string {
 		// Extended-precision centre tails (double-double `lo`), for deep-zoom
 		// reproducibility — only meaningful (and only carried) when deeply zoomed.
 		deep ? (scene.camera.centerXLo ?? 0) : 0,
-		deep ? (scene.camera.centerYLo ?? 0) : 0
+		deep ? (scene.camera.centerYLo ?? 0) : 0,
+		// Multibrot exponent — default 2, so non-Multibrot scenes trim it away.
+		scene.power ?? 2,
+		// Inline custom cosine palette (12 values) — absent → all 0 → trimmed away.
+		...paletteCoeffsFields(scene),
+		// Geometric 3D shape — default 'mandelbulb' trims away.
+		scene.geometricShape ?? 'mandelbulb'
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -84,7 +112,10 @@ export function encodeScene(scene: SceneState): string {
 		d.post.bloomKnee,
 		d.post.bloomRadius,
 		0,
-		0
+		0,
+		2, // default Multibrot power
+		...Array(12).fill(0), // default (absent) custom palette
+		'mandelbulb' // default Geometric 3D shape
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -109,6 +140,23 @@ export function decodeScene(token: string): SceneState {
 	// has none, so it round-trips byte-identically to its f64-only form).
 	const centerXLo = num(parts[19], 0);
 	const centerYLo = num(parts[20], 0);
+	// Multibrot exponent — only carried when non-default (2), matching the encoder.
+	const power = num(parts[21], 2);
+	// Inline custom palette (indices 22..33). Present iff any value is non-zero.
+	const pc = Array.from({ length: 12 }, (_, i) => num(parts[22 + i], 0));
+	const hasCustom = pc.some((v) => v !== 0);
+	// Geometric 3D shape (index 34) — validated, default mandelbulb when absent.
+	const geometricShape = SHAPE_IDS.includes(parts[34])
+		? (parts[34] as GeometricShapeId)
+		: undefined;
+	const paletteCoeffs = hasCustom
+		? {
+				a: [pc[0], pc[1], pc[2]] as [number, number, number],
+				b: [pc[3], pc[4], pc[5]] as [number, number, number],
+				c: [pc[6], pc[7], pc[8]] as [number, number, number],
+				d: [pc[9], pc[10], pc[11]] as [number, number, number]
+			}
+		: undefined;
 
 	return {
 		formula,
@@ -137,6 +185,9 @@ export function decodeScene(token: string): SceneState {
 			bloomThreshold: Math.max(0, num(parts[16], fallback.post.bloomThreshold)),
 			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
 			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
-		}
+		},
+		...(power !== 2 ? { power } : {}),
+		...(paletteCoeffs ? { paletteCoeffs } : {}),
+		...(geometricShape ? { geometricShape } : {})
 	};
 }
