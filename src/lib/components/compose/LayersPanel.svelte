@@ -171,9 +171,11 @@
 		border-radius: var(--ff-radius-md);
 		background: var(--ff-surface-raised);
 	}
+	/* The active (editing) layer: a clean accent border + faint accent-tinted fill
+	   — reads as "selected" without the loud doubled-ring glow. */
 	.layer.active {
 		border-color: var(--ff-accent);
-		box-shadow: 0 0 0 1px var(--ff-accent);
+		background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-surface-raised));
 	}
 	.top {
 		display: flex;
