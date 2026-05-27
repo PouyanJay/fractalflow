@@ -109,6 +109,9 @@ export async function captureLayers(
 	let drewAny = false;
 	for (const layer of layers) {
 		if (!layer.visible || !layer.renderer) continue;
+		// A compute-style layer (attractors/flames/IFS) needs WebGPU; if it's
+		// unavailable here, captureScene returns null and we skip that layer —
+		// the same graceful degradation as the live "needs WebGPU" viewport state.
 		const blob = await captureScene(layer.renderer, layer.scene, width, height);
 		if (!blob) continue;
 		const bitmap = await createImageBitmap(blob);

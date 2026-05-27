@@ -77,6 +77,10 @@ export function domainColor(zx: number, zy: number): [number, number, number] {
  * Boundary distance estimate from the final iterate and the running derivative:
  * de ≈ |z|·ln|z| / |dz/dc|. Small near the set boundary (thin filaments),
  * larger out in the open. Guarded against a zero derivative.
+ *
+ * The derivative recurrence (D ← 2zD + 1) is exact only for the holomorphic
+ * z²+c maps (Mandelbrot/Julia). For the abs-variant / Multibrot families it is
+ * an *approximate* aesthetic estimator, not a true boundary distance.
  */
 export function distanceEstimate(zMag: number, derivMag: number): number {
 	if (derivMag <= 0) return 0;

@@ -35,7 +35,7 @@
 					step={amount.step}
 					value={scene.post.warpAmount}
 					oninput={(e) => scene.setPost({ warpAmount: Number(e.currentTarget.value) })}
-					aria-label={`${amount.label}`}
+					aria-label={amount.label}
 				/>
 				<span class="ff-num val">{fmt(scene.post.warpAmount, amount.step)}</span>
 			</div>

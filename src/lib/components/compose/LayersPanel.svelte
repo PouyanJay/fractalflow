@@ -8,12 +8,10 @@
 	import { Plus, Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from '@lucide/svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { getLayersStore } from '$lib/stores/layers.svelte';
-	import { getUiStore } from '$lib/stores/ui.svelte';
 	import { ART_STYLES } from '$lib/stores/ui-logic';
 	import { BLEND_MODES, MAX_LAYERS, type BlendMode } from '$lib/scene/layers';
 
 	const layers = getLayersStore();
-	const ui = getUiStore();
 
 	const blendOptions = BLEND_MODES.map((b) => ({ value: b.id, label: b.label }));
 	// Top of the stack renders last → show it first in the list.
@@ -58,7 +56,7 @@
 						onclick={() => layers.select(layer.id)}
 						aria-pressed={active}
 					>
-						{active ? styleLabel(ui.selectedStyle ?? layer.style) : styleLabel(layer.style)}
+						{styleLabel(active ? layers.activeStyle : layer.style)}
 						{#if active}<span class="badge">editing</span>{/if}
 					</button>
 					<div class="ops">

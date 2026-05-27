@@ -253,7 +253,7 @@ export function decodeLayers(token: string): LayerStack | null {
 		const sceneToken = rest.join(LAYER_FIELD_SEP);
 		return makeLayer(isValidArtStyle(style) ? style : 'deep-zoom-2d', decodeScene(sceneToken), {
 			blend: isBlendMode(blend) ? blend : 'normal',
-			opacity: Number.isFinite(Number(op)) ? Math.max(0, Math.min(1, Number(op))) : 1,
+			opacity: Number.isFinite(Number(op)) ? clamp01(Number(op)) : 1,
 			visible: vis !== '0'
 		});
 	});

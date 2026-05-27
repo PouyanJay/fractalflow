@@ -40,6 +40,8 @@ export function isBlendMode(v: string): v is BlendMode {
 
 export interface Layer {
 	id: string;
+	/** For the active layer this `style`/`scene` pair is a snapshot — the live
+	 * value lives in the ui/scene stores until the next sync (see layers store). */
 	style: ArtStyleId;
 	scene: SceneState;
 	blend: BlendMode;

@@ -35,13 +35,14 @@
 	});
 
 	$effect(() => {
+		// Guard first: while a journey streams frames through the scene store (or
+		// before hydration) skip the whole body — no per-frame encode work, no URL
+		// churn. Reading the stores below establishes the reactive dependencies, so
+		// the URL re-writes whenever the scene, style, or layer stack changes.
+		if (!hydrated || journey.playing) return;
 		const token = encodeScene(sceneStore.scene);
 		const styleId = ui.selectedStyle ?? 'deep-zoom-2d';
-		// Touch the stack so added layers / blend / opacity edits re-write the URL.
 		const layerToken = layers.count > 1 ? encodeLayers(layers.current()) : '';
-		// While a journey plays it streams frames through the scene store; don't
-		// churn the deep-link URL with those intermediate views.
-		if (!hydrated || journey.playing) return;
 		clearTimeout(urlTimer);
 		urlTimer = setTimeout(() => {
 			// Build the query directly (URLSearchParams would form-encode the token's

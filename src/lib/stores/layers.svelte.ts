@@ -56,6 +56,10 @@ export function createLayersStore(scene: SceneStore, ui: UiStore) {
 		get count() {
 			return stack.layers.length;
 		},
+		/** The active layer's live art style (its snapshot is stale until synced). */
+		get activeStyle() {
+			return liveStyle();
+		},
 		/** Read-only snapshot with the active layer reflecting the live scene/style. */
 		current(): LayerStack {
 			return {
