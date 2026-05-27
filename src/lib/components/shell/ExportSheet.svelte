@@ -110,7 +110,12 @@
 		seqSaved = false;
 		seqDone = 0;
 		try {
-			const keyframes = journeyKeyframes(journey.type, scene.scene, journey.waypoints);
+			const keyframes = journeyKeyframes(
+				journey.type,
+				scene.scene,
+				journey.waypoints,
+				ui.selectedStyle ?? undefined
+			);
 			const scenes = sequenceScenes(keyframes, frameCount);
 			const tag = `${exportTag}-${journey.type}`;
 			const onProgress = (done: number) => (seqDone = done);

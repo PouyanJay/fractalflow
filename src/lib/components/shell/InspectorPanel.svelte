@@ -86,7 +86,7 @@
 		const next = progress + dt / journey.durationMs;
 		if (next >= 1) {
 			progress = 1;
-			scene.setScene(cloneScene(original)); // land exactly on the user's view
+			scene.setScene(cloneScene(interpolateScene(frames, 1))); // land on the destination
 			stop(false);
 			return;
 		}
@@ -97,7 +97,12 @@
 
 	function play() {
 		original = cloneScene(scene.scene);
-		frames = journeyKeyframes(journey.type, original, journey.waypoints);
+		frames = journeyKeyframes(
+			journey.type,
+			original,
+			journey.waypoints,
+			ui.selectedStyle ?? undefined
+		);
 		progress = 0;
 		journey.setPlaying(true);
 		lastTs = 0;
@@ -317,7 +322,7 @@
 				{#if journey.waypoints.length === 0}
 					<p class="hint">
 						Travel to a spot, then add it. With two or more, the dive flies through them in order;
-						otherwise it zooms into the current view.
+						otherwise it dives into a beautiful corner of the fractal.
 					</p>
 				{:else}
 					<ol class="wp-list">
