@@ -34,10 +34,11 @@
 		if (!hydrated || journey.playing) return;
 		clearTimeout(urlTimer);
 		urlTimer = setTimeout(() => {
-			const url = new URL(window.location.href);
-			url.searchParams.set('s', token);
-			url.searchParams.set('r', styleId);
-			history.replaceState(history.state, '', url);
+			// Build the query directly rather than via URL/URLSearchParams, whose
+			// form-encoding turns the token's `~` separators into `%7E`.
+			// encodeURIComponent leaves `~` literal (and still escapes `+` etc.).
+			const query = `?s=${encodeURIComponent(token)}&r=${encodeURIComponent(styleId)}`;
+			history.replaceState(history.state, '', `${location.pathname}${query}${location.hash}`);
 		}, 250);
 	});
 

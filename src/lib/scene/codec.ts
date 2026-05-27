@@ -20,6 +20,11 @@ const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
 const MAX_ITER = 8000;
 const SEPARATOR = '~';
+// The double-double centre tails only affect the render once the zoom outruns
+// f64's ~16 digits (deep-zoom needs them past ~1e10×). Above this scale they are
+// pan/zoom rounding noise that can't move a pixel, so we drop them — keeping
+// shallow share links short instead of carrying meaningless e-18 tails.
+const LO_PRECISION_SCALE = 1e-9;
 
 function clampInt(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, Math.round(value)));
@@ -28,7 +33,8 @@ function clampInt(value: number, min: number, max: number): number {
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
 export function encodeScene(scene: SceneState): string {
-	return [
+	const deep = scene.camera.scale < LO_PRECISION_SCALE;
+	const fields: (string | number)[] = [
 		scene.formula,
 		scene.camera.centerX,
 		scene.camera.centerY,
@@ -48,17 +54,48 @@ export function encodeScene(scene: SceneState): string {
 		scene.post.bloomThreshold,
 		scene.post.bloomKnee,
 		scene.post.bloomRadius,
-		// Extended-precision centre tails (double-double `lo`), for deep-zoom reproducibility.
-		scene.camera.centerXLo ?? 0,
-		scene.camera.centerYLo ?? 0
-	].join(SEPARATOR);
+		// Extended-precision centre tails (double-double `lo`), for deep-zoom
+		// reproducibility — only meaningful (and only carried) when deeply zoomed.
+		deep ? (scene.camera.centerXLo ?? 0) : 0,
+		deep ? (scene.camera.centerYLo ?? 0) : 0
+	];
+	// Drop trailing fields equal to their default: decodeScene fills them back in,
+	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
+	// fields. Compared by serialized form, which is what actually round-trips.
+	const d = createDefaultScene();
+	const defaults = [
+		d.formula,
+		d.camera.centerX,
+		d.camera.centerY,
+		d.camera.scale,
+		d.maxIter,
+		d.paletteIndex,
+		d.juliaSeed.x,
+		d.juliaSeed.y,
+		d.attractor,
+		d.flame,
+		d.post.warp,
+		d.post.warpAmount,
+		d.post.vignette,
+		d.post.gamma,
+		d.post.grain,
+		d.post.bloom,
+		d.post.bloomThreshold,
+		d.post.bloomKnee,
+		d.post.bloomRadius,
+		0,
+		0
+	];
+	let end = fields.length;
+	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
+	return fields.slice(0, end).join(SEPARATOR);
 }
 
 export function decodeScene(token: string): SceneState {
 	const fallback = createDefaultScene();
 	const parts = token.split(SEPARATOR);
-	if (parts.length < 8) return fallback;
-
+	// Tokens are trimmed of trailing default fields, so any length ≥ 1 is valid;
+	// each field below falls back to the default when missing or unparseable.
 	const num = (raw: string, fb: number): number => {
 		const n = Number(raw);
 		return Number.isFinite(n) ? n : fb;

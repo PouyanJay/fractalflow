@@ -65,7 +65,13 @@ describe('encodeScene / decodeScene round-trip', () => {
 		const s = createDefaultScene();
 		const deep = {
 			...s,
-			camera: { centerX: -0.743643887037151, centerY: 0.13182590420533, centerXLo: 1.5e-17, centerYLo: -2.3e-18, scale: 4e-13 }
+			camera: {
+				centerX: -0.743643887037151,
+				centerY: 0.13182590420533,
+				centerXLo: 1.5e-17,
+				centerYLo: -2.3e-18,
+				scale: 4e-13
+			}
 		};
 		const out = decodeScene(encodeScene(deep));
 		expect(out.camera.centerXLo).toBe(1.5e-17);
@@ -101,6 +107,104 @@ describe('encodeScene / decodeScene round-trip', () => {
 		expect(out.post.bloomThreshold).toBe(0);
 		expect(out.post.bloomKnee).toBe(1);
 		expect(out.post.bloomRadius).toBe(0);
+	});
+});
+
+describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
+	it('emits only formula + camera for a shallow scene whose other fields are default', () => {
+		const s: SceneState = {
+			...createDefaultScene(),
+			camera: {
+				centerX: -0.6381594168889282,
+				centerY: 0.07978790907858527,
+				scale: 2.727272727272782
+			}
+		};
+		const token = encodeScene(s);
+		// maxIter/palette/seed/post all default → omitted; just the 4 meaningful fields.
+		expect(token).toBe('mandelbrot~-0.6381594168889282~0.07978790907858527~2.727272727272782');
+		expect(decodeScene(token)).toEqual(s);
+	});
+
+	it('collapses the all-default (home) scene to a single field', () => {
+		expect(encodeScene(createDefaultScene())).toBe('mandelbrot');
+	});
+
+	it('drops spurious double-double tails at shallow zoom (render-invariant)', () => {
+		// Panning/zooming accumulates a tiny DD tail far below f64 ULP; at shallow
+		// zoom it cannot affect the render, so it must not bloat the token.
+		const s: SceneState = {
+			...createDefaultScene(),
+			camera: {
+				centerX: -0.6381594168889282,
+				centerY: 0.07978790907858527,
+				scale: 2.727272727272782,
+				centerXLo: 9.339385276425916e-18,
+				centerYLo: -5.4631507515534236e-18
+			}
+		};
+		const token = encodeScene(s);
+		expect(token.split('~')).toHaveLength(4); // no trailing lo fields
+		const out = decodeScene(token);
+		expect('centerXLo' in out.camera).toBe(false);
+		expect('centerYLo' in out.camera).toBe(false);
+	});
+
+	it('keeps the precision tails when the zoom is genuinely deep', () => {
+		const s: SceneState = {
+			...createDefaultScene(),
+			camera: {
+				centerX: -0.743643887037151,
+				centerY: 0.13182590420533,
+				scale: 4e-13,
+				centerXLo: 1.5e-17,
+				centerYLo: -2.3e-18
+			}
+		};
+		const out = decodeScene(encodeScene(s));
+		expect(out.camera.centerXLo).toBe(1.5e-17);
+		expect(out.camera.centerYLo).toBe(-2.3e-18);
+	});
+
+	it('decodes a trimmed token, filling the omitted fields with defaults', () => {
+		const out = decodeScene('julia~0.1~-0.2~0.5');
+		const d = createDefaultScene();
+		expect(out.formula).toBe('julia');
+		expect(out.camera).toEqual({ centerX: 0.1, centerY: -0.2, scale: 0.5 });
+		expect(out.maxIter).toBe(d.maxIter);
+		expect(out.juliaSeed).toEqual(d.juliaSeed);
+		expect(out.post).toEqual(d.post);
+	});
+
+	it('still decodes a full legacy 21-field token (backward compatible)', () => {
+		const legacy = [
+			'julia',
+			'-0.5',
+			'0.1',
+			'1.7e-8',
+			'900',
+			'2',
+			'-0.8',
+			'0.156',
+			'clifford',
+			'sierpinski',
+			'kaleido',
+			'8',
+			'0.5',
+			'1.4',
+			'0.3',
+			'1.2',
+			'0.65',
+			'0.3',
+			'1.5',
+			'0',
+			'0'
+		].join('~');
+		const out = decodeScene(legacy);
+		expect(out.formula).toBe('julia');
+		expect(out.maxIter).toBe(900);
+		expect(out.post.warp).toBe('kaleido');
+		expect(out.post.bloom).toBe(1.2);
 	});
 });
 
