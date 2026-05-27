@@ -16,6 +16,9 @@
 
 	const ui = getUiStore();
 	const width = $derived(ui.panelWidths[panelId]);
+	// Open/closed is owned by the UI store. Docked: closed → removed from the flow
+	// (the canvas reclaims the width). Compact: closed → slid off-screen (drawer).
+	const open = $derived(ui.panels[panelId]);
 
 	let dragging = $state(false);
 	let startX = 0;
@@ -47,7 +50,14 @@
 	}
 </script>
 
-<aside class="panel" class:right={side === 'right'} style="width: {width}px" aria-label={title}>
+<aside
+	class="panel"
+	class:right={side === 'right'}
+	class:open
+	style="width: {width}px"
+	aria-label={title}
+	aria-hidden={!open}
+>
 	<div class="head" class:custom={header}>
 		{#if header}{@render header()}{:else}<h2>{title}</h2>{/if}
 	</div>
@@ -80,6 +90,57 @@
 	.panel.right {
 		border-right: none;
 		border-left: 1px solid var(--ff-border);
+	}
+	/* Docked layout: a closed panel leaves the flow so the canvas takes its width. */
+	.panel:not(.open) {
+		display: none;
+	}
+
+	/*
+	 * Compact (mobile) layout: panels become overlay drawers so the canvas stays
+	 * full-bleed. A closed drawer slides off-screen instead of unmounting, so it
+	 * animates in and out. The preload guard (set by the inline script in
+	 * app.html before hydration) hard-hides drawers on a cold mobile load so the
+	 * docked SSR markup never flashes. Breakpoint mirrors COMPACT_QUERY (900px).
+	 */
+	:global(html[data-ff-preload]) .panel {
+		display: none !important;
+	}
+	@media (max-width: 900px) {
+		.panel,
+		.panel:not(.open) {
+			display: flex;
+			position: fixed;
+			top: var(--ff-topbar-h);
+			bottom: var(--ff-statusbar-h);
+			left: 0;
+			right: auto;
+			width: min(86vw, 340px) !important;
+			z-index: var(--ff-z-overlay);
+			border: none;
+			border-right: 1px solid var(--ff-border);
+			box-shadow: var(--ff-shadow-overlay);
+			transform: translateX(-100%);
+			transition: transform var(--ff-dur-base) var(--ff-ease);
+		}
+		.panel.right,
+		.panel.right:not(.open) {
+			left: auto;
+			right: 0;
+			border-right: none;
+			border-left: 1px solid var(--ff-border);
+			transform: translateX(100%);
+		}
+		.panel.open {
+			transform: none;
+		}
+		.panel:not(.open) {
+			pointer-events: none;
+		}
+		/* No drag-to-resize on a touch drawer. */
+		.resize-handle {
+			display: none;
+		}
 	}
 	.head {
 		display: flex;

@@ -108,8 +108,12 @@
 		display: flex;
 		align-items: center;
 		gap: var(--ff-space-4);
-		height: var(--ff-topbar-h);
-		padding: 0 var(--ff-space-3);
+		/* min-height (not height) so the safe-area inset can extend the bar under a
+		 * notch without squashing its contents; insets are 0 on desktop. */
+		min-height: var(--ff-topbar-h);
+		padding-top: env(safe-area-inset-top);
+		padding-left: max(var(--ff-space-3), env(safe-area-inset-left));
+		padding-right: max(var(--ff-space-3), env(safe-area-inset-right));
 		background: var(--ff-surface);
 		border-bottom: 1px solid var(--ff-border);
 	}
@@ -233,12 +237,29 @@
 	}
 
 	@media (max-width: 720px) {
+		.topbar {
+			gap: var(--ff-space-2);
+		}
 		.tab span,
 		.search span {
 			display: none;
 		}
 		.brand {
 			min-width: 0;
+		}
+	}
+
+	/* Phones: keep just the mark + the essential actions so the bar never wraps. */
+	@media (max-width: 560px) {
+		.title,
+		.export span {
+			display: none;
+		}
+		.export {
+			padding: 0 var(--ff-space-2);
+		}
+		.search {
+			padding: 0 var(--ff-space-2);
 		}
 	}
 </style>

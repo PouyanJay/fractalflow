@@ -420,3 +420,31 @@ test('visual: Julia set', async ({ page }) => {
 		maxDiffPixelRatio: 0.02
 	});
 });
+
+// On a phone the docked panels would crush the canvas, so they become overlay
+// drawers and the canvas goes full-bleed. (See the compact layout in ui-logic.)
+test.describe('mobile (compact viewport)', () => {
+	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+	test('the canvas is full-bleed and the Codex starts closed', async ({ page }) => {
+		await page.goto('/explore');
+		await waitForEngine(page);
+		const canvas = await page.locator('canvas').boundingBox();
+		expect(canvas?.width ?? 0).toBeGreaterThan(386); // ≈ the 390px viewport
+		// Closed drawer: out of the a11y tree and off-screen.
+		await expect(page.locator('aside[aria-label="Codex"]')).toHaveAttribute('aria-hidden', 'true');
+	});
+
+	test('the Codex opens as an overlay drawer with a backdrop, and Escape closes it', async ({
+		page
+	}) => {
+		await page.goto('/explore');
+		await waitForEngine(page);
+		const codex = page.locator('aside[aria-label="Codex"]');
+		await page.getByRole('button', { name: 'Toggle Codex panel' }).click();
+		await expect(codex).toHaveAttribute('aria-hidden', 'false');
+		await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(codex).toHaveAttribute('aria-hidden', 'true');
+	});
+});

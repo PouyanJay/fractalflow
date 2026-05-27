@@ -116,7 +116,17 @@ export interface UiState {
 	commandPaletteOpen: boolean;
 	exportOpen: boolean;
 	selectedStyle: ArtStyleId | null;
+	/**
+	 * Narrow ("compact") viewport — phones and small tablets. The panels become
+	 * overlay drawers instead of docked columns, so they default closed to keep
+	 * the canvas full-bleed, and only one is open at a time. Set from a media
+	 * query by the reactive store. See COMPACT_QUERY.
+	 */
+	compact: boolean;
 }
+
+/** Viewport width below which the shell switches to the compact (mobile) layout. */
+export const COMPACT_QUERY = '(max-width: 900px)';
 
 export function createInitialUiState(): UiState {
 	return {
@@ -125,7 +135,23 @@ export function createInitialUiState(): UiState {
 		commandPaletteOpen: false,
 		exportOpen: false,
 		// Deep-Zoom 2D is the implemented renderer, so it's selected by default.
-		selectedStyle: 'deep-zoom-2d'
+		selectedStyle: 'deep-zoom-2d',
+		compact: false
+	};
+}
+
+/**
+ * Switch between the docked (desktop) and overlay (compact) layouts. Entering
+ * compact closes both panels so the canvas is the first thing seen; leaving it
+ * restores the docked panels. A no-op when the mode is unchanged, so it's safe
+ * to call on every media-query event.
+ */
+export function setCompact(state: UiState, compact: boolean): UiState {
+	if (state.compact === compact) return state;
+	return {
+		...state,
+		compact,
+		panels: compact ? { library: false, inspector: false } : { library: true, inspector: true }
 	};
 }
 

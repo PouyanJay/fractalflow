@@ -29,29 +29,34 @@
 	let stage = $state<HTMLDivElement | null>(null);
 	let dragging = $state(false);
 
-	function onpointerdown(event: PointerEvent) {
-		dragging = true;
-		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+	// Active pointers (mouse / touch / pen) keyed by id, in client coordinates.
+	// One pointer pans (orbits in 3D); two pointers pinch-zoom (dolly in 3D) — the
+	// touch equivalent of the mouse wheel, which touch devices never emit.
+	// A plain Map by design: pure gesture bookkeeping, never rendered, and mutated
+	// on every pointermove — reactivity (SvelteMap) is unwanted overhead here.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const pointers = new Map<number, { x: number; y: number }>();
+	let pinchDist = 0;
+	// Down-state + last tap, for double-tap / double-click to zoom in.
+	let downX = 0;
+	let downY = 0;
+	let downTime = 0;
+	let lastTapTime = 0;
+	let lastTapX = 0;
+	let lastTapY = 0;
+
+	function pinchDistance(): number {
+		const [a, b] = [...pointers.values()];
+		return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+	}
+	function pinchMid(): { x: number; y: number } {
+		const [a, b] = [...pointers.values()];
+		return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : { x: 0, y: 0 };
 	}
 
-	function onpointermove(event: PointerEvent) {
-		if (!dragging || !stage) return;
-		if (activeRenderer?.kind === '3d') {
-			sceneStore.setCamera(orbitCamera(sceneStore.camera, event.movementX, event.movementY));
-			return;
-		}
-		const { height } = stage.getBoundingClientRect();
-		sceneStore.setCamera(panCamera(sceneStore.camera, event.movementX, event.movementY, height));
-	}
-
-	function onpointerup(event: PointerEvent) {
-		dragging = false;
-		(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-	}
-
-	function onwheel(event: WheelEvent) {
+	/** Zoom about a client point — anchored zoom in 2D, dolly in 3D. */
+	function zoomAt(clientX: number, clientY: number, factor: number) {
 		if (!stage) return;
-		const factor = event.deltaY > 0 ? 1.1 : 1 / 1.1;
 		if (activeRenderer?.kind === '3d') {
 			sceneStore.setCamera(dollyCamera(sceneStore.camera, factor));
 			return;
@@ -60,13 +65,87 @@
 		sceneStore.setCamera(
 			zoomCameraAt(
 				sceneStore.camera,
-				event.clientX - rect.left,
-				event.clientY - rect.top,
+				clientX - rect.left,
+				clientY - rect.top,
 				rect.width,
 				rect.height,
 				factor
 			)
 		);
+	}
+
+	function onpointerdown(event: PointerEvent) {
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+		dragging = pointers.size > 0;
+		if (pointers.size === 2) pinchDist = pinchDistance();
+		downX = event.clientX;
+		downY = event.clientY;
+		downTime = event.timeStamp;
+	}
+
+	function onpointermove(event: PointerEvent) {
+		const prev = pointers.get(event.pointerId);
+		if (!prev || !stage) return;
+
+		// Two fingers → pinch-zoom about the midpoint, panning by its drift.
+		if (pointers.size >= 2) {
+			const prevMid = pinchMid();
+			pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+			const dist = pinchDistance();
+			const mid = pinchMid();
+			if (pinchDist > 0 && dist > 0) {
+				zoomAt(mid.x, mid.y, pinchDist / dist); // spread → factor < 1 → zoom in
+				if (activeRenderer?.kind !== '3d') {
+					const { height } = stage.getBoundingClientRect();
+					sceneStore.setCamera(
+						panCamera(sceneStore.camera, mid.x - prevMid.x, mid.y - prevMid.y, height)
+					);
+				}
+			}
+			pinchDist = dist;
+			return;
+		}
+
+		// One finger → pan (orbit in 3D). Delta from the pointer's own last point,
+		// so lifting the second finger never causes a jump.
+		const dx = event.clientX - prev.x;
+		const dy = event.clientY - prev.y;
+		pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+		if (activeRenderer?.kind === '3d') {
+			sceneStore.setCamera(orbitCamera(sceneStore.camera, dx, dy));
+			return;
+		}
+		const { height } = stage.getBoundingClientRect();
+		sceneStore.setCamera(panCamera(sceneStore.camera, dx, dy, height));
+	}
+
+	function endPointer(event: PointerEvent) {
+		(event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+		pointers.delete(event.pointerId);
+		if (pointers.size < 2) pinchDist = 0;
+		dragging = pointers.size > 0;
+	}
+
+	function onpointerup(event: PointerEvent) {
+		const moved = Math.hypot(event.clientX - downX, event.clientY - downY);
+		const tap = event.timeStamp - downTime < 250 && moved < 8;
+		endPointer(event);
+		if (!tap || pointers.size > 0) return;
+		// A second clean tap near the first, soon after → zoom in at that point.
+		const near = Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY) < 32;
+		if (event.timeStamp - lastTapTime < 300 && near) {
+			zoomAt(event.clientX, event.clientY, 1 / 1.8);
+			lastTapTime = 0;
+		} else {
+			lastTapTime = event.timeStamp;
+			lastTapX = event.clientX;
+			lastTapY = event.clientY;
+		}
+	}
+
+	function onwheel(event: WheelEvent) {
+		zoomAt(event.clientX, event.clientY, event.deltaY > 0 ? 1.1 : 1 / 1.1);
 	}
 </script>
 
@@ -76,10 +155,11 @@
 		class:dragging
 		bind:this={stage}
 		role="application"
-		aria-label="Fractal viewport — drag to pan, scroll to zoom"
+		aria-label="Fractal viewport — drag to pan, pinch or scroll to zoom, double-tap to zoom in"
 		{onpointerdown}
 		{onpointermove}
 		{onpointerup}
+		onpointercancel={endPointer}
 		{onwheel}
 	>
 		<GpuCanvas renderer={activeRenderer} {getScene} onbackend={handleBackend} />

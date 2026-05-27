@@ -2,9 +2,12 @@
  * Reactive UI store (Svelte 5 runes) wrapping the pure transitions in ui-logic.
  * Provided via context by the root layout; read with getUiStore().
  */
+import { browser } from '$app/environment';
 import { getContext, setContext } from 'svelte';
 import {
+	COMPACT_QUERY,
 	createInitialUiState,
+	setCompact,
 	setPanel,
 	togglePanel,
 	setCommandPalette,
@@ -20,8 +23,20 @@ import {
 
 const KEY = Symbol('ff-ui-store');
 
+const otherPanel = (panel: PanelId): PanelId => (panel === 'library' ? 'inspector' : 'library');
+
 export function createUiStore() {
-	let state = $state<UiState>(createInitialUiState());
+	let initial = createInitialUiState();
+	// Decide the layout from the viewport before first paint (client only), so a
+	// phone starts with the panels closed and the canvas full-bleed.
+	if (browser && window.matchMedia(COMPACT_QUERY).matches) initial = setCompact(initial, true);
+	let state = $state<UiState>(initial);
+
+	// In the compact layout panels are overlay drawers, so only one opens at a
+	// time — opening one closes the other.
+	function openExclusive(next: UiState, panel: PanelId, opened: boolean): UiState {
+		return next.compact && opened ? setPanel(next, otherPanel(panel), false) : next;
+	}
 
 	return {
 		get panels() {
@@ -39,9 +54,18 @@ export function createUiStore() {
 		get selectedStyle() {
 			return state.selectedStyle;
 		},
-		togglePanel: (panel: PanelId) => (state = togglePanel(state, panel)),
-		setPanel: (panel: PanelId, visible: boolean) => (state = setPanel(state, panel, visible)),
+		get compact() {
+			return state.compact;
+		},
+		togglePanel: (panel: PanelId) => {
+			const next = togglePanel(state, panel);
+			state = openExclusive(next, panel, next.panels[panel]);
+		},
+		setPanel: (panel: PanelId, visible: boolean) => {
+			state = openExclusive(setPanel(state, panel, visible), panel, visible);
+		},
 		setPanelWidth: (panel: PanelId, width: number) => (state = setPanelWidth(state, panel, width)),
+		setCompact: (compact: boolean) => (state = setCompact(state, compact)),
 		openCommandPalette: () => (state = setCommandPalette(state, true)),
 		closeCommandPalette: () => (state = setCommandPalette(state, false)),
 		toggleCommandPalette: () => (state = toggleCommandPalette(state)),

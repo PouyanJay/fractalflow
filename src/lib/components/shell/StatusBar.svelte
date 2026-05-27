@@ -54,8 +54,11 @@
 		display: flex;
 		align-items: center;
 		gap: var(--ff-space-4);
-		height: var(--ff-statusbar-h);
-		padding: 0 var(--ff-space-3);
+		/* min-height + bottom inset so the home-indicator/safe area can't clip it. */
+		min-height: var(--ff-statusbar-h);
+		padding-bottom: env(safe-area-inset-bottom);
+		padding-left: max(var(--ff-space-3), env(safe-area-inset-left));
+		padding-right: max(var(--ff-space-3), env(safe-area-inset-right));
 		background: var(--ff-surface);
 		border-top: 1px solid var(--ff-border);
 		font-size: var(--ff-text-xs);

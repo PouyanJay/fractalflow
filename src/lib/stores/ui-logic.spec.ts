@@ -14,6 +14,7 @@ import {
 	toggleExport,
 	selectArtStyle,
 	setPanelWidth,
+	setCompact,
 	PANEL_MIN_WIDTH,
 	PANEL_MAX_WIDTH
 } from './ui-logic';
@@ -82,7 +83,8 @@ describe('ui state transitions (pure & immutable)', () => {
 			panelWidths: { library: 264, inspector: 264 },
 			commandPaletteOpen: false,
 			exportOpen: false,
-			selectedStyle: 'deep-zoom-2d'
+			selectedStyle: 'deep-zoom-2d',
+			compact: false
 		});
 	});
 
@@ -129,5 +131,29 @@ describe('ui state transitions (pure & immutable)', () => {
 		expect(setPanelWidth(createInitialUiState(), 'inspector', 9999).panelWidths.inspector).toBe(
 			PANEL_MAX_WIDTH
 		);
+	});
+
+	it('defaults to the docked (non-compact) layout with both panels open', () => {
+		const s = createInitialUiState();
+		expect(s.compact).toBe(false);
+		expect(s.panels).toEqual({ library: true, inspector: true });
+	});
+
+	it('setCompact(true) closes both panels so the canvas is full-bleed on mobile', () => {
+		const s = setCompact(createInitialUiState(), true);
+		expect(s.compact).toBe(true);
+		expect(s.panels).toEqual({ library: false, inspector: false });
+	});
+
+	it('setCompact(false) restores the docked panels', () => {
+		const mobile = setCompact(createInitialUiState(), true);
+		const back = setCompact(mobile, false);
+		expect(back.compact).toBe(false);
+		expect(back.panels).toEqual({ library: true, inspector: true });
+	});
+
+	it('setCompact is a no-op (same reference) when the layout is unchanged', () => {
+		const s = createInitialUiState();
+		expect(setCompact(s, false)).toBe(s);
 	});
 });

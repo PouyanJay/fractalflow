@@ -11,6 +11,16 @@
 			content="FractalFlow Studio — a GPU-native, local-first studio for crafting beautiful, colorful fractal art in the browser."
 		/>
 		<meta name="text-scale" content="scale" />
+		<script>
+			// No-flash guard: on a compact viewport the docked panels in the
+			// prerendered markup would briefly cover the canvas before hydration
+			// decides the layout. Mark the document so CSS hides the drawers until
+			// the app mounts (which removes the attribute). Mirrors COMPACT_QUERY.
+			try {
+				if (window.matchMedia('(max-width: 900px)').matches)
+					document.documentElement.setAttribute('data-ff-preload', '');
+			} catch (e) {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
