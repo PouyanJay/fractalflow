@@ -5,6 +5,8 @@
 	const scene = getSceneStore();
 
 	const sliders = [
+		{ key: 'hueShift', label: 'Hue', min: -0.5, max: 0.5, step: 0.01 },
+		{ key: 'saturation', label: 'Saturation', min: 0, max: 2, step: 0.05 },
 		{ key: 'vignette', label: 'Vignette', min: 0, max: 1, step: 0.05 },
 		{ key: 'gamma', label: 'Gamma', min: 0.4, max: 2.2, step: 0.05 },
 		{ key: 'grain', label: 'Grain', min: 0, max: 1, step: 0.05 }

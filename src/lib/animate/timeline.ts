@@ -83,6 +83,8 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 			vignette: lerp(a.post.vignette, b.post.vignette, u),
 			gamma: lerp(a.post.gamma, b.post.gamma, u),
 			grain: lerp(a.post.grain, b.post.grain, u),
+			hueShift: lerp(a.post.hueShift, b.post.hueShift, u),
+			saturation: lerp(a.post.saturation, b.post.saturation, u),
 			bloom: lerp(a.post.bloom, b.post.bloom, u),
 			bloomThreshold: lerp(a.post.bloomThreshold, b.post.bloomThreshold, u),
 			bloomKnee: lerp(a.post.bloomKnee, b.post.bloomKnee, u),

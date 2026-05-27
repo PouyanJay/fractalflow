@@ -54,12 +54,16 @@ export type FormulaId =
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {
-	/** Coordinate warp id ('none' | 'kaleido' | 'mirror'). */
+	/** Coordinate warp id ('none'|'kaleido'|'mirror'|'swirl'|'ripple'|'fisheye'|'fold'). */
 	warp: string;
 	warpAmount: number;
 	vignette: number;
 	gamma: number;
 	grain: number;
+	/** Hue rotation in turns ([-0.5, 0.5]); 0 leaves colour unchanged. */
+	hueShift: number;
+	/** Saturation multiplier (0 = greyscale, 1 = unchanged, >1 = boosted). */
+	saturation: number;
 	/**
 	 * Bloom (HDR glow). `bloom` is the intensity; 0 disables it entirely and the
 	 * backend keeps its direct-to-swapchain path (no render-to-texture cost).

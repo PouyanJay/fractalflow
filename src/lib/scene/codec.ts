@@ -96,7 +96,10 @@ export function encodeScene(scene: SceneState): string {
 		// default 'barnsley-fern' trims away for every non-IFS scene.
 		scene.ifs,
 		// Coloring algorithm (Deep-Zoom 2D) — appended; default 'smooth' trims away.
-		scene.coloring ?? 'smooth'
+		scene.coloring ?? 'smooth',
+		// Grade additions — appended; defaults (0 hue, 1 saturation) trim away.
+		scene.post.hueShift,
+		scene.post.saturation
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -128,7 +131,9 @@ export function encodeScene(scene: SceneState): string {
 		...Array(12).fill(0), // default (absent) custom palette
 		'mandelbulb', // default Geometric 3D shape
 		d.ifs, // default IFS system
-		'smooth' // default coloring
+		'smooth', // default coloring
+		0, // default hueShift
+		1 // default saturation
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -205,7 +210,10 @@ export function decodeScene(token: string): SceneState {
 			bloom: Math.max(0, num(parts[15], fallback.post.bloom)),
 			bloomThreshold: Math.max(0, num(parts[16], fallback.post.bloomThreshold)),
 			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
-			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
+			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius)),
+			// Grade additions (indices 37/38) — default no-op when absent.
+			hueShift: num(parts[37], fallback.post.hueShift),
+			saturation: num(parts[38], fallback.post.saturation)
 		},
 		...(power !== 2 ? { power } : {}),
 		...(paletteCoeffs ? { paletteCoeffs } : {}),

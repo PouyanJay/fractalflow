@@ -210,6 +210,8 @@ struct BloomU {
 	gamma: f32,
 	vignette: f32,
 	grain: f32,
+	hueShift: f32,
+	saturation: f32,
 };
 @group(0) @binding(0) var<uniform> bu: BloomU;
 @group(0) @binding(1) var samp: sampler;
@@ -289,7 +291,7 @@ fn tent(uv: vec2f) -> vec3f {
 	let scene = textureSampleLevel(sceneTex, samp, uv, 0.0).rgb;
 	let glow = textureSampleLevel(srcTex, samp, uv, 0.0).rgb;
 	let combined = scene + glow * bu.intensity;
-	return vec4f(ffGradeApply(combined, uv, bu.gamma, bu.vignette, bu.grain), 1.0);
+	return vec4f(ffGradeApply(combined, uv, bu.gamma, bu.vignette, bu.grain, bu.hueShift, bu.saturation), 1.0);
 }`;
 
 /** GLSL fullscreen-triangle vertex shader for the bloom passes. */
@@ -315,6 +317,8 @@ layout(std140) uniform BloomU {
 	float uGamma;
 	float uVignette;
 	float uGrain;
+	float uHueShift;
+	float uSaturation;
 };
 uniform sampler2D uSrc;
 uniform sampler2D uScene;
@@ -382,7 +386,7 @@ void main() {
 	vec3 scene = texture(uScene, vUv).rgb;
 	vec3 glow = texture(uSrc, vUv).rgb;
 	vec3 combined = scene + glow * uIntensity;
-	fragColor = vec4(ffGradeApply(combined, vUv, uGamma, uVignette, uGrain), 1.0);
+	fragColor = vec4(ffGradeApply(combined, vUv, uGamma, uVignette, uGrain, uHueShift, uSaturation), 1.0);
 }`;
 
 /** Assemble the composite FS: common preamble + grade fn + body. */
@@ -406,6 +410,8 @@ export function packBloomUniform(
 		gamma: number;
 		vignette: number;
 		grain: number;
+		hueShift: number;
+		saturation: number;
 	}
 ): void {
 	view.setFloat32(0, srcTexelW, true);
@@ -417,4 +423,6 @@ export function packBloomUniform(
 	view.setFloat32(24, post.gamma, true);
 	view.setFloat32(28, post.vignette, true);
 	view.setFloat32(32, post.grain, true);
+	view.setFloat32(36, post.hueShift, true);
+	view.setFloat32(40, post.saturation, true);
 }

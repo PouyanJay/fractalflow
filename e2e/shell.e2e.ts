@@ -367,6 +367,37 @@ test('selecting Apollonian describes the gasket', async ({ page }) => {
 	await expect(page.getByRole('complementary', { name: 'Codex' })).toContainText('Apollonian');
 });
 
+test('Compose lists every warp and a new warp drives the shared scene', async ({ page }) => {
+	await page.goto('/compose');
+	await page.locator('button[aria-label="Warp"]:visible').first().click();
+	await expect(page.getByRole('listbox', { name: 'Warp' }).getByRole('option')).toHaveText([
+		'None',
+		'Kaleidoscope',
+		'Mirror',
+		'Swirl',
+		'Ripple',
+		'Fisheye',
+		'Symmetry'
+	]);
+	await page
+		.getByRole('listbox', { name: 'Warp' })
+		.getByRole('option', { name: 'Symmetry', exact: true })
+		.click();
+	await page.getByRole('link', { name: 'Explore' }).click();
+	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('fold');
+});
+
+test('Compose Post-FX hue rotation drives the shared scene', async ({ page }) => {
+	await page.goto('/compose');
+	const hue = page.locator('input[aria-label="Hue"]:visible');
+	await expect(hue).toHaveValue('0'); // no rotation by default
+	await hue.fill('0.33');
+	await hue.dispatchEvent('input');
+	await page.getByRole('link', { name: 'Explore' }).click();
+	// hueShift is the last appended codec field, so the token ends with it.
+	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('0.33');
+});
+
 test('Compose exposes the coloring-algorithm selector for Deep-Zoom 2D', async ({ page }) => {
 	await page.goto('/compose');
 	await page.locator('button[aria-label="Coloring algorithm"]:visible').first().click();
