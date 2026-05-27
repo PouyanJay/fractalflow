@@ -12,6 +12,15 @@ export type BackendType = 'webgpu' | 'webgl2';
 export interface Camera2D {
 	centerX: number;
 	centerY: number;
+	/**
+	 * Extended-precision tail of the centre (double-double `lo` part). f64 alone
+	 * runs out of digits past ~1e10× zoom, placing the deep-zoom reference orbit
+	 * at slightly the wrong point; `centerX`/`centerY` are the `hi` parts and
+	 * these the `lo`. Optional and default 0, so a plain f64 centre is exact and
+	 * existing scenes are unaffected. See $lib/fractals/deep-zoom-2d/dd.
+	 */
+	centerXLo?: number;
+	centerYLo?: number;
 	/** Vertical extent of the view in complex units (smaller = deeper zoom). */
 	scale: number;
 }

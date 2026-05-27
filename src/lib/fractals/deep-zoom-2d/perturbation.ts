@@ -14,6 +14,7 @@
  * source the shader mirrors. f64 here; the GPU uses an f32 copy of the orbit.
  */
 import type { EscapeResult } from './reference';
+import { type DD, fromNumber, toNumber, add, sub, sqr, mul, mulNumber } from '$lib/engine/dd';
 
 export interface ReferenceOrbit {
 	xs: Float64Array;
@@ -46,6 +47,44 @@ export function computeReferenceOrbit(
 		}
 		const nzx = zx * zx - zy * zy + cx;
 		const nzy = 2 * zx * zy + cy;
+		zx = nzx;
+		zy = nzy;
+	}
+	return { xs, ys, length: n };
+}
+
+/**
+ * Reference orbit at a centre carried in **double-double** precision. Identical
+ * to `computeReferenceOrbit` but the centre and the z iteration run in DD, so a
+ * sub-f64 tail on the centre (the extra ~15 digits that place the view past
+ * ~1e10×) actually influences the orbit. The samples are stored back as f64 —
+ * that's all the GPU needs (rebasing makes the stored precision uncritical); it
+ * is the *computation* that must be high-precision.
+ */
+export function computeReferenceOrbitDD(
+	cx: DD,
+	cy: DD,
+	maxIter: number,
+	bailoutRadius = DEFAULT_BAILOUT_RADIUS
+): ReferenceOrbit {
+	const r2 = bailoutRadius * bailoutRadius;
+	const xs = new Float64Array(maxIter + 1);
+	const ys = new Float64Array(maxIter + 1);
+	let zx = fromNumber(0);
+	let zy = fromNumber(0);
+	let n = 0;
+	for (; n <= maxIter; n++) {
+		const fx = toNumber(zx);
+		const fy = toNumber(zy);
+		xs[n] = fx;
+		ys[n] = fy;
+		if (fx * fx + fy * fy > r2 || n === maxIter) {
+			n++;
+			break;
+		}
+		// z' = z² + c  (complex): zx' = zx² − zy² + cx, zy' = 2·zx·zy + cy
+		const nzx = add(sub(sqr(zx), sqr(zy)), cx);
+		const nzy = add(mulNumber(mul(zx, zy), 2), cy);
 		zx = nzx;
 		zy = nzy;
 	}

@@ -61,6 +61,24 @@ describe('encodeScene / decodeScene round-trip', () => {
 		expect(decodeScene(legacy).post).toEqual(createDefaultScene().post);
 	});
 
+	it('round-trips the extended-precision centre tails (deep-zoom reproducibility)', () => {
+		const s = createDefaultScene();
+		const deep = {
+			...s,
+			camera: { centerX: -0.743643887037151, centerY: 0.13182590420533, centerXLo: 1.5e-17, centerYLo: -2.3e-18, scale: 4e-13 }
+		};
+		const out = decodeScene(encodeScene(deep));
+		expect(out.camera.centerXLo).toBe(1.5e-17);
+		expect(out.camera.centerYLo).toBe(-2.3e-18);
+		expect(out.camera).toEqual(deep.camera);
+	});
+
+	it('omits the centre tails for a shallow (f64-only) scene', () => {
+		const out = decodeScene(encodeScene(createDefaultScene()));
+		expect('centerXLo' in out.camera).toBe(false);
+		expect('centerYLo' in out.camera).toBe(false);
+	});
+
 	it('defaults bloom for tokens written before bloom existed', () => {
 		// A pre-bloom token has the 15 fields up to grain but none of the bloom four.
 		const preBloom = encodeScene(createDefaultScene()).split('~').slice(0, 15).join('~');
@@ -112,7 +130,7 @@ describe('decodeScene resilience', () => {
 	it('clamps maxIter and paletteIndex into range', () => {
 		const s = createDefaultScene();
 		const hi = decodeScene(encodeScene({ ...s, maxIter: 999999, paletteIndex: 999 }));
-		expect(hi.maxIter).toBeLessThanOrEqual(1200);
+		expect(hi.maxIter).toBeLessThanOrEqual(8000);
 		expect(hi.paletteIndex).toBeLessThanOrEqual(3);
 		const lo = decodeScene(encodeScene({ ...s, maxIter: 1, paletteIndex: -5 }));
 		expect(lo.maxIter).toBeGreaterThanOrEqual(1);

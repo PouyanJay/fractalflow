@@ -3,16 +3,32 @@
  * up (positive imaginary); pointer/pixel coordinates are top-left origin.
  */
 import type { Camera2D } from './types';
+import { type DD, addNumber } from './dd';
 
-function pixelToComplex(px: number, py: number, width: number, height: number, camera: Camera2D) {
-	const perPixel = camera.scale / height;
+/** The view centre as a double-double (the `lo` tails default to 0). */
+function centerDD(camera: Camera2D): { cx: DD; cy: DD } {
 	return {
-		x: camera.centerX + (px - width / 2) * perPixel,
-		y: camera.centerY - (py - height / 2) * perPixel
+		cx: { hi: camera.centerX, lo: camera.centerXLo ?? 0 },
+		cy: { hi: camera.centerY, lo: camera.centerYLo ?? 0 }
 	};
 }
 
-/** Pan by a pixel delta (e.g. a drag), keeping the content under the pointer. */
+/** Write a double-double centre back into a camera (hi → centre, lo → tail). */
+function withCenter(camera: Camera2D, cx: DD, cy: DD, scale: number): Camera2D {
+	return {
+		centerX: cx.hi,
+		centerXLo: cx.lo,
+		centerY: cy.hi,
+		centerYLo: cy.lo,
+		scale
+	};
+}
+
+/**
+ * Pan by a pixel delta (e.g. a drag), keeping the content under the pointer. The
+ * centre accumulates in double-double so repeated panning stays precise far past
+ * the f64 wall.
+ */
 export function panCamera(
 	camera: Camera2D,
 	dxPixels: number,
@@ -20,11 +36,13 @@ export function panCamera(
 	cssHeight: number
 ): Camera2D {
 	const perPixel = camera.scale / cssHeight;
-	return {
-		centerX: camera.centerX - dxPixels * perPixel,
-		centerY: camera.centerY + dyPixels * perPixel,
-		scale: camera.scale
-	};
+	const { cx, cy } = centerDD(camera);
+	return withCenter(
+		camera,
+		addNumber(cx, -dxPixels * perPixel),
+		addNumber(cy, dyPixels * perPixel),
+		camera.scale
+	);
 }
 
 const ORBIT_SENSITIVITY = 0.01;
@@ -66,7 +84,12 @@ export function formatZoom(scale: number, baseScale = 3): string {
 	return `${mag.toFixed(1)}×`;
 }
 
-/** Zoom by `factor` (<1 zooms in) while keeping the point under the cursor fixed. */
+/**
+ * Zoom by `factor` (<1 zooms in) while keeping the point under the cursor fixed.
+ * The shift that holds the cursor point is `(px − w/2)·(perPixel − perPixelZoomed)`
+ * — small and centre-independent — so it's computed in f64 and added to the
+ * double-double centre, which preserves precision into very deep zooms.
+ */
 export function zoomCameraAt(
 	camera: Camera2D,
 	cursorPx: number,
@@ -75,12 +98,13 @@ export function zoomCameraAt(
 	height: number,
 	factor: number
 ): Camera2D {
-	const before = pixelToComplex(cursorPx, cursorPy, width, height, camera);
-	const zoomed: Camera2D = { ...camera, scale: camera.scale * factor };
-	const after = pixelToComplex(cursorPx, cursorPy, width, height, zoomed);
-	return {
-		centerX: zoomed.centerX + (before.x - after.x),
-		centerY: zoomed.centerY + (before.y - after.y),
-		scale: zoomed.scale
-	};
+	const scale = camera.scale * factor;
+	const ppDelta = camera.scale / height - scale / height;
+	const { cx, cy } = centerDD(camera);
+	return withCenter(
+		camera,
+		addNumber(cx, (cursorPx - width / 2) * ppDelta),
+		addNumber(cy, -(cursorPy - height / 2) * ppDelta),
+		scale
+	);
 }

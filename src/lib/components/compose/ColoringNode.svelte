@@ -14,6 +14,9 @@
 				? 'Exposure'
 				: 'Detail'
 	);
+	// Deep zoom needs far more iterations (escape times climb with depth); the
+	// other styles keep the original exposure/detail range.
+	const detailMax = $derived(ui.selectedStyle === 'deep-zoom-2d' ? 8000 : 1200);
 </script>
 
 <NodeShell title="Coloring" target source>
@@ -42,7 +45,7 @@
 				class="nodrag"
 				type="range"
 				min="1"
-				max="1200"
+				max={detailMax}
 				step="1"
 				value={scene.maxIter}
 				oninput={(e) => scene.setMaxIter(Number(e.currentTarget.value))}

@@ -18,7 +18,7 @@ const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
 const WARP_IDS: readonly string[] = Object.keys(WARP_CODE);
 const MIN_ITER = 1;
-const MAX_ITER = 1200;
+const MAX_ITER = 8000;
 const SEPARATOR = '~';
 
 function clampInt(value: number, min: number, max: number): number {
@@ -47,7 +47,10 @@ export function encodeScene(scene: SceneState): string {
 		scene.post.bloom,
 		scene.post.bloomThreshold,
 		scene.post.bloomKnee,
-		scene.post.bloomRadius
+		scene.post.bloomRadius,
+		// Extended-precision centre tails (double-double `lo`), for deep-zoom reproducibility.
+		scene.camera.centerXLo ?? 0,
+		scene.camera.centerYLo ?? 0
 	].join(SEPARATOR);
 }
 
@@ -65,13 +68,19 @@ export function decodeScene(token: string): SceneState {
 		? (parts[0] as FormulaId)
 		: fallback.formula;
 	const scale = num(parts[3], fallback.camera.scale);
+	// Extended-precision centre tails — only carried when present (a shallow scene
+	// has none, so it round-trips byte-identically to its f64-only form).
+	const centerXLo = num(parts[19], 0);
+	const centerYLo = num(parts[20], 0);
 
 	return {
 		formula,
 		camera: {
 			centerX: num(parts[1], fallback.camera.centerX),
 			centerY: num(parts[2], fallback.camera.centerY),
-			scale: scale > 0 ? scale : fallback.camera.scale
+			scale: scale > 0 ? scale : fallback.camera.scale,
+			...(centerXLo !== 0 ? { centerXLo } : {}),
+			...(centerYLo !== 0 ? { centerYLo } : {})
 		},
 		maxIter: clampInt(num(parts[4], fallback.maxIter), MIN_ITER, MAX_ITER),
 		paletteIndex: clampInt(num(parts[5], fallback.paletteIndex), 0, PALETTES.length - 1),

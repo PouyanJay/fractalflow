@@ -27,14 +27,16 @@ import {
 	POST_GLSL_FN
 } from '$lib/fractals/post';
 import { FORMULA_CODES } from './reference';
-import { computeReferenceOrbit } from './perturbation';
+import { computeReferenceOrbitDD } from './perturbation';
 import type { FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
 const POST_BASE = 112;
 export const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 
-const MAX_ITER_CAP = 1200;
+// Headroom for deep zoom: escape times climb with depth, so the reference orbit
+// (and the per-pixel iteration cap) need to run far longer than the shallow view.
+const MAX_ITER_CAP = 8000;
 const MAX_ORBIT = MAX_ITER_CAP + 1;
 const DATA_BUFFER_SIZE = MAX_ORBIT * 2 * 4;
 
@@ -64,10 +66,15 @@ function orbitFor(input: RenderInput): { data: Float32Array; length: number } {
 		// Other formulas use direct iteration; no reference orbit needed.
 		return { data: EMPTY_DATA, length: 0 };
 	}
-	const key = `${s.camera.centerX}|${s.camera.centerY}|${s.maxIter}`;
+	const cam = s.camera;
+	const key = `${cam.centerX}|${cam.centerXLo ?? 0}|${cam.centerY}|${cam.centerYLo ?? 0}|${s.maxIter}`;
 	if (key !== memoKey) {
 		const iter = Math.min(s.maxIter, MAX_ITER_CAP);
-		const orbit = computeReferenceOrbit(s.camera.centerX, s.camera.centerY, iter);
+		const orbit = computeReferenceOrbitDD(
+			{ hi: cam.centerX, lo: cam.centerXLo ?? 0 },
+			{ hi: cam.centerY, lo: cam.centerYLo ?? 0 },
+			iter
+		);
 		const data = new Float32Array(orbit.length * 2);
 		for (let i = 0; i < orbit.length; i++) {
 			data[i * 2] = orbit.xs[i];
