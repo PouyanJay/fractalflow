@@ -56,7 +56,7 @@
 						onclick={() => layers.select(layer.id)}
 						aria-pressed={active}
 					>
-						{styleLabel(active ? layers.activeStyle : layer.style)}
+						<span class="label">{styleLabel(active ? layers.activeStyle : layer.style)}</span>
 						{#if active}<span class="badge">editing</span>{/if}
 					</button>
 					<div class="ops">
@@ -114,7 +114,7 @@
 		top: var(--ff-space-3);
 		right: var(--ff-space-3);
 		z-index: 5;
-		width: 232px;
+		width: 248px;
 		padding: var(--ff-space-3);
 		border: 1px solid var(--ff-border);
 		border-radius: var(--ff-radius-lg);
@@ -170,6 +170,7 @@
 		border: 1px solid var(--ff-border);
 		border-radius: var(--ff-radius-md);
 		background: var(--ff-surface-raised);
+		overflow: hidden; /* never let a row spill past the rounded border */
 	}
 	.layer.active {
 		border-color: var(--ff-accent);
@@ -179,9 +180,11 @@
 		display: flex;
 		align-items: center;
 		gap: var(--ff-space-1);
+		min-width: 0;
 	}
 	.vis,
 	.ops button {
+		flex: none;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -220,8 +223,15 @@
 		font-size: var(--ff-text-xs);
 		text-align: left;
 		cursor: pointer;
-		white-space: nowrap;
+	}
+	/* The label ellipsizes (it must be its own block child — text-overflow is
+	   ignored on the flex container .name), so the badge + ops never get pushed
+	   off the card. */
+	.label {
+		flex: 1;
+		min-width: 0;
 		overflow: hidden;
+		white-space: nowrap;
 		text-overflow: ellipsis;
 	}
 	.badge {
@@ -232,6 +242,7 @@
 		color: var(--ff-accent);
 	}
 	.ops {
+		flex: none;
 		display: flex;
 		gap: 1px;
 	}
