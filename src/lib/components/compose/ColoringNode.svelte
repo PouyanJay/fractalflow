@@ -66,9 +66,9 @@
 	}
 	.palettes {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--ff-space-2);
-		width: 180px;
+		grid-template-columns: repeat(4, 1fr);
+		gap: var(--ff-space-1);
+		width: 200px;
 	}
 	.swatch {
 		height: 26px;

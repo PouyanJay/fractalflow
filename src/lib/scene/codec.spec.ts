@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { encodeScene, decodeScene } from './codec';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
+import { PALETTES } from '$lib/fractals/palette';
 import type { SceneState } from '$lib/engine/types';
 
 describe('encodeScene / decodeScene round-trip', () => {
@@ -255,7 +256,7 @@ describe('decodeScene resilience', () => {
 		const s = createDefaultScene();
 		const hi = decodeScene(encodeScene({ ...s, maxIter: 999999, paletteIndex: 999 }));
 		expect(hi.maxIter).toBeLessThanOrEqual(8000);
-		expect(hi.paletteIndex).toBeLessThanOrEqual(3);
+		expect(hi.paletteIndex).toBeLessThanOrEqual(PALETTES.length - 1);
 		const lo = decodeScene(encodeScene({ ...s, maxIter: 1, paletteIndex: -5 }));
 		expect(lo.maxIter).toBeGreaterThanOrEqual(1);
 		expect(lo.paletteIndex).toBe(0);
