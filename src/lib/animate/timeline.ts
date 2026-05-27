@@ -8,6 +8,7 @@
  * testable; the store and timeline UI build on top.
  */
 import type { SceneState } from '$lib/engine/types';
+import { add, sub, mulNumber } from '$lib/engine/dd';
 
 export interface Keyframe {
 	id: string;
@@ -21,6 +22,30 @@ const lerp = (a: number, b: number, u: number): number => a + (b - a) * u;
 const logLerp = (a: number, b: number, u: number): number =>
 	a > 0 && b > 0 ? a * Math.pow(b / a, u) : lerp(a, b, u);
 
+/**
+ * Interpolate an extended-precision (double-double) centre coordinate:
+ * a + (b − a)·u in DD, so a deep-zoom journey keeps the sub-f64 precision the
+ * cinematic dive depends on instead of collapsing to f64 each frame.
+ */
+const ddLerp = (aHi: number, aLo: number, bHi: number, bLo: number, u: number) => {
+	const a = { hi: aHi, lo: aLo };
+	const b = { hi: bHi, lo: bLo };
+	return add(a, mulNumber(sub(b, a), u));
+};
+
+/** Interpolate the camera, keeping the centre in double-double precision. */
+function blendCenter(a: SceneState, b: SceneState, u: number): SceneState['camera'] {
+	const cx = ddLerp(a.camera.centerX, a.camera.centerXLo ?? 0, b.camera.centerX, b.camera.centerXLo ?? 0, u);
+	const cy = ddLerp(a.camera.centerY, a.camera.centerYLo ?? 0, b.camera.centerY, b.camera.centerYLo ?? 0, u);
+	return {
+		centerX: cx.hi,
+		centerXLo: cx.lo,
+		centerY: cy.hi,
+		centerYLo: cy.lo,
+		scale: logLerp(a.camera.scale, b.camera.scale, u)
+	};
+}
+
 function blend(a: SceneState, b: SceneState, u: number): SceneState {
 	return {
 		// Discrete fields snap to the earlier keyframe.
@@ -28,12 +53,9 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 		paletteIndex: a.paletteIndex,
 		attractor: a.attractor,
 		flame: a.flame,
-		// Numeric fields interpolate.
-		camera: {
-			centerX: lerp(a.camera.centerX, b.camera.centerX, u),
-			centerY: lerp(a.camera.centerY, b.camera.centerY, u),
-			scale: logLerp(a.camera.scale, b.camera.scale, u)
-		},
+		// Numeric fields interpolate. The centre interpolates in double-double so a
+		// deep-zoom journey keeps its sub-f64 precision (see Camera2D.centerXLo).
+		camera: blendCenter(a, b, u),
 		maxIter: Math.round(lerp(a.maxIter, b.maxIter, u)),
 		juliaSeed: {
 			x: lerp(a.juliaSeed.x, b.juliaSeed.x, u),

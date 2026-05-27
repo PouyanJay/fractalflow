@@ -51,6 +51,21 @@ describe('interpolateScene', () => {
 		expect(interpolateScene([A, B], 0.5).paletteIndex).toBe(0);
 	});
 
+	it('interpolates the centre in double-double so a deep journey keeps precision', () => {
+		// Two centres that f64 sees as identical, differing only in the sub-f64 tail.
+		const lo = scene({ camera: { centerX: -0.5, centerY: 0, centerXLo: 0, scale: 1e-12 } });
+		const hi = scene({ camera: { centerX: -0.5, centerY: 0, centerXLo: 4e-17, scale: 1e-12 } });
+		expect(lo.camera.centerX).toBe(hi.camera.centerX); // f64 can't tell them apart
+		const m = interpolateScene(
+			[
+				{ id: 'l', t: 0, scene: lo },
+				{ id: 'h', t: 1, scene: hi }
+			],
+			0.5
+		);
+		expect(m.camera.centerXLo).toBeCloseTo(2e-17, 30); // the tail interpolates, not dropped
+	});
+
 	it('interpolates bloom amounts so the glow ramps over a journey', () => {
 		const lo = scene({ post: { ...createDefaultScene().post, bloom: 0, bloomThreshold: 1 } });
 		const hi = scene({ post: { ...createDefaultScene().post, bloom: 1, bloomThreshold: 0.5 } });
