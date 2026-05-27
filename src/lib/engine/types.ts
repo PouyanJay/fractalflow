@@ -34,7 +34,8 @@ export type FormulaId =
 	| 'buffalo'
 	| 'perpendicular'
 	| 'perpendicular-ship'
-	| 'celtic-mandelbar';
+	| 'celtic-mandelbar'
+	| 'multibrot';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {
@@ -69,6 +70,10 @@ export interface SceneState {
 	paletteIndex: number;
 	/** Seed `c` for the Julia formula. */
 	juliaSeed: { x: number; y: number };
+	/** Exponent `d` for the Multibrot formula (z ← zᵈ + c). Optional and default
+	 * 2 (the Mandelbrot), so existing scenes are unaffected; carried for every
+	 * scene like juliaSeed but only read by the Multibrot iteration. */
+	power?: number;
 	/** Strange-attractor family id (Glowing Attractors). Carried for every scene
 	 * like juliaSeed, unused unless the attractors renderer is active. */
 	attractor: string;

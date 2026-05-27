@@ -22,7 +22,8 @@ const FORMULA_IDS: readonly FormulaId[] = [
 	'buffalo',
 	'perpendicular',
 	'perpendicular-ship',
-	'celtic-mandelbar'
+	'celtic-mandelbar',
+	'multibrot'
 ];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const FLAME_IDS: readonly string[] = FLAMES.map((f) => f.id);
@@ -67,7 +68,9 @@ export function encodeScene(scene: SceneState): string {
 		// Extended-precision centre tails (double-double `lo`), for deep-zoom
 		// reproducibility — only meaningful (and only carried) when deeply zoomed.
 		deep ? (scene.camera.centerXLo ?? 0) : 0,
-		deep ? (scene.camera.centerYLo ?? 0) : 0
+		deep ? (scene.camera.centerYLo ?? 0) : 0,
+		// Multibrot exponent — default 2, so non-Multibrot scenes trim it away.
+		scene.power ?? 2
 	];
 	// Drop trailing fields equal to their default: decodeScene fills them back in,
 	// so a shallow Mandelbrot collapses to `formula~cx~cy~scale` instead of 21
@@ -94,7 +97,8 @@ export function encodeScene(scene: SceneState): string {
 		d.post.bloomKnee,
 		d.post.bloomRadius,
 		0,
-		0
+		0,
+		2 // default Multibrot power
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
@@ -119,6 +123,8 @@ export function decodeScene(token: string): SceneState {
 	// has none, so it round-trips byte-identically to its f64-only form).
 	const centerXLo = num(parts[19], 0);
 	const centerYLo = num(parts[20], 0);
+	// Multibrot exponent — only carried when non-default (2), matching the encoder.
+	const power = num(parts[21], 2);
 
 	return {
 		formula,
@@ -147,6 +153,7 @@ export function decodeScene(token: string): SceneState {
 			bloomThreshold: Math.max(0, num(parts[16], fallback.post.bloomThreshold)),
 			bloomKnee: clamp01(num(parts[17], fallback.post.bloomKnee)),
 			bloomRadius: Math.max(0, num(parts[18], fallback.post.bloomRadius))
-		}
+		},
+		...(power !== 2 ? { power } : {})
 	};
 }

@@ -57,6 +57,24 @@
 				</div>
 			</div>
 		{/if}
+		{#if scene.formula === 'multibrot'}
+			<label class="field">
+				<span>Power (d)</span>
+				<div class="power">
+					<input
+						class="nodrag"
+						type="range"
+						min="2"
+						max="8"
+						step="0.1"
+						value={scene.power}
+						oninput={(e) => scene.setPower(Number(e.currentTarget.value))}
+						aria-label="Multibrot power"
+					/>
+					<span class="ff-num val">{scene.power.toFixed(1)}</span>
+				</div>
+			</label>
+		{/if}
 	{:else if style === 'attractors'}
 		<label class="field">
 			<span>Attractor</span>
@@ -94,6 +112,21 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: var(--ff-space-2);
+	}
+	.power {
+		display: flex;
+		align-items: center;
+		gap: var(--ff-space-2);
+	}
+	.power input[type='range'] {
+		flex: 1;
+		min-width: 0;
+		accent-color: var(--ff-accent);
+	}
+	.power .val {
+		min-width: 28px;
+		text-align: right;
+		color: var(--ff-text-secondary);
 	}
 	.seed {
 		display: flex;

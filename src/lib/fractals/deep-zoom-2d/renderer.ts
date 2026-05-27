@@ -28,7 +28,7 @@ import {
 	POST_GLSL_FIELDS,
 	POST_GLSL_FN
 } from '$lib/fractals/post';
-import { FORMULA_CODES } from './reference';
+import { FORMULA_CODES, DEFAULT_POWER } from './reference';
 import {
 	computeReferenceOrbitDD,
 	computeSeriesApprox,
@@ -144,7 +144,7 @@ struct Uniforms {
 	formula: f32,
 	seed: vec2f,
 	orbitLength: f32,
-	pad0: f32,
+	power: f32,
 	palA: vec4f,
 	palB: vec4f,
 	palC: vec4f,
@@ -216,8 +216,12 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 				z = vec2f(x2 - y2 + c.x, 2.0 * abs(z.x) * z.y + c.y);
 			} else if (formula == 7) {        // perpendicular-ship
 				z = vec2f(x2 - y2 + c.x, 2.0 * z.x * abs(z.y) + c.y);
-			} else {                          // celtic-mandelbar (8)
+			} else if (formula == 8) {        // celtic-mandelbar
 				z = vec2f(abs(x2 - y2) + c.x, -2.0 * z.x * z.y + c.y);
+			} else {                          // multibrot (9): zᵈ + c (polar)
+				let r = pow(x2 + y2, u.power * 0.5);
+				let theta = atan2(z.y, z.x) * u.power;
+				z = vec2f(r * cos(theta) + c.x, r * sin(theta) + c.y);
 			}
 			i = i + 1;
 		}
@@ -285,7 +289,7 @@ layout(std140) uniform Uniforms {
 	float uFormula;
 	vec2 uSeed;
 	float uOrbitLength;
-	float uPad0;
+	float uPower;
 	vec4 uPalA;
 	vec4 uPalB;
 	vec4 uPalC;
@@ -346,8 +350,12 @@ void main() {
 				z = vec2(x2 - y2 + c.x, 2.0 * abs(z.x) * z.y + c.y);
 			} else if (formula == 7) {        // perpendicular-ship
 				z = vec2(x2 - y2 + c.x, 2.0 * z.x * abs(z.y) + c.y);
-			} else {                          // celtic-mandelbar (8)
+			} else if (formula == 8) {        // celtic-mandelbar
 				z = vec2(abs(x2 - y2) + c.x, -2.0 * z.x * z.y + c.y);
+			} else {                          // multibrot (9): zᵈ + c (polar)
+				float r = pow(x2 + y2, uPower * 0.5);
+				float theta = atan(z.y, z.x) * uPower; // GLSL atan(y,x) == atan2
+				z = vec2(r * cos(theta) + c.x, r * sin(theta) + c.y);
 			}
 		}
 		fragColor = ffPost(INTERIOR, uv);
@@ -422,6 +430,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(32, scene.juliaSeed.x);
 		f(36, scene.juliaSeed.y);
 		f(40, orbitFor(input).length);
+		f(44, scene.power ?? DEFAULT_POWER); // Multibrot exponent (former pad slot)
 		const c = (PALETTES[scene.paletteIndex] ?? PALETTES[0]).coeffs;
 		f(48, c.a[0]);
 		f(52, c.a[1]);

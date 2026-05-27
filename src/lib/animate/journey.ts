@@ -61,7 +61,10 @@ export const SHOWCASE_DIVES: Record<FormulaId, DiveTarget> = {
 	buffalo: { centerX: -0.5, centerY: -1.3, scale: 0.02 },
 	perpendicular: { centerX: 0.32, centerY: 0.06, scale: 0.08 },
 	'perpendicular-ship': { centerX: -0.65, centerY: 0.65, scale: 0.02 },
-	'celtic-mandelbar': { centerX: -0.2, centerY: 0.75, scale: 0.04 }
+	'celtic-mandelbar': { centerX: -0.2, centerY: 0.75, scale: 0.04 },
+	// Multibrot: Seahorse Valley (gorgeous at the default power 2; stays within the
+	// f32 direct-iteration range since Multibrot has no perturbation path).
+	multibrot: { centerX: -0.745, centerY: 0.113, scale: 0.012 }
 };
 
 /**

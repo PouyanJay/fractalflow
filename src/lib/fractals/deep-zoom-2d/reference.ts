@@ -210,6 +210,36 @@ export const celticMandelbarEscape = (
 	b = DEFAULT_BAILOUT_RADIUS
 ) => absVariantEscape('celtic-mandelbar', cx, cy, maxIter, b);
 
+/**
+ * Multibrot: z := zᵈ + c from z = 0, with a real exponent d. Uses the polar
+ * form zᵈ = rᵈ·(cos dθ + i·sin dθ), so non-integer powers work too (d = 2 is the
+ * Mandelbrot). The default power lives in DEFAULT_POWER.
+ */
+export const DEFAULT_POWER = 2;
+
+export function multibrotEscape(
+	cx: number,
+	cy: number,
+	power: number,
+	maxIter: number,
+	bailoutRadius = DEFAULT_BAILOUT_RADIUS
+): EscapeResult {
+	const r2 = bailoutRadius * bailoutRadius;
+	let zx = 0;
+	let zy = 0;
+	let i = 0;
+	for (; i < maxIter; i++) {
+		const mag2 = zx * zx + zy * zy;
+		if (mag2 > r2) break;
+		const r = Math.pow(mag2, power / 2); // (√mag2)^power, one pow call
+		const theta = Math.atan2(zy, zx) * power;
+		zx = r * Math.cos(theta) + cx;
+		zy = r * Math.sin(theta) + cy;
+	}
+	if (i >= maxIter) return { escaped: false, iter: maxIter, smooth: maxIter };
+	return { escaped: true, iter: i, smooth: smoothCount(i, zx, zy) };
+}
+
 export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'mandelbrot', label: 'Mandelbrot' },
 	{ id: 'julia', label: 'Julia' },
@@ -219,7 +249,8 @@ export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'buffalo', label: 'Buffalo' },
 	{ id: 'perpendicular', label: 'Perpendicular' },
 	{ id: 'perpendicular-ship', label: 'Perpendicular Ship' },
-	{ id: 'celtic-mandelbar', label: 'Celtic Mandelbar' }
+	{ id: 'celtic-mandelbar', label: 'Celtic Mandelbar' },
+	{ id: 'multibrot', label: 'Multibrot' }
 ];
 
 /** Stable integer codes passed to the shaders to select the iteration. */
@@ -232,7 +263,8 @@ export const FORMULA_CODES: Record<FormulaId, number> = {
 	buffalo: 5,
 	perpendicular: 6,
 	'perpendicular-ship': 7,
-	'celtic-mandelbar': 8
+	'celtic-mandelbar': 8,
+	multibrot: 9
 };
 
 export interface ComplexPoint {

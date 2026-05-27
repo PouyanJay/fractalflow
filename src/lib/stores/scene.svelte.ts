@@ -31,6 +31,9 @@ export function createSceneStore() {
 		get juliaSeed() {
 			return scene.juliaSeed;
 		},
+		get power() {
+			return scene.power ?? 2;
+		},
 		get attractor() {
 			return scene.attractor;
 		},
@@ -45,6 +48,7 @@ export function createSceneStore() {
 		setMaxIter: (n: number) => (scene.maxIter = n),
 		setPaletteIndex: (i: number) => (scene.paletteIndex = i),
 		setJuliaSeed: (x: number, y: number) => (scene.juliaSeed = { x, y }),
+		setPower: (d: number) => (scene.power = d),
 		setAttractor: (id: string) => (scene.attractor = id),
 		setFlame: (id: string) => (scene.flame = id),
 		setPost: (patch: Partial<PostSettings>) => (scene.post = { ...scene.post, ...patch }),

@@ -166,6 +166,26 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 		expect(out.camera.centerYLo).toBe(-2.3e-18);
 	});
 
+	it('round-trips the Multibrot power, and omits it when default (2)', () => {
+		const s = createDefaultScene();
+		// Non-default power is carried and restored.
+		const withPower = encodeScene({ ...s, formula: 'multibrot', power: 4.5 });
+		expect(decodeScene(withPower).power).toBe(4.5);
+		// Default power (2) is trimmed away and decodes as absent.
+		const defaultPower = encodeScene({ ...s, formula: 'multibrot', power: 2 });
+		expect(decodeScene(defaultPower).power).toBeUndefined();
+		// A power set on a deeply-zoomed scene survives alongside the lo tails.
+		const deep = encodeScene({
+			...s,
+			formula: 'multibrot',
+			power: 3,
+			camera: { centerX: -0.5, centerY: 0, scale: 1e-12, centerXLo: 1e-17, centerYLo: 2e-18 }
+		});
+		const back = decodeScene(deep);
+		expect(back.power).toBe(3);
+		expect(back.camera.centerXLo).toBe(1e-17);
+	});
+
 	it('decodes a trimmed token, filling the omitted fields with defaults', () => {
 		const out = decodeScene('julia~0.1~-0.2~0.5');
 		const d = createDefaultScene();

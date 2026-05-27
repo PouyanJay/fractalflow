@@ -73,6 +73,8 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 			x: lerp(a.juliaSeed.x, b.juliaSeed.x, u),
 			y: lerp(a.juliaSeed.y, b.juliaSeed.y, u)
 		},
+		// Multibrot exponent interpolates so a power sweep morphs smoothly.
+		power: lerp(a.power ?? 2, b.power ?? 2, u),
 		// Warp snaps to the earlier keyframe; the grade and bloom amounts interpolate.
 		post: {
 			warp: a.post.warp,
@@ -118,7 +120,8 @@ export function cloneScene(scene: SceneState): SceneState {
 		juliaSeed: { ...scene.juliaSeed },
 		attractor: scene.attractor,
 		flame: scene.flame,
-		post: { ...scene.post }
+		post: { ...scene.post },
+		...(scene.power !== undefined ? { power: scene.power } : {})
 	};
 }
 

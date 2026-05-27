@@ -9,6 +9,7 @@ import {
 	perpendicularEscape,
 	perpendicularShipEscape,
 	celticMandelbarEscape,
+	multibrotEscape,
 	FORMULAS,
 	FORMULA_CODES
 } from './reference';
@@ -97,6 +98,55 @@ describe('abs-variant escapes', () => {
 	});
 });
 
+describe('multibrotEscape', () => {
+	it('reduces to the Mandelbrot at power 2 (membership agrees)', () => {
+		// The polar form and the algebraic z²+c can differ by ±1 iteration on the
+		// knife-edge of the boundary, so compare set membership (well clear of it).
+		const inside: Array<[number, number]> = [
+			[0, 0],
+			[-1, 0],
+			[-0.1, 0.1]
+		];
+		const outside: Array<[number, number]> = [
+			[2, 2],
+			[1, 1],
+			[-1.5, 0.5]
+		];
+		for (const [x, y] of inside) {
+			expect(multibrotEscape(x, y, 2, 400).escaped).toBe(false);
+			expect(mandelbrotEscape(x, y, 400).escaped).toBe(false);
+		}
+		for (const [x, y] of outside) {
+			expect(multibrotEscape(x, y, 2, 400).escaped).toBe(true);
+			expect(mandelbrotEscape(x, y, 400).escaped).toBe(true);
+		}
+	});
+
+	it('keeps the origin inside at any power and escapes far points fast', () => {
+		for (const power of [2, 3, 5, 8]) {
+			expect(multibrotEscape(0, 0, power, 200).escaped).toBe(false);
+			expect(multibrotEscape(3, 3, power, 200).iter).toBeLessThan(5);
+		}
+	});
+
+	it('produces a genuinely different set as the exponent changes', () => {
+		// Count interior points on a grid: the degree-2 and degree-6 sets have
+		// different silhouettes, so their interior counts must differ.
+		const countInside = (power: number) => {
+			let inside = 0;
+			for (let i = 0; i < 40; i++) {
+				for (let j = 0; j < 40; j++) {
+					const x = -1.5 + (i / 39) * 2; // [-1.5, 0.5]
+					const y = -1 + (j / 39) * 2; // [-1, 1]
+					if (!multibrotEscape(x, y, power, 300).escaped) inside++;
+				}
+			}
+			return inside;
+		};
+		expect(countInside(2)).not.toBe(countInside(6));
+	});
+});
+
 describe('formula metadata', () => {
 	it('lists the supported formulas in order with stable shader codes', () => {
 		expect(FORMULAS.map((f) => f.id)).toEqual([
@@ -108,7 +158,8 @@ describe('formula metadata', () => {
 			'buffalo',
 			'perpendicular',
 			'perpendicular-ship',
-			'celtic-mandelbar'
+			'celtic-mandelbar',
+			'multibrot'
 		]);
 		expect(FORMULA_CODES.mandelbrot).toBe(0);
 		expect(FORMULA_CODES.julia).toBe(1);
@@ -119,5 +170,6 @@ describe('formula metadata', () => {
 		expect(FORMULA_CODES.perpendicular).toBe(6);
 		expect(FORMULA_CODES['perpendicular-ship']).toBe(7);
 		expect(FORMULA_CODES['celtic-mandelbar']).toBe(8);
+		expect(FORMULA_CODES.multibrot).toBe(9);
 	});
 });

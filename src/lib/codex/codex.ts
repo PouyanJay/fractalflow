@@ -89,6 +89,14 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'A hybrid abs-variant showcasing how stacking folds compounds their symmetry-breaking effects.',
 		tips: 'Zoom the faceted cusps where the lobes meet; a high-contrast palette emphasises the facets.'
+	},
+	multibrot: {
+		title: 'Multibrot',
+		body: 'The Multibrot set — the Mandelbrot generalised to any exponent. Raising the power adds lobes: a degree-d set has d−1 fold rotational symmetry.',
+		math: 'Iterate zₙ₊₁ = zₙᵈ + c with z₀ = 0 and a real exponent d (d = 2 is the Mandelbrot). The power uses the polar form zᵈ = rᵈ·(cos dθ + i·sin dθ), so even fractional exponents render.',
+		applications:
+			'A standard generalisation used to study how the degree of an iterated polynomial controls the number and arrangement of its bulbs.',
+		tips: 'Set the exponent in the Source node — integers 3–8 give clean 2-, 3-, …, 7-fold flowers; fractional powers warp them into asymmetric blooms.'
 	}
 };
 
