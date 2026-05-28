@@ -98,9 +98,9 @@ describe('ifsRenderer', () => {
 			const count = view.getFloat32(metaBase + 8, true);
 			expect(count).toBeGreaterThanOrEqual(3);
 			expect(Number.isFinite(view.getFloat32(metaBase, true))).toBe(true); // centroid x
-			// The shader's seed/inside-hull helpers exist.
-			expect(ifsRenderer.wgsl).toContain('fn seedInHull');
+			// The shader's hull test exists and the forming seed uses it.
 			expect(ifsRenderer.wgsl).toContain('fn insideHull');
+			expect(ifsRenderer.wgsl).toContain('insideHull(p)');
 		});
 	});
 });

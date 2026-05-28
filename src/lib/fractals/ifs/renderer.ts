@@ -196,21 +196,6 @@ fn insideHull(p: vec2f) -> bool {
 	return true;
 }
 
-// A Formation seed: rejection-sample the framing square until inside the hull
-// so the fractal grows out of its true silhouette (the Sierpiński triangle, not
-// its bounding square); fall back to the hull centroid if every try misses.
-fn seedInHull(rng: ptr<function, u32>) -> vec2f {
-	let c = vec2f(u.cx, u.cy);
-	var p = c + (vec2f(rngNext(rng), rngNext(rng)) - vec2f(0.5)) * (2.0 * u.radius);
-	var inside = insideHull(p);
-	for (var k = 1u; !inside && k < ${HULL_SEED_TRIES}u; k = k + 1u) {
-		p = c + (vec2f(rngNext(rng), rngNext(rng)) - vec2f(0.5)) * (2.0 * u.radius);
-		inside = insideHull(p);
-	}
-	if (!inside) { return u.meta.xy; }
-	return p;
-}
-
 fn project(p: vec2f) -> vec2f {
 	let n = (p - vec2f(u.cx, u.cy)) / u.radius; // frame the attractor to ~[-1,1]
 	let ppu = u.resolution.y / u.scale; // pixels per unit (scale = vertical extent)
@@ -264,8 +249,18 @@ fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	// d and d+1 per sample for a smooth ramp.
 	let d0 = u32(floor(u.depth));
 	let frac = u.depth - floor(u.depth);
+	let seedC = vec2f(u.cx, u.cy);
 	for (var s = 0u; s < u.steps; s = s + 1u) {
-		var p = seedInHull(&rng);
+		// Seed inside the attractor's hull silhouette (Sierpiński grows from a
+		// triangle, not its bounding square): rejection-sample the framing square,
+		// falling back to the hull centroid if every try misses.
+		var p = seedC + (vec2f(rngNext(&rng), rngNext(&rng)) - vec2f(0.5)) * (2.0 * u.radius);
+		var inHull = insideHull(p);
+		for (var k = 1u; !inHull && k < ${HULL_SEED_TRIES}u; k = k + 1u) {
+			p = seedC + (vec2f(rngNext(&rng), rngNext(&rng)) - vec2f(0.5)) * (2.0 * u.radius);
+			inHull = insideHull(p);
+		}
+		if (!inHull) { p = u.meta.xy; }
 		var c = 0.5;
 		var d = d0;
 		if (rngNext(&rng) < frac) { d = d + 1u; }
