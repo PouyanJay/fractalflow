@@ -90,5 +90,17 @@ describe('ifsRenderer', () => {
 			);
 			expect(fernD).toBeGreaterThan(sierD);
 		});
+
+		it('packs a seed-hull (meta vertex count ≥ 3) for silhouette seeding', () => {
+			// meta vec4f sits right after the HULL_MAX (=16) packed vec4f points.
+			const metaBase = 112 + (16 / 2) * 16;
+			const view = pack('sierpinski-triangle', { formation: 0.3 });
+			const count = view.getFloat32(metaBase + 8, true);
+			expect(count).toBeGreaterThanOrEqual(3);
+			expect(Number.isFinite(view.getFloat32(metaBase, true))).toBe(true); // centroid x
+			// The shader's seed/inside-hull helpers exist.
+			expect(ifsRenderer.wgsl).toContain('fn seedInHull');
+			expect(ifsRenderer.wgsl).toContain('fn insideHull');
+		});
 	});
 });

@@ -5,13 +5,16 @@ import {
 	applyAffine,
 	chaosGame,
 	ifsBounds,
-	ifsFraming,
+	convexHull,
+	ifsHull,
+	pointInConvex,
 	contractionRatio,
 	systemContraction,
 	formationMaxDepth,
 	formationApprox,
 	FORMATION_MIN_DEPTH,
 	FORMATION_MAX_DEPTH,
+	HULL_MAX,
 	type IFSystem
 } from './ifs';
 
@@ -141,28 +144,66 @@ describe('formationMaxDepth', () => {
 	});
 });
 
-describe('formationApprox (depth-d growth)', () => {
-	it('at depth 0 is the solid framing box, not yet the attractor', () => {
-		const sier = getIFS('sierpinski-triangle');
-		const { cx, cy, radius } = ifsFraming(sier);
-		const pts = formationApprox(sier, 0, 3000, 11);
-		for (const p of pts) {
-			expect(Math.abs(p.x - cx)).toBeLessThanOrEqual(radius + 1e-9);
-			expect(Math.abs(p.y - cy)).toBeLessThanOrEqual(radius + 1e-9);
-		}
-		// The box overfills the attractor: points appear below the triangle (y<0).
-		expect(pts.some((p) => p.y < -0.02)).toBe(true);
+const shoelace = (h: { x: number; y: number }[]) => {
+	let a = 0;
+	for (let i = 0; i < h.length; i++) {
+		const p = h[i];
+		const q = h[(i + 1) % h.length];
+		a += p.x * q.y - q.x * p.y;
+	}
+	return Math.abs(a) / 2;
+};
+
+describe('convex hull seeding', () => {
+	it('hulls the Sierpiński attractor to a tight triangle silhouette', () => {
+		const hull = ifsHull(getIFS('sierpinski-triangle'));
+		expect(hull.length).toBeLessThanOrEqual(4); // a triangle, not a jagged ~16-gon
+		// Area ≈ the ideal unit triangle (½·1·√3/2 ≈ 0.433), far below its 1.08²
+		// bounding square — proof it's the silhouette, not the box.
+		expect(shoelace(hull)).toBeGreaterThan(0.34);
+		expect(shoelace(hull)).toBeLessThan(0.5);
 	});
 
-	it('collapses onto the attractor as depth grows', () => {
+	it('keeps every hull within the vertex cap', () => {
+		for (const s of IFS_SYSTEMS) expect(ifsHull(s).length).toBeLessThanOrEqual(HULL_MAX);
+	});
+
+	it('convexHull winds CCW and pointInConvex agrees with inside/outside', () => {
+		const square = convexHull([
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			{ x: 1, y: 1 },
+			{ x: 0, y: 1 },
+			{ x: 0.5, y: 0.5 } // interior point excluded from the hull
+		]);
+		expect(square.length).toBe(4);
+		expect(pointInConvex(square, 0.5, 0.5)).toBe(true);
+		expect(pointInConvex(square, 1.5, 0.5)).toBe(false);
+	});
+});
+
+describe('formationApprox (depth-d growth)', () => {
+	it('at depth 0 fills the attractor silhouette (the triangle), not the square corners', () => {
 		const sier = getIFS('sierpinski-triangle');
-		const b = ifsBounds(sier);
-		const outside = (pts: { x: number; y: number }[]) =>
-			pts.filter((p) => p.y < b.min.y - 0.02 || p.y > b.max.y + 0.02).length / pts.length;
-		const shallow = outside(formationApprox(sier, 1, 4000, 5));
-		const deep = outside(formationApprox(sier, 12, 4000, 5));
+		const hull = ifsHull(sier);
+		const pts = formationApprox(sier, 0, 3000, 11);
+		// Seeds land inside the triangular hull, so none sit below the base (y<0)
+		// the way a square seed's corners would.
+		const slack = 0.03;
+		for (const p of pts) expect(pointInConvex(hull, p.x, p.y) || p.y > -slack).toBe(true);
+		expect(pts.every((p) => p.y > -slack)).toBe(true); // triangle, not square
+	});
+
+	it('carves the central hole as depth grows (the gasket forming)', () => {
+		const sier = getIFS('sierpinski-triangle');
+		// The Sierpiński hole is the medial triangle around (0.5, 0.289).
+		const nearHole = (pts: { x: number; y: number }[]) =>
+			pts.filter((p) => Math.hypot(p.x - 0.5, p.y - 0.289) < 0.12).length / pts.length;
+		const shallow = nearHole(formationApprox(sier, 0, 4000, 5)); // the filled triangle
+		const deep = nearHole(formationApprox(sier, 8, 4000, 5));
+		expect(shallow).toBeGreaterThan(0.02); // depth 0 fills the centre
 		expect(deep).toBeLessThan(shallow);
-		expect(deep).toBeLessThan(0.02); // essentially landed on the attractor
+		expect(deep).toBeLessThan(0.005); // the gasket has emptied its central hole
 	});
 
 	it('is deterministic and yields colour coordinates in [0,1]', () => {

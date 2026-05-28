@@ -201,6 +201,90 @@ export function ifsFraming(system: IFSystem): IFSFraming {
 	return { cx: (b.min.x + b.max.x) / 2, cy: (b.min.y + b.max.y) / 2, radius };
 }
 
+export interface Pt {
+	x: number;
+	y: number;
+}
+
+/**
+ * Convex hull (counter-clockwise) of a point set via Andrew's monotone chain.
+ * Used to seed a Formation from the attractor's true silhouette — the Sierpiński
+ * triangle grows out of a triangle, not its bounding square.
+ */
+export function convexHull(points: readonly Pt[]): Pt[] {
+	const p = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+	if (p.length <= 2) return p;
+	const cross = (o: Pt, a: Pt, b: Pt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+	const lower: Pt[] = [];
+	for (const q of p) {
+		while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0)
+			lower.pop();
+		lower.push(q);
+	}
+	const upper: Pt[] = [];
+	for (let i = p.length - 1; i >= 0; i--) {
+		const q = p[i];
+		while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0)
+			upper.pop();
+		upper.push(q);
+	}
+	lower.pop();
+	upper.pop();
+	return lower.concat(upper);
+}
+
+/** Largest number of hull vertices a Formation seed polygon carries to the GPU. */
+export const HULL_MAX = 16;
+
+/** The attractor's silhouette as a (≤HULL_MAX-gon) convex hull, for Formation seeding. */
+export function ifsHull(system: IFSystem, max = HULL_MAX): Pt[] {
+	const hull = convexHull(chaosGame(system, 6000, 1).map((p) => ({ x: p.x, y: p.y })));
+	// Chaos-game float noise jags otherwise-straight edges into many tiny vertices
+	// (the Sierpiński triangle reads as a ~16-gon). Iteratively drop the least
+	// significant vertex (smallest ear area, Visvalingam-style) so the silhouette
+	// collapses back to its true corners — a triangle stays a triangle.
+	const b = ifsBounds(system);
+	const span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y) || 1;
+	const minArea = span * span * 5e-3;
+	const earArea = (h: Pt[], i: number): number => {
+		const a = h[(i - 1 + h.length) % h.length];
+		const c = h[i];
+		const d = h[(i + 1) % h.length];
+		return Math.abs((c.x - a.x) * (d.y - a.y) - (c.y - a.y) * (d.x - a.x)) / 2;
+	};
+	while (hull.length > 3) {
+		let worst = 0;
+		for (let i = 1; i < hull.length; i++) if (earArea(hull, i) < earArea(hull, worst)) worst = i;
+		if (earArea(hull, worst) > minArea && hull.length <= max) break;
+		hull.splice(worst, 1);
+	}
+	return hull;
+}
+
+/** Vertex-average of a convex polygon — always strictly inside it. */
+export function polygonCentroid(hull: readonly Pt[]): Pt {
+	const n = Math.max(1, hull.length);
+	let x = 0;
+	let y = 0;
+	for (const p of hull) {
+		x += p.x;
+		y += p.y;
+	}
+	return { x: x / n, y: y / n };
+}
+
+/** Whether (x,y) is inside a CCW convex polygon — left of (or on) every edge. */
+export function pointInConvex(hull: readonly Pt[], x: number, y: number): boolean {
+	const n = hull.length;
+	if (n < 3) return true;
+	for (let i = 0; i < n; i++) {
+		const a = hull[i];
+		const b = hull[(i + 1) % n];
+		if ((b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x) < 0) return false;
+	}
+	return true;
+}
+
 /**
  * Largest singular value of the affine map's 2×2 linear part — the worst-case
  * factor by which it shrinks distances. Governs how many times a map must be
@@ -240,12 +324,19 @@ export function formationMaxDepth(system: IFSystem): number {
 }
 
 /**
+/** Rejection tries to land a seed inside the hull before falling back to the box. */
+export const HULL_SEED_TRIES = 12;
+
+/**
  * The depth-`d` Hutchinson approximation Sᵈ = ⋃_{|w|=d} f_w(S₀): each sample is a
- * random point of the framing box S₀ pushed through `d` random weighted maps.
- * At d = 0 it's the solid box; as d grows the box collapses onto the attractor,
- * so ramping d reads as the fractal growing out of a solid seed. A fractional
- * depth blends d and d+1 per sample for a smooth ramp. This is the CPU reference
- * the GPU Formation path mirrors (same framing, weighted picker and colour blend).
+ * random point of the seed region S₀ pushed through `d` random weighted maps. S₀
+ * is the attractor's convex hull (so the Sierpiński triangle grows out of a
+ * triangle, not its bounding square), sampled by rejection within the framing
+ * box. At d = 0 it's the solid silhouette; as d grows it collapses onto the
+ * attractor, so ramping d reads as the fractal growing out of a solid seed. A
+ * fractional depth blends d and d+1 per sample for a smooth ramp. This is the CPU
+ * reference the GPU Formation path mirrors (same hull seed, framing, weighted
+ * picker and colour blend).
  */
 export function formationApprox(
 	system: IFSystem,
@@ -255,6 +346,8 @@ export function formationApprox(
 ): IFSPoint[] {
 	const rng = mulberry32(seed);
 	const { cx, cy, radius } = ifsFraming(system);
+	const hull = ifsHull(system);
+	const centroid = polygonCentroid(hull);
 	const total = system.maps.reduce((s, m) => s + m.weight, 0);
 	const pick = (): IFSMap => {
 		let r = rng() * total;
@@ -271,6 +364,16 @@ export function formationApprox(
 	for (let i = 0; i < steps; i++) {
 		let x = cx + (rng() - 0.5) * 2 * radius;
 		let y = cy + (rng() - 0.5) * 2 * radius;
+		let inside = pointInConvex(hull, x, y);
+		for (let k = 1; !inside && k < HULL_SEED_TRIES; k++) {
+			x = cx + (rng() - 0.5) * 2 * radius;
+			y = cy + (rng() - 0.5) * 2 * radius;
+			inside = pointInConvex(hull, x, y);
+		}
+		if (!inside) {
+			x = centroid.x;
+			y = centroid.y;
+		}
 		let c = 0.5;
 		const d = d0 + (rng() < frac ? 1 : 0);
 		for (let k = 0; k < d; k++) {

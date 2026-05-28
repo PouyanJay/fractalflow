@@ -26,11 +26,26 @@
 import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
-import { IFS_SYSTEMS, ifsFraming, formationMaxDepth, type IFSFraming } from './ifs';
+import {
+	IFS_SYSTEMS,
+	ifsFraming,
+	formationMaxDepth,
+	ifsHull,
+	polygonCentroid,
+	HULL_MAX,
+	HULL_SEED_TRIES,
+	type IFSFraming,
+	type Pt
+} from './ifs';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
 export const IFS_ID = 'ifs';
-const POST_BASE = 112;
+// The Formation seed-hull sits between the palette and post blocks: HULL_MAX
+// points packed 2-per-vec4f, then a meta vec4f (centroid.xy, hullCount in .z).
+const HULL_VEC4S = HULL_MAX / 2;
+const HULL_BASE = 112;
+const META_BASE = HULL_BASE + HULL_VEC4S * 16;
+const POST_BASE = META_BASE + 16;
 const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 const PARTICLE_COUNT = 1 << 16;
 const STEPS_PER_PARTICLE = 256;
@@ -46,13 +61,23 @@ const SYSTEM_INDEX: Record<string, number> = Object.fromEntries(
 	IFS_SYSTEMS.map((s, i) => [s.id, i])
 );
 
-// Framing + Formation depth are derived from the (expensive) reference chaos
-// game, so precompute them once per system rather than every packUniforms frame.
+// Framing, Formation depth and the seed-hull are derived from the (expensive)
+// reference chaos game, so precompute them once per system, not every frame.
 const FRAMINGS: Record<string, IFSFraming> = Object.fromEntries(
 	IFS_SYSTEMS.map((s) => [s.id, ifsFraming(s)])
 );
 const MAX_DEPTH: Record<string, number> = Object.fromEntries(
 	IFS_SYSTEMS.map((s) => [s.id, formationMaxDepth(s)])
+);
+interface SeedHull {
+	verts: Pt[];
+	centroid: Pt;
+}
+const HULLS: Record<string, SeedHull> = Object.fromEntries(
+	IFS_SYSTEMS.map((s) => {
+		const verts = ifsHull(s);
+		return [s.id, { verts, centroid: polygonCentroid(verts) }];
+	})
 );
 
 // WGSL float literal that always carries a decimal point.
@@ -136,6 +161,8 @@ struct U {
 	palB: vec4f,
 	palC: vec4f,
 	palD: vec4f,
+	hull: array<vec4f, ${HULL_VEC4S}>,
+	meta: vec4f,
 ${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: U;
@@ -149,6 +176,39 @@ fn rngNext(state: ptr<function, u32>) -> f32 {
 	*state = s;
 	let word = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u;
 	return f32((word >> 22u) ^ word) / 4294967296.0;
+}
+
+// The Formation seed-hull: HULL_MAX points packed two per vec4f (xy, zw).
+fn hullPoint(j: u32) -> vec2f {
+	let v = u.hull[j >> 1u];
+	return select(v.zw, v.xy, (j & 1u) == 0u);
+}
+
+// Inside the attractor's CCW convex-hull silhouette (left of every edge)?
+fn insideHull(p: vec2f) -> bool {
+	let n = u32(u.meta.z);
+	if (n < 3u) { return true; }
+	for (var i = 0u; i < n; i = i + 1u) {
+		let a = hullPoint(i);
+		let b = hullPoint((i + 1u) % n);
+		if ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) < 0.0) { return false; }
+	}
+	return true;
+}
+
+// A Formation seed: rejection-sample the framing square until inside the hull
+// so the fractal grows out of its true silhouette (the Sierpiński triangle, not
+// its bounding square); fall back to the hull centroid if every try misses.
+fn seedInHull(rng: ptr<function, u32>) -> vec2f {
+	let c = vec2f(u.cx, u.cy);
+	var p = c + (vec2f(rngNext(rng), rngNext(rng)) - vec2f(0.5)) * (2.0 * u.radius);
+	var inside = insideHull(p);
+	for (var k = 1u; !inside && k < ${HULL_SEED_TRIES}u; k = k + 1u) {
+		p = c + (vec2f(rngNext(rng), rngNext(rng)) - vec2f(0.5)) * (2.0 * u.radius);
+		inside = insideHull(p);
+	}
+	if (!inside) { return u.meta.xy; }
+	return p;
 }
 
 fn project(p: vec2f) -> vec2f {
@@ -205,7 +265,7 @@ fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let d0 = u32(floor(u.depth));
 	let frac = u.depth - floor(u.depth);
 	for (var s = 0u; s < u.steps; s = s + 1u) {
-		var p = vec2f(u.cx, u.cy) + (vec2f(rngNext(&rng), rngNext(&rng)) - vec2f(0.5)) * (2.0 * u.radius);
+		var p = seedInHull(&rng);
 		var c = 0.5;
 		var d = d0;
 		if (rngNext(&rng) < frac) { d = d + 1u; }
@@ -295,6 +355,17 @@ export const ifsRenderer: ComputeRenderer = {
 		f(96, c.d[0]);
 		f(100, c.d[1]);
 		f(104, c.d[2]);
+		// Seed-hull: pack up to HULL_MAX silhouette points two per vec4f, then a
+		// meta vec4f (centroid.xy, vertex count). Only read while forming.
+		const hull = HULLS[scene.ifs] ?? HULLS[IFS_SYSTEMS[0].id];
+		const n = Math.min(HULL_MAX, hull.verts.length);
+		for (let i = 0; i < n; i++) {
+			f(HULL_BASE + (i >> 1) * 16 + (i & 1) * 8, hull.verts[i].x);
+			f(HULL_BASE + (i >> 1) * 16 + (i & 1) * 8 + 4, hull.verts[i].y);
+		}
+		f(META_BASE, hull.centroid.x);
+		f(META_BASE + 4, hull.centroid.y);
+		f(META_BASE + 8, n);
 		packPost(view, POST_BASE, scene.post);
 	}
 };
