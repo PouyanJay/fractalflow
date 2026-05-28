@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="static/logo.svg" alt="FractalFlow logo" width="84" height="84" />
-
 # FractalFlow Studio
 
 **A GPU-native, local-first studio for crafting beautiful, colorful fractal art in the browser.**
