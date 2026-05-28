@@ -21,6 +21,7 @@
 import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
+import { revealedSteps } from '$lib/fractals/formation';
 import { FLAMES, flameBounds, type VariationId } from './flames';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
@@ -183,9 +184,23 @@ fn project(p: vec2f) -> vec2f {
 	);
 }
 
+// A per-particle "birth phase" in [0,1) so the Formation trace builds from a
+// sparse scatter of strokes rather than a faint full ghost: a particle only
+// joins the chaos game once progress passes its birth phase.
+fn birthPhase(i: u32) -> f32 {
+	var h = (i ^ 0x9e3779b9u) * 2654435761u;
+	h = h ^ (h >> 16u);
+	return f32(h & 0xffffffu) / 16777216.0;
+}
+
 @compute @workgroup_size(64)
 fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let i = gid.x;
+	// Formation "traces the orbit": u.steps is the growing plotted-prefix length,
+	// and we recover progress from it (full = ${STEPS_PER_PARTICLE}) to stagger
+	// which particles are active so the flame sweeps out gradually.
+	let progress = f32(u.steps) / ${STEPS_PER_PARTICLE}.0;
+	if (progress < 1.0 && birthPhase(i) > progress) { return; }
 	var rng = i * 747796405u + 2891336453u;
 	var p = vec2f(rngNext(&rng) * 2.0 - 1.0, rngNext(&rng) * 2.0 - 1.0);
 	var c = rngNext(&rng);
@@ -261,7 +276,9 @@ export const flamesRenderer: ComputeRenderer = {
 		f(0, width);
 		f(4, height);
 		u32(8, FLAME_INDEX[scene.flame] ?? 0);
-		u32(12, STEPS_PER_PARTICLE);
+		// Formation traces the orbit: reveal a growing prefix of each particle's
+		// chaos-game orbit so the flame builds up rather than popping in fully.
+		u32(12, revealedSteps(scene.formation, STEPS_PER_PARTICLE));
 		f(16, scene.camera.centerX);
 		f(20, scene.camera.centerY);
 		f(24, scene.camera.scale);

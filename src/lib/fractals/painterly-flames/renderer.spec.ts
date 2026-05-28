@@ -10,9 +10,10 @@ const input = (flame: string): RenderInput => ({
 	scene: { ...createDefaultScene(), flame }
 });
 
-const pack = (flame: string) => {
+const pack = (flame: string, formation?: number) => {
 	const view = new DataView(new ArrayBuffer(flamesRenderer.uniformSize));
-	flamesRenderer.packUniforms(view, input(flame));
+	const base = input(flame);
+	flamesRenderer.packUniforms(view, { ...base, scene: { ...base.scene, formation } });
 	return view;
 };
 
@@ -49,5 +50,15 @@ describe('flamesRenderer', () => {
 		expect(w).toContain('fn variation');
 		// The transforms are code-generated from the CPU FLAMES table.
 		expect(w).toContain('fn flameStep');
+		// Formation: the orbit-trace stagger gate.
+		expect(w).toContain('fn birthPhase');
+	});
+
+	it('Formation traces the orbit: the step count reveals a growing prefix', () => {
+		const full = flamesRenderer.stepsPerParticle;
+		expect(pack('swirl').getUint32(12, true)).toBe(full); // absent → fully formed
+		expect(pack('swirl', 1).getUint32(12, true)).toBe(full);
+		expect(pack('swirl', 0.25).getUint32(12, true)).toBe(Math.round(0.25 * full));
+		expect(pack('swirl', 0).getUint32(12, true)).toBe(1); // a leading point, never blank
 	});
 });
