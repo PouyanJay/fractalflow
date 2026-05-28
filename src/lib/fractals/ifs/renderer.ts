@@ -41,7 +41,7 @@ import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
 export const IFS_ID = 'ifs';
 // The Formation seed-hull sits between the palette and post blocks: HULL_MAX
-// points packed 2-per-vec4f, then a meta vec4f (centroid.xy, hullCount in .z).
+// points packed 2-per-vec4f, then a hullMeta vec4f (centroid.xy, hullCount in .z).
 const HULL_VEC4S = HULL_MAX / 2;
 const HULL_BASE = 112;
 const META_BASE = HULL_BASE + HULL_VEC4S * 16;
@@ -162,7 +162,7 @@ struct U {
 	palC: vec4f,
 	palD: vec4f,
 	hull: array<vec4f, ${HULL_VEC4S}>,
-	meta: vec4f,
+	hullMeta: vec4f,
 ${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: U;
@@ -186,7 +186,7 @@ fn hullPoint(j: u32) -> vec2f {
 
 // Inside the attractor's CCW convex-hull silhouette (left of every edge)?
 fn insideHull(p: vec2f) -> bool {
-	let n = u32(u.meta.z);
+	let n = u32(u.hullMeta.z);
 	if (n < 3u) { return true; }
 	for (var i = 0u; i < n; i = i + 1u) {
 		let a = hullPoint(i);
@@ -260,7 +260,7 @@ fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 			p = seedC + (vec2f(rngNext(&rng), rngNext(&rng)) - vec2f(0.5)) * (2.0 * u.radius);
 			inHull = insideHull(p);
 		}
-		if (!inHull) { p = u.meta.xy; }
+		if (!inHull) { p = u.hullMeta.xy; }
 		var c = 0.5;
 		var d = d0;
 		if (rngNext(&rng) < frac) { d = d + 1u; }
@@ -351,7 +351,7 @@ export const ifsRenderer: ComputeRenderer = {
 		f(100, c.d[1]);
 		f(104, c.d[2]);
 		// Seed-hull: pack up to HULL_MAX silhouette points two per vec4f, then a
-		// meta vec4f (centroid.xy, vertex count). Only read while forming.
+		// hullMeta vec4f (centroid.xy, vertex count). Only read while forming.
 		const hull = HULLS[scene.ifs] ?? HULLS[IFS_SYSTEMS[0].id];
 		const n = Math.min(HULL_MAX, hull.verts.length);
 		for (let i = 0; i < n; i++) {
