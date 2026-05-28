@@ -6,7 +6,6 @@
 	import { provideUiStore } from '$lib/stores/ui.svelte';
 	import { provideEngineStore } from '$lib/stores/engine.svelte';
 	import { provideSceneStore } from '$lib/stores/scene.svelte';
-	import { provideLayersStore } from '$lib/stores/layers.svelte';
 	import { provideBookmarksStore } from '$lib/stores/bookmarks.svelte';
 	import { provideCustomPalettesStore } from '$lib/stores/custom-palettes.svelte';
 	import { provideJourneyStore } from '$lib/stores/journey.svelte';
@@ -28,8 +27,7 @@
 		ui.compact && (ui.panels.inspector || (isCompose && ui.panels.library))
 	);
 	provideEngineStore();
-	const sceneStore = provideSceneStore();
-	provideLayersStore(sceneStore, ui);
+	provideSceneStore();
 	provideBookmarksStore();
 	provideCustomPalettesStore();
 	provideJourneyStore();

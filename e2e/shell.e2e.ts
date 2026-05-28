@@ -398,44 +398,6 @@ test('Compose Post-FX hue rotation drives the shared scene', async ({ page }) =>
 	await expect.poll(() => decodeURIComponent(page.url()), { timeout: 5000 }).toContain('0.33');
 });
 
-test('Compose layers: add composites two canvases in Explore and round-trips via the URL', async ({
-	page
-}) => {
-	await page.goto('/compose');
-	const panel = page.getByRole('complementary', { name: 'Layers' });
-	await expect(panel).toBeVisible();
-	await panel.getByRole('button', { name: 'Add layer' }).click();
-	// Two layer cards now (each with its blend selector).
-	await expect(panel.locator('button[aria-label="Blend mode"]:visible')).toHaveCount(2);
-
-	await page.getByRole('link', { name: 'Explore' }).click();
-	await expect(page.locator('canvas').first()).toBeVisible();
-	await page.waitForTimeout(700);
-	// The viewport stacks one canvas per layer and composites them.
-	await expect(page.locator('canvas')).toHaveCount(2);
-	await expect.poll(() => page.url(), { timeout: 5000 }).toContain('l=');
-
-	// The multi-layer document round-trips through its deep link.
-	const url = page.url();
-	await page.goto(url);
-	await expect(page.locator('canvas').first()).toBeVisible();
-	await page.waitForTimeout(700);
-	await expect(page.locator('canvas')).toHaveCount(2);
-});
-
-test('Compose layers: removing a layer returns to a single composited canvas', async ({ page }) => {
-	await page.goto('/compose');
-	const panel = page.getByRole('complementary', { name: 'Layers' });
-	await panel.getByRole('button', { name: 'Add layer' }).click();
-	await expect(panel.locator('button[aria-label="Delete layer"]:visible').first()).toBeEnabled();
-	await panel.locator('button[aria-label="Delete layer"]:visible').first().click();
-	// Back to one layer → its delete button is disabled (never remove the last).
-	await expect(panel.locator('button[aria-label="Blend mode"]:visible')).toHaveCount(1);
-	await page.getByRole('link', { name: 'Explore' }).click();
-	await waitForEngine(page);
-	await expect(page.locator('canvas')).toHaveCount(1);
-});
-
 test('Compose Randomize and Mutate vary the look without breaking the render', async ({ page }) => {
 	await page.goto('/compose');
 	// Randomize throws fresh dice: it sets a custom palette + post, so the scene

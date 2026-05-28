@@ -7,7 +7,6 @@
 	import ColoringNode from '$lib/components/compose/ColoringNode.svelte';
 	import PostNode from '$lib/components/compose/PostNode.svelte';
 	import OutputNode from '$lib/components/compose/OutputNode.svelte';
-	import LayersPanel from '$lib/components/compose/LayersPanel.svelte';
 
 	// Fixed pipeline; nodes read/write the shared scene store, so editing here
 	// updates every other mode's view of the same scene.
@@ -39,7 +38,6 @@
 		<Background gap={28} />
 		<Controls showLock={false} />
 	</SvelteFlow>
-	<LayersPanel />
 </section>
 
 <style>
@@ -47,7 +45,6 @@
 		flex: 1;
 		min-width: 0;
 		display: flex;
-		position: relative; /* anchor the floating Layers panel */
 	}
 	.compose :global(.svelte-flow) {
 		width: 100%;
