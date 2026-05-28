@@ -7,6 +7,8 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { Command, PanelLeft, PanelRight, Share2, Check, Download } from '@lucide/svelte';
 
+	// Build-time app version (injected from package.json via Vite define).
+	const appVersion = __APP_VERSION__;
 	const ui = getUiStore();
 	const activeMode = $derived(modeFromPath(page.url.pathname));
 
@@ -37,7 +39,8 @@
 				<path d={SPIRAL_PETAL} transform="rotate(240 12 12)" />
 			</g>
 		</svg>
-		<span class="title">FractalFlow <span class="sub">Studio</span></span>
+		<span class="title">Fractal <span class="sub">Studio</span></span>
+		<span class="ver" title="Version {appVersion}">v{appVersion}</span>
 	</div>
 
 	<nav class="modes" aria-label="Workspace modes">
@@ -139,6 +142,16 @@
 	.title .sub {
 		color: var(--ff-text-muted);
 		font-weight: var(--ff-weight-regular);
+	}
+	.ver {
+		font-family: var(--ff-font-mono);
+		font-size: var(--ff-text-xs);
+		color: var(--ff-text-muted);
+		background: var(--ff-surface-raised);
+		border: 1px solid var(--ff-border);
+		border-radius: var(--ff-radius-sm);
+		padding: 1px 5px;
+		letter-spacing: 0;
 	}
 
 	/* Segmented control: a calm raised group; the active mode is a filled chip.
@@ -252,6 +265,7 @@
 	/* Phones: keep just the mark + the essential actions so the bar never wraps. */
 	@media (max-width: 560px) {
 		.title,
+		.ver,
 		.export span {
 			display: none;
 		}

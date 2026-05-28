@@ -32,7 +32,7 @@ async function loadPreset(page: Page, name: string) {
 test('root redirects to Explore and renders the shell', async ({ page }) => {
 	await page.goto('/');
 	await expect(page).toHaveURL(/\/explore$/);
-	await expect(page.getByText('FractalFlow')).toBeVisible();
+	await expect(page.getByText('Fractal Studio')).toBeVisible();
 	await expect(page.locator('canvas')).toBeVisible();
 	// Explore is immersive: Codex on the right, no left chrome (Start is Compose-only).
 	await expect(page.getByRole('complementary', { name: 'Codex' })).toBeVisible();

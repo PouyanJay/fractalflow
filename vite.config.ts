@@ -1,9 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { version } from './package.json';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	define: {
+		// Single source of truth for the app version (shown in the TopBar).
+		__APP_VERSION__: JSON.stringify(version)
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

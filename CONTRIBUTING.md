@@ -1,6 +1,6 @@
-# Contributing to FractalFlow Studio
+# Contributing to Fractal Studio
 
-Thanks for your interest in improving FractalFlow. This guide covers the local
+Thanks for your interest in improving Fractal Studio. This guide covers the local
 setup, the day-to-day workflow, and the quality bar every change is held to.
 
 ## Prerequisites

@@ -1,24 +1,25 @@
 <div align="center">
 
-# FractalFlow Studio
+# Fractal Studio
 
 **A GPU-native, local-first studio for crafting beautiful, colorful fractal art in the browser.**
 
 [![CI](https://github.com/PouyanJay/fractalflow/actions/workflows/ci.yaml/badge.svg)](https://github.com/PouyanJay/fractalflow/actions/workflows/ci.yaml)
 [![Deploy](https://github.com/PouyanJay/fractalflow/actions/workflows/deploy.yaml/badge.svg)](https://github.com/PouyanJay/fractalflow/actions/workflows/deploy.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2dd4bf.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1-2dd4bf.svg)](#roadmap)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-5-ff3e00.svg)](https://svelte.dev/)
 [![WebGPU](https://img.shields.io/badge/WebGPU-first-4c8dff.svg)](https://www.w3.org/TR/webgpu/)
 
 ### [▶ Live demo](https://pouyanjay.github.io/fractalflow/)
 
-<img src="docs/media/hero.png" alt="FractalFlow Studio exploring a deep zoom into the Mandelbrot set" width="100%" />
+<img src="docs/media/hero.png" alt="Fractal Studio exploring a deep zoom into the Mandelbrot set" width="100%" />
 
 </div>
 
 ---
 
-FractalFlow turns the mathematics of fractals into a polished creative tool. It
+Fractal Studio turns the mathematics of fractals into a polished creative tool. It
 renders the Mandelbrot set and friends entirely on the GPU, zooms ~10²⁸× deep
 without losing detail, and lets you compose, animate, and export the results —
 all client-side, with nothing to install and nothing sent to a server.
@@ -64,6 +65,59 @@ all client-side, with nothing to install and nothing sent to a server.
   professional, the colour comes from the art.
 - **Test-driven**: a CPU reference for every fractal's math, validated against
   the GPU shaders, plus visual snapshots.
+
+## Roadmap
+
+Fractal Studio is **v0.1** today: a complete _creative_ studio. The path from
+here grows it from a beautiful fractal studio into a full **generative-geometry
+platform** — adding the export, AI, and analysis pieces it doesn't have yet.
+Each milestone is a coherent theme rather than a fixed date.
+
+### v0.1 — Creative studio (current)
+
+- 14 Deep-Zoom 2D formulas, Glowing Attractors, Painterly Flames, Geometric 3D,
+  and IFS curves — one shared, GPU-native engine.
+- Compose node graph, Animate timeline + Formation journeys, multi-layer
+  compositing, 21 palettes and 5 coloring algorithms.
+- Cinematic deep zoom (perturbation + series approximation, ~10²⁸×) with
+  idle-time anti-aliasing.
+- Export PNG stills, frame sequences, and MP4/WebM video; every view round-trips
+  through a reproducible share URL.
+
+### v0.2 — Export everywhere
+
+- **GLSL shader export** — copy the live shader (Shadertoy-ready) for any 2D view.
+- **SVG export** for the vector-native fractals (IFS, Koch, dragon, Sierpiński),
+  for crisp print and design work.
+
+### v0.3 — Prompt-to-Fractal
+
+- A natural-language assistant ("a golden Mandelbulb cathedral with volumetric
+  fog") that generates editable scene parameters. Local-first / bring-your-own
+  API key, built on the serializable `Scene`.
+
+### v0.4 — Motion & sound
+
+- **Audio-reactive animation** — map FFT bands to scene parameters on the Animate
+  timeline for music-reactive visuals.
+- Saved, editable **3D camera paths**.
+
+### v0.5 — Textures & 3D assets
+
+- **Seamless / tileable texture mode** plus texture-map export for game and 3D work.
+- **STL / OBJ export** from the 3D distance fields, for 3D printing and DCC tools.
+
+### v0.6 — Cinematic 3D
+
+- Configurable lighting, soft shadows, fog, and depth of field for the raymarched
+  fractals — toward Mandelbulb-3D-class output and a true 3D world builder.
+
+### v1.0 — Scientific mode & SDK
+
+- **Fractal analysis** — box-counting dimension, lacunarity, and multifractal
+  spectrum on rendered regions or uploaded images (the "make fractals useful"
+  side).
+- A programmatic **Fractal API / SDK** for embedding generation in other apps.
 
 ## Quick start
 

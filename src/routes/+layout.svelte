@@ -60,7 +60,7 @@
 </script>
 
 <svelte:head>
-	<title>FractalFlow Studio</title>
+	<title>Fractal Studio</title>
 </svelte:head>
 
 <svelte:window {onkeydown} />

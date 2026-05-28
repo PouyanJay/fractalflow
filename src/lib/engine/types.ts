@@ -1,5 +1,5 @@
 /**
- * Backend-agnostic rendering contract for the FractalFlow engine.
+ * Backend-agnostic rendering contract for the Fractal Studio engine.
  *
  * The engine core is framework-free (no Svelte imports). A concrete backend
  * (WebGPU primary, WebGL2 fallback) implements RenderBackend; the orchestrator

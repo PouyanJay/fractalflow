@@ -1,6 +1,6 @@
-# FractalFlow Studio — Architecture
+# Fractal Studio — Architecture
 
-FractalFlow is a GPU-native, local-first studio for making colorful fractal art.
+Fractal Studio is a GPU-native, local-first studio for making colorful fractal art.
 This document explains how the pieces fit together so you can navigate and extend
 the codebase with confidence.
 
@@ -126,7 +126,7 @@ that drives the reference, so the GPU provably mirrors the math.
 ## Deep zoom (the interesting part)
 
 Naïve escape-time iteration loses all precision once the view is smaller than
-`float32` can resolve around an `O(1)` centre (~1e-5). FractalFlow zooms far
+`float32` can resolve around an `O(1)` centre (~1e-5). Fractal Studio zooms far
 past that with a layered approach in `src/lib/fractals/deep-zoom-2d/`:
 
 1. **Perturbation + rebasing.** Compute one high-precision _reference orbit_ at
