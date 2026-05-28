@@ -48,6 +48,89 @@ const SEPARATOR = '~';
 // shallow share links short instead of carrying meaningless e-18 tails.
 const LO_PRECISION_SCALE = 1e-9;
 
+// Positional field indices that hold an enum id (everything else is a number).
+const ENUM_FIELDS: Record<number, readonly string[]> = {
+	0: FORMULA_IDS,
+	8: ATTRACTOR_IDS,
+	9: FLAME_IDS,
+	10: WARP_IDS,
+	34: SHAPE_IDS,
+	35: IFS_IDS,
+	36: COLORING_IDS
+};
+
+// New tokens are a base64url binary blob prefixed with '.', which no legacy
+// '~'-separated token ever starts with — so decode can tell the formats apart.
+const TOKEN_PREFIX = '.';
+const TOKEN_VERSION = 1;
+
+function bytesToBase64url(bytes: Uint8Array): string {
+	let bin = '';
+	for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+	return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlToBytes(s: string): Uint8Array {
+	const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+	const out = new Uint8Array(bin.length);
+	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+	return out;
+}
+
+/**
+ * Serialize the trimmed positional field array to a compact binary blob: a
+ * version byte, the field count, then each field — enums as a 1-byte id index,
+ * every other field as a little-endian f64 (exact, so deep-zoom coordinates
+ * round-trip to the bit). Replaces the old human-readable `~`-decimal join,
+ * which spilled 17-digit floats into the URL.
+ */
+function serializeFields(fields: (string | number)[]): string {
+	const buf = new ArrayBuffer(2 + fields.length * 8);
+	const dv = new DataView(buf);
+	let o = 0;
+	dv.setUint8(o++, TOKEN_VERSION);
+	dv.setUint8(o++, fields.length);
+	for (let i = 0; i < fields.length; i++) {
+		const enums = ENUM_FIELDS[i];
+		if (enums) {
+			const idx = enums.indexOf(String(fields[i]));
+			dv.setUint8(o++, idx < 0 ? 0xff : idx);
+		} else {
+			dv.setFloat64(o, Number(fields[i]), true);
+			o += 8;
+		}
+	}
+	return bytesToBase64url(new Uint8Array(buf, 0, o));
+}
+
+/**
+ * Inverse of serializeFields — rebuild the positional string array the decoder
+ * consumes (enum index → id, f64 → its decimal string). Returns null on any
+ * malformed/short input so decodeScene falls back to the default scene.
+ */
+function deserializeFields(blob: string): string[] | null {
+	try {
+		const bytes = base64urlToBytes(blob);
+		const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		let o = 0;
+		if (dv.getUint8(o++) !== TOKEN_VERSION) return null;
+		const count = dv.getUint8(o++);
+		const parts: string[] = [];
+		for (let i = 0; i < count; i++) {
+			const enums = ENUM_FIELDS[i];
+			if (enums) {
+				parts.push(enums[dv.getUint8(o++)] ?? '');
+			} else {
+				parts.push(String(dv.getFloat64(o, true)));
+				o += 8;
+			}
+		}
+		return parts;
+	} catch {
+		return null;
+	}
+}
+
 function clampInt(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -138,13 +221,21 @@ export function encodeScene(scene: SceneState): string {
 	];
 	let end = fields.length;
 	while (end > 1 && String(fields[end - 1]) === String(defaults[end - 1])) end--;
-	return fields.slice(0, end).join(SEPARATOR);
+	return TOKEN_PREFIX + serializeFields(fields.slice(0, end));
 }
 
 export function decodeScene(token: string): SceneState {
+	// New binary tokens carry a '.' marker; everything else is a legacy
+	// '~'-separated token (still emitted by older share links).
+	const parts = token.startsWith(TOKEN_PREFIX)
+		? deserializeFields(token.slice(1))
+		: token.split(SEPARATOR);
+	return decodeFields(parts ?? []);
+}
+
+function decodeFields(parts: string[]): SceneState {
 	const fallback = createDefaultScene();
-	const parts = token.split(SEPARATOR);
-	// Tokens are trimmed of trailing default fields, so any length ≥ 1 is valid;
+	// Tokens are trimmed of trailing default fields, so any length ≥ 0 is valid;
 	// each field below falls back to the default when missing or unparseable.
 	const num = (raw: string, fb: number): number => {
 		const n = Number(raw);

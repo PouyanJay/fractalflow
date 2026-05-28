@@ -93,7 +93,8 @@ describe('encodeScene / decodeScene round-trip', () => {
 	});
 
 	it('defaults post to a no-op for legacy tokens', () => {
-		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 10).join('~');
+		// A pre-post legacy ('~') token: only the first 10 fields, none of the post block.
+		const legacy = 'mandelbrot~-0.5~0~3~300~0~-0.8~0.156~clifford~sierpinski';
 		expect(decodeScene(legacy).post).toEqual(createDefaultScene().post);
 	});
 
@@ -122,8 +123,8 @@ describe('encodeScene / decodeScene round-trip', () => {
 	});
 
 	it('defaults bloom for tokens written before bloom existed', () => {
-		// A pre-bloom token has the 15 fields up to grain but none of the bloom four.
-		const preBloom = encodeScene(createDefaultScene()).split('~').slice(0, 15).join('~');
+		// A pre-bloom legacy token has the 15 fields up to grain but none of the bloom four.
+		const preBloom = 'mandelbrot~-0.5~0~3~300~0~-0.8~0.156~clifford~sierpinski~none~6~0~1~0';
 		const { post } = decodeScene(preBloom);
 		expect(post.bloom).toBe(0);
 		expect(post.bloomThreshold).toBe(0.8);
@@ -147,7 +148,7 @@ describe('encodeScene / decodeScene round-trip', () => {
 });
 
 describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
-	it('emits only formula + camera for a shallow scene whose other fields are default', () => {
+	it('emits a compact binary token (no raw decimals) for a shallow scene', () => {
 		const s: SceneState = {
 			...createDefaultScene(),
 			camera: {
@@ -157,18 +158,23 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 			}
 		};
 		const token = encodeScene(s);
-		// maxIter/palette/seed/post all default → omitted; just the 4 meaningful fields.
-		expect(token).toBe('mandelbrot~-0.6381594168889282~0.07978790907858527~2.727272727272782');
+		expect(token.startsWith('.')).toBe(true); // binary marker, not a '~' token
+		expect(token).not.toContain('~'); // no separator-joined decimals
+		expect(token).not.toMatch(/\d\.\d/); // and no 17-digit floats leaking into the URL
+		// maxIter/palette/seed/post all default → omitted; round-trips exactly (f64).
 		expect(decodeScene(token)).toEqual(s);
 	});
 
-	it('collapses the all-default (home) scene to a single field', () => {
-		expect(encodeScene(createDefaultScene())).toBe('mandelbrot');
+	it('collapses the all-default (home) scene to a tiny token', () => {
+		const token = encodeScene(createDefaultScene());
+		expect(token.startsWith('.')).toBe(true);
+		expect(token.length).toBeLessThan(12); // version + count + formula only
+		expect(decodeScene(token)).toEqual(createDefaultScene());
 	});
 
 	it('drops spurious double-double tails at shallow zoom (render-invariant)', () => {
 		// Panning/zooming accumulates a tiny DD tail far below f64 ULP; at shallow
-		// zoom it cannot affect the render, so it must not bloat the token.
+		// zoom it cannot affect the render, so it must not be carried.
 		const s: SceneState = {
 			...createDefaultScene(),
 			camera: {
@@ -179,9 +185,7 @@ describe('compact tokens (trim defaults, drop shallow precision tails)', () => {
 				centerYLo: -5.4631507515534236e-18
 			}
 		};
-		const token = encodeScene(s);
-		expect(token.split('~')).toHaveLength(4); // no trailing lo fields
-		const out = decodeScene(token);
+		const out = decodeScene(encodeScene(s));
 		expect('centerXLo' in out.camera).toBe(false);
 		expect('centerYLo' in out.camera).toBe(false);
 	});
@@ -314,14 +318,13 @@ describe('decodeScene resilience', () => {
 	});
 
 	it('rejects an unknown formula', () => {
-		const s = createDefaultScene();
-		const token = encodeScene({ ...s, formula: 'julia' }).replace('julia', 'bogus');
-		expect(decodeScene(token).formula).toBe('mandelbrot');
+		// Legacy-token path validates the formula id; an unknown one falls back.
+		expect(decodeScene('bogus~-0.5~0~3').formula).toBe('mandelbrot');
 	});
 
 	it('defaults the attractor family and flame for legacy tokens and unknown ids', () => {
-		// A pre-attractor token has only the original 8 fields.
-		const legacy = encodeScene(createDefaultScene()).split('~').slice(0, 8).join('~');
+		// A pre-attractor legacy token has only the original 8 fields.
+		const legacy = 'mandelbrot~-0.5~0~3~300~0~-0.8~0.156';
 		expect(decodeScene(legacy).attractor).toBe('clifford');
 		expect(decodeScene(legacy).flame).toBe('sierpinski');
 		const bogus = encodeScene({ ...createDefaultScene(), attractor: 'nope', flame: 'nope' });
