@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { frameCountFor, sequenceScenes, frameFilename } from './sequence';
 import type { Keyframe } from '$lib/animate/timeline';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
+import { journeyKeyframes } from '$lib/animate/journey';
 
 const kf = (id: string, t: number, scale: number): Keyframe => ({
 	id,
@@ -32,6 +33,15 @@ describe('sequenceScenes', () => {
 	it('returns a single frame for a one-frame request', () => {
 		expect(sequenceScenes(keys, 1)).toHaveLength(1);
 		expect(sequenceScenes(keys, 1)[0].camera.scale).toBeCloseTo(4, 10);
+	});
+
+	it('exports a Formation journey as frames whose formation ramps 0→1', () => {
+		// Export builds frames from the same journeyKeyframes the live playback uses,
+		// so a Formation movie must grow in just like Explore does.
+		const frames = sequenceScenes(journeyKeyframes('formation', createDefaultScene()), 5);
+		expect(frames[0].formation).toBe(0);
+		expect(frames[2].formation).toBeCloseTo(0.5, 10);
+		expect(frames[4].formation).toBe(1);
 	});
 });
 
