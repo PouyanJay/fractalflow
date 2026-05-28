@@ -8,7 +8,7 @@
  *   0  resolution : vec2f
  *   8  yaw        : f32   12 pitch : f32
  *   16 dist       : f32   20 power : f32
- *   24 formation  : f32   28 detail: f32
+ *   24 time       : f32   28 detail: f32
  *   32 palA  48 palB  64 palC  80 palD : vec4f
  */
 import { resolvePalette } from '$lib/fractals/palette';
@@ -51,7 +51,7 @@ struct U {
 	pitch: f32,
 	zoom: f32,
 	power: f32,
-	formation: f32,
+	time: f32,
 	detail: f32,
 	palA: vec4f,
 	palB: vec4f,
@@ -78,13 +78,12 @@ fn palette(t: f32) -> vec3f {
 
 // Power-map bulb (Mandelbulb = offset pos; Juliabulb = fixed offset c). Returns
 // (distance, orbit-trap). Mirrors the spherical-coordinate iteration in the docs.
-// n is the iteration count Formation drives (see the de dispatcher).
-fn bulbDE(pos: vec3f, offset: vec3f, n: i32) -> vec2f {
+fn bulbDE(pos: vec3f, offset: vec3f) -> vec2f {
 	var z = pos;
 	var dr = 1.0;
 	var r = 0.0;
 	var trap = 1e10;
-	for (var i = 0; i < n; i = i + 1) {
+	for (var i = 0; i < 8; i = i + 1) {
 		r = length(z);
 		if (r > 2.0) { break; }
 		let rr = max(r, 1e-6);
@@ -99,12 +98,12 @@ fn bulbDE(pos: vec3f, offset: vec3f, n: i32) -> vec2f {
 }
 
 // Mandelbox: alternating box-fold + sphere-fold + linear scale.
-fn deMandelbox(p0: vec3f, n: i32) -> vec2f {
+fn deMandelbox(p0: vec3f) -> vec2f {
 	let SCALE = 2.5;
 	var z = p0;
 	var dr = 1.0;
 	var trap = 1e10;
-	for (var i = 0; i < n; i = i + 1) {
+	for (var i = 0; i < 11; i = i + 1) {
 		z = clamp(z, vec3f(-1.0), vec3f(1.0)) * 2.0 - z; // box fold
 		let r2 = dot(z, z);
 		if (r2 < 0.25) { let f = 4.0; z = z * f; dr = dr * f; }
@@ -122,10 +121,10 @@ fn sdBox(p: vec3f, b: vec3f) -> f32 {
 }
 
 // Menger sponge (Inigo Quilez): iterative cross subtraction from a box.
-fn deMenger(p0: vec3f, n: i32) -> vec2f {
+fn deMenger(p0: vec3f) -> vec2f {
 	var d = sdBox(p0, vec3f(1.0));
 	var s = 1.0;
-	for (var m = 0; m < n; m = m + 1) {
+	for (var m = 0; m < 4; m = m + 1) {
 		let ps = p0 * s;
 		let a = ps - 2.0 * floor(ps / 2.0) - 1.0; // mod(p*s, 2) − 1
 		s = s * 3.0;
@@ -146,12 +145,12 @@ fn qmul(a: vec4f, b: vec4f) -> vec4f {
 }
 
 // Quaternion Julia: z ← z² + c in the quaternions, 3D slice at w = 0.
-fn deQuat(pos: vec3f, n: i32) -> vec2f {
+fn deQuat(pos: vec3f) -> vec2f {
 	let c = vec4f(-0.45, -0.45, 0.18, 0.3);
 	var z = vec4f(pos, 0.0);
 	var dz = vec4f(1.0, 0.0, 0.0, 0.0);
 	var trap = 1e10;
-	for (var i = 0; i < n; i = i + 1) {
+	for (var i = 0; i < 10; i = i + 1) {
 		dz = 2.0 * qmul(z, dz);
 		z = qmul(z, z) + c;
 		let m = dot(z, z);
@@ -162,35 +161,13 @@ fn deQuat(pos: vec3f, n: i32) -> vec2f {
 	return vec2f(0.5 * r * log(max(r, 1e-6)) / max(length(dz), 1e-6), trap);
 }
 
-// The distance estimator at a fixed iteration count n.
-fn deAt(pos: vec3f, shape: i32, n: i32) -> vec2f {
-	if (shape == 1) { let d = deMandelbox(pos * 2.4, n); return vec2f(d.x / 2.4, d.y); }
-	if (shape == 2) { return deMenger(pos, n); }
-	if (shape == 3) { return bulbDE(pos, vec3f(0.4, 0.3, 0.2), n); }
-	if (shape == 4) { return deQuat(pos, n); }
-	return bulbDE(pos, pos, n); // mandelbulb
-}
-
-// Full fractal-iteration depth for each shape (its detail ceiling).
-fn maxItersFor(shape: i32) -> i32 {
-	if (shape == 1) { return 11; }
-	if (shape == 2) { return 4; }
-	if (shape == 4) { return 10; }
-	return 8; // mandelbulb / juliabulb
-}
-
-// Formation grows the shape out of its base primitive (the bulb/quat/mandelbox
-// sphere, the Menger cube) by ramping the DE iteration count 1→maxI. The
-// fractional part blends iteration n and n+1 so detail emerges smoothly instead
-// of popping in whole stages; fully formed costs a single evaluation.
 fn de(pos: vec3f) -> vec2f {
 	let shape = i32(u.palD.w);
-	let maxI = maxItersFor(shape);
-	let fI = clamp(u.formation * f32(maxI), 1.0, f32(maxI));
-	let lo = i32(floor(fI));
-	let fr = fI - f32(lo);
-	if (fr < 0.001 || lo >= maxI) { return deAt(pos, shape, lo); }
-	return mix(deAt(pos, shape, lo), deAt(pos, shape, lo + 1), fr);
+	if (shape == 1) { let d = deMandelbox(pos * 2.4); return vec2f(d.x / 2.4, d.y); }
+	if (shape == 2) { return deMenger(pos); }
+	if (shape == 3) { return bulbDE(pos, vec3f(0.4, 0.3, 0.2)); }
+	if (shape == 4) { return deQuat(pos); }
+	return bulbDE(pos, pos); // mandelbulb
 }
 
 fn normalAt(p: vec3f) -> vec3f {
@@ -262,7 +239,7 @@ layout(std140) uniform Uniforms {
 	float uPitch;
 	float uZoom;
 	float uPower;
-	float uFormation;
+	float uTime;
 	float uDetail;
 	vec4 uPalA;
 	vec4 uPalB;
@@ -281,12 +258,12 @@ vec3 palette(float t) {
 	return clamp(uPalA.xyz + uPalB.xyz * cos(6.2831853 * (uPalC.xyz * t + uPalD.xyz)), 0.0, 1.0);
 }
 
-vec2 bulbDE(vec3 pos, vec3 offset, int n) {
+vec2 bulbDE(vec3 pos, vec3 offset) {
 	vec3 z = pos;
 	float dr = 1.0;
 	float r = 0.0;
 	float trap = 1e10;
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < 8; i++) {
 		r = length(z);
 		if (r > 2.0) break;
 		float rr = max(r, 1e-6);
@@ -300,12 +277,12 @@ vec2 bulbDE(vec3 pos, vec3 offset, int n) {
 	return vec2(0.5 * log(max(r, 1e-6)) * r / dr, trap);
 }
 
-vec2 deMandelbox(vec3 p0, int n) {
+vec2 deMandelbox(vec3 p0) {
 	float SCALE = 2.5;
 	vec3 z = p0;
 	float dr = 1.0;
 	float trap = 1e10;
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < 11; i++) {
 		z = clamp(z, -1.0, 1.0) * 2.0 - z;
 		float r2 = dot(z, z);
 		if (r2 < 0.25) { float f = 4.0; z *= f; dr *= f; }
@@ -322,10 +299,10 @@ float sdBox(vec3 p, vec3 b) {
 	return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
 }
 
-vec2 deMenger(vec3 p0, int n) {
+vec2 deMenger(vec3 p0) {
 	float d = sdBox(p0, vec3(1.0));
 	float s = 1.0;
-	for (int m = 0; m < n; m++) {
+	for (int m = 0; m < 4; m++) {
 		vec3 a = mod(p0 * s, 2.0) - 1.0;
 		s *= 3.0;
 		vec3 r = abs(1.0 - 3.0 * abs(a));
@@ -344,12 +321,12 @@ vec4 qmul(vec4 a, vec4 b) {
 	);
 }
 
-vec2 deQuat(vec3 pos, int n) {
+vec2 deQuat(vec3 pos) {
 	vec4 c = vec4(-0.45, -0.45, 0.18, 0.3);
 	vec4 z = vec4(pos, 0.0);
 	vec4 dz = vec4(1.0, 0.0, 0.0, 0.0);
 	float trap = 1e10;
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < 10; i++) {
 		dz = 2.0 * qmul(z, dz);
 		z = qmul(z, z) + c;
 		float m = dot(z, z);
@@ -360,33 +337,13 @@ vec2 deQuat(vec3 pos, int n) {
 	return vec2(0.5 * r * log(max(r, 1e-6)) / max(length(dz), 1e-6), trap);
 }
 
-// The distance estimator at a fixed iteration count n.
-vec2 deAt(vec3 pos, int shape, int n) {
-	if (shape == 1) { vec2 d = deMandelbox(pos * 2.4, n); return vec2(d.x / 2.4, d.y); }
-	if (shape == 2) return deMenger(pos, n);
-	if (shape == 3) return bulbDE(pos, vec3(0.4, 0.3, 0.2), n);
-	if (shape == 4) return deQuat(pos, n);
-	return bulbDE(pos, pos, n);
-}
-
-int maxItersFor(int shape) {
-	if (shape == 1) return 11;
-	if (shape == 2) return 4;
-	if (shape == 4) return 10;
-	return 8; // mandelbulb / juliabulb
-}
-
-// Formation grows the shape from its base primitive by ramping the DE iteration
-// count 1→maxI; the fractional part blends iteration n and n+1 so detail emerges
-// smoothly instead of popping. Fully formed costs a single evaluation.
 vec2 de(vec3 pos) {
 	int shape = int(uPalD.w);
-	int maxI = maxItersFor(shape);
-	float fI = clamp(uFormation * float(maxI), 1.0, float(maxI));
-	int lo = int(floor(fI));
-	float fr = fI - float(lo);
-	if (fr < 0.001 || lo >= maxI) return deAt(pos, shape, lo);
-	return mix(deAt(pos, shape, lo), deAt(pos, shape, lo + 1), fr);
+	if (shape == 1) { vec2 d = deMandelbox(pos * 2.4); return vec2(d.x / 2.4, d.y); }
+	if (shape == 2) return deMenger(pos);
+	if (shape == 3) return bulbDE(pos, vec3(0.4, 0.3, 0.2));
+	if (shape == 4) return deQuat(pos);
+	return bulbDE(pos, pos);
 }
 
 vec3 normalAt(vec3 p) {
@@ -452,7 +409,7 @@ export const mandelbulbRenderer: FractalRenderer = {
 	glsl: GLSL,
 	uniformSize: UNIFORM_SIZE,
 	packUniforms(view: DataView, input: RenderInput) {
-		const { width, height, scene } = input;
+		const { width, height, timeMs, scene } = input;
 		const f = (offset: number, value: number) => view.setFloat32(offset, value, true);
 		f(0, width);
 		f(4, height);
@@ -460,9 +417,7 @@ export const mandelbulbRenderer: FractalRenderer = {
 		f(12, scene.camera.centerY); // pitch
 		f(16, scene.camera.scale); // distance
 		f(20, POWER);
-		// Formation grows the DE iteration count (base primitive → full fractal);
-		// absent/≥1 = fully formed. The raymarch quality below is left untouched.
-		f(24, scene.formation ?? 1);
+		f(24, timeMs);
 		f(28, scene.maxIter); // raymarch quality
 		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(32, c.a[0]);

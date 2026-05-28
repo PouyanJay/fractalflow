@@ -29,6 +29,19 @@ export const JOURNEYS: readonly JourneyMeta[] = [
 	{ id: 'zoom', label: 'Zoom', blurb: 'Dive into a beautiful corner of the fractal.' }
 ] as const;
 
+/**
+ * Art styles whose shape genuinely grows from a seed, so Formation is meaningful.
+ * Geometric 3D (a full-size sculpture that would only gain surface detail) and
+ * Painterly Flames (a density cloud that would only brighten in place) are always
+ * "fully formed", so Formation is disabled for them in favour of a clear note.
+ */
+const FORMATION_STYLES: ReadonlySet<ArtStyleId> = new Set(['deep-zoom-2d', 'ifs', 'attractors']);
+
+/** Whether the Formation journey applies to `styleId` (absent ⇒ the deep-zoom default). */
+export function supportsFormation(styleId: ArtStyleId | null | undefined): boolean {
+	return styleId == null || FORMATION_STYLES.has(styleId);
+}
+
 /** Formation progress a journey starts from: 0 = the bare seed, before growth. */
 export const FORMATION_START = 0;
 

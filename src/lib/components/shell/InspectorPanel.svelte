@@ -22,7 +22,12 @@
 	import { formatZoom } from '$lib/engine/camera';
 	import { encodeScene, decodeScene } from '$lib/scene/codec';
 	import { describeScene, nearestLandmark } from '$lib/codex/codex';
-	import { JOURNEYS, journeyKeyframes, type JourneyType } from '$lib/animate/journey';
+	import {
+		JOURNEYS,
+		journeyKeyframes,
+		supportsFormation,
+		type JourneyType
+	} from '$lib/animate/journey';
 	import { interpolateScene, cloneScene } from '$lib/animate/timeline';
 	import SidePanel from './SidePanel.svelte';
 
@@ -61,6 +66,9 @@
 
 	let tab = $state<'codex' | 'journey'>('codex');
 	const selectedJourney = $derived(JOURNEYS.find((j) => j.id === journey.type) ?? JOURNEYS[0]);
+	const formationOK = $derived(supportsFormation(ui.selectedStyle));
+	// Formation selected on a style that's always fully formed → show a note, no transport.
+	const formationNA = $derived(journey.type === 'formation' && !formationOK);
 	const isZoom = $derived(journey.type === 'zoom');
 	const journeySeconds = $derived((journey.durationMs / 1000).toFixed(0));
 
@@ -254,57 +262,66 @@
 		<section class="group">
 			<div class="seg-group" role="group" aria-label="Journey type">
 				{#each JOURNEYS as j (j.id)}
+					{@const disabled = j.id === 'formation' && !formationOK}
 					<button
 						type="button"
 						class="seg"
 						class:active={journey.type === j.id}
 						aria-pressed={journey.type === j.id}
+						{disabled}
+						title={disabled ? 'Not available for this art style' : undefined}
 						onclick={() => selectType(j.id)}>{j.label}</button
 					>
 				{/each}
 			</div>
-			<p class="codex-body">{selectedJourney.blurb}</p>
+			<p class="codex-body">
+				{formationNA
+					? 'Formation isn’t available for this art style — it’s always fully formed. Switch to Zoom to fly through it.'
+					: selectedJourney.blurb}
+			</p>
 		</section>
 
-		<section class="group">
-			<div class="transport">
-				<button
-					type="button"
-					class="play"
-					onclick={togglePlay}
-					aria-label={journey.playing ? 'Pause journey' : 'Play journey'}
-				>
-					{#if journey.playing}<Pause size={16} aria-hidden="true" />{:else}<Play
-							size={16}
-							aria-hidden="true"
-						/>{/if}
-					{journey.playing ? 'Pause' : 'Play'}
-				</button>
-				<div
-					class="bar"
-					role="progressbar"
-					aria-label="Journey progress"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={Math.round(progress * 100)}
-				>
-					<div class="fill" style="width: {progress * 100}%"></div>
+		{#if !formationNA}
+			<section class="group">
+				<div class="transport">
+					<button
+						type="button"
+						class="play"
+						onclick={togglePlay}
+						aria-label={journey.playing ? 'Pause journey' : 'Play journey'}
+					>
+						{#if journey.playing}<Pause size={16} aria-hidden="true" />{:else}<Play
+								size={16}
+								aria-hidden="true"
+							/>{/if}
+						{journey.playing ? 'Pause' : 'Play'}
+					</button>
+					<div
+						class="bar"
+						role="progressbar"
+						aria-label="Journey progress"
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-valuenow={Math.round(progress * 100)}
+					>
+						<div class="fill" style="width: {progress * 100}%"></div>
+					</div>
 				</div>
-			</div>
-			<label class="duration">
-				<span>Duration</span>
-				<input
-					type="number"
-					min="2"
-					max="60"
-					step="1"
-					value={journeySeconds}
-					oninput={(e) => journey.setDuration(Number(e.currentTarget.value) * 1000)}
-					aria-label="Journey duration in seconds"
-				/>
-				<span class="unit">s</span>
-			</label>
-		</section>
+				<label class="duration">
+					<span>Duration</span>
+					<input
+						type="number"
+						min="2"
+						max="60"
+						step="1"
+						value={journeySeconds}
+						oninput={(e) => journey.setDuration(Number(e.currentTarget.value) * 1000)}
+						aria-label="Journey duration in seconds"
+					/>
+					<span class="unit">s</span>
+				</label>
+			</section>
+		{/if}
 
 		{#if isZoom}
 			<section class="group">
@@ -499,12 +516,16 @@
 			background var(--ff-dur-fast) var(--ff-ease),
 			color var(--ff-dur-fast) var(--ff-ease);
 	}
-	.seg:hover {
+	.seg:hover:not(:disabled) {
 		color: var(--ff-text);
 	}
 	.seg.active {
 		background: var(--ff-surface-active);
 		color: var(--ff-text);
+	}
+	.seg:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 	.transport {
 		display: flex;

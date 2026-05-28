@@ -8,7 +8,7 @@
 	import { ART_STYLES } from '$lib/stores/ui-logic';
 	import { getRenderer } from '$lib/fractals/registry';
 	import { formatZoom } from '$lib/engine/camera';
-	import { JOURNEYS, journeyKeyframes } from '$lib/animate/journey';
+	import { JOURNEYS, journeyKeyframes, supportsFormation } from '$lib/animate/journey';
 	import { sequenceScenes, frameCountFor, frameFilename } from '$lib/render/sequence';
 	import { encodeVideo, videoExtension, type VideoFormat } from '$lib/render/video';
 	import {
@@ -56,6 +56,10 @@
 	);
 	const zoom = $derived(formatZoom(scene.camera.scale));
 	const frameCount = $derived(Math.min(MAX_FRAMES, frameCountFor(journey.durationMs, fps)));
+	// Geometric 3D / Flames are always fully formed — Formation is disabled, so a
+	// movie of them always uses Zoom regardless of the shared journey selection.
+	const formationOK = $derived(supportsFormation(ui.selectedStyle));
+	const journeyType = $derived(formationOK ? journey.type : 'zoom');
 
 	let firstControl = $state<HTMLSelectElement | null>(null);
 	let restoreTo: HTMLElement | null = null;
@@ -112,13 +116,13 @@
 		seqDone = 0;
 		try {
 			const keyframes = journeyKeyframes(
-				journey.type,
+				journeyType,
 				scene.scene,
 				journey.waypoints,
 				ui.selectedStyle ?? undefined
 			);
 			const scenes = sequenceScenes(keyframes, frameCount);
-			const tag = `${exportTag}-${journey.type}`;
+			const tag = `${exportTag}-${journeyType}`;
 			const onProgress = (done: number) => (seqDone = done);
 
 			// Real video via WebCodecs; null when unavailable → fall through to .zip.
@@ -262,17 +266,23 @@
 					<span class="field-label">Journey</span>
 					<div class="modes" role="group" aria-label="Journey">
 						{#each JOURNEYS as j (j.id)}
+							{@const disabled = j.id === 'formation' && !formationOK}
 							<button
 								type="button"
 								class="seg"
-								class:active={journey.type === j.id}
-								aria-pressed={journey.type === j.id}
+								class:active={journeyType === j.id}
+								aria-pressed={journeyType === j.id}
+								{disabled}
+								title={disabled ? 'Not available for this art style' : undefined}
 								onclick={() => journey.setType(j.id)}
 							>
 								{j.label}
 							</button>
 						{/each}
 					</div>
+					{#if !formationOK}
+						<p class="note">Formation isn’t available for {styleLabel} — exporting a Zoom.</p>
+					{/if}
 				</div>
 
 				<div class="row">
@@ -428,12 +438,16 @@
 			background var(--ff-dur-fast) var(--ff-ease),
 			color var(--ff-dur-fast) var(--ff-ease);
 	}
-	.seg:hover {
+	.seg:hover:not(:disabled) {
 		color: var(--ff-text);
 	}
 	.seg.active {
 		background: var(--ff-surface-active);
 		color: var(--ff-text);
+	}
+	.seg:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 	.row {
 		display: grid;

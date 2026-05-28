@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	JOURNEYS,
 	journeyKeyframes,
+	supportsFormation,
 	FORMATION_START,
 	SHOWCASE_DIVES,
 	MIN_DIVE_FACTOR,
@@ -60,6 +61,20 @@ describe('SHOWCASE_DIVES', () => {
 			expect(t.scale).toBeGreaterThan(0);
 			expect(t.scale).toBeLessThan(scene.camera.scale); // genuinely zoomed in
 		}
+	});
+});
+
+describe('supportsFormation', () => {
+	it('applies to the styles that genuinely grow from a seed', () => {
+		expect(supportsFormation('deep-zoom-2d')).toBe(true);
+		expect(supportsFormation('ifs')).toBe(true);
+		expect(supportsFormation('attractors')).toBe(true);
+		expect(supportsFormation(null)).toBe(true); // default = deep-zoom
+	});
+
+	it('is disabled for the always-fully-formed styles', () => {
+		expect(supportsFormation('geometric-3d')).toBe(false);
+		expect(supportsFormation('flames')).toBe(false);
 	});
 });
 
