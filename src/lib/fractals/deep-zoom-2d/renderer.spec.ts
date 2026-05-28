@@ -18,6 +18,14 @@ function packedSkip(scene: SceneState, width = 800, height = 600): number {
 	return view.getFloat32(136, true);
 }
 
+/** Read the supersample grid field (render0.x, offset 144) from a packed buffer. */
+function packedAA(input: RenderInput): number {
+	const buf = new ArrayBuffer(UNIFORM_SIZE);
+	const view = new DataView(buf);
+	mandelbrotRenderer.packUniforms(view, input);
+	return view.getFloat32(144, true);
+}
+
 describe('autoMaxIter (zoom-derived iteration floor)', () => {
 	it('is 0 at and around the home view, so the manual slider rules when shallow', () => {
 		expect(autoMaxIter(3)).toBe(0); // 1× zoom
@@ -104,5 +112,22 @@ describe('series-approximation skip in the packed uniforms', () => {
 			camera: { ...deepCenter, scale: 3e-9 }
 		};
 		expect(packedSkip(scene)).toBe(0);
+	});
+});
+
+describe('supersample grid (render0.x) in the packed uniforms', () => {
+	const scene = createDefaultScene();
+
+	it('defaults to 1 sample (AA off) when aaSamples is absent', () => {
+		expect(packedAA({ width: 800, height: 600, timeMs: 0, scene })).toBe(1);
+	});
+
+	it('packs the requested supersample grid dimension', () => {
+		expect(packedAA({ width: 800, height: 600, timeMs: 0, scene, aaSamples: 3 })).toBe(3);
+		expect(packedAA({ width: 800, height: 600, timeMs: 0, scene, aaSamples: 4 })).toBe(4);
+	});
+
+	it('never drops below 1, so the shader loop always runs at least once', () => {
+		expect(packedAA({ width: 800, height: 600, timeMs: 0, scene, aaSamples: 0 })).toBe(1);
 	});
 });

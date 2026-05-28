@@ -46,6 +46,11 @@ export function exportTagFor(
 
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
 
+/** Supersampling for a single exported still — crisp, cost paid once. */
+const STILL_AA_SAMPLES = 4;
+/** Supersampling per animation frame — balances crispness against export time. */
+const SEQUENCE_AA_SAMPLES = 3;
+
 /**
  * Render the scene off-screen at width×height and return a PNG blob (or null).
  * Fragment renderers capture via an off-screen WebGL2 context (preserved
@@ -68,7 +73,7 @@ export async function captureScene(
 	if (!backend) return null;
 
 	backend.resize(width, height);
-	backend.render({ width, height, timeMs: 0, scene });
+	backend.render({ width, height, timeMs: 0, scene, aaSamples: STILL_AA_SAMPLES });
 
 	const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
 	backend.destroy();
@@ -127,7 +132,7 @@ export async function captureSequence(
 	backend.resize(width, height);
 	const blobs: Blob[] = [];
 	for (let i = 0; i < scenes.length; i++) {
-		backend.render({ width, height, timeMs: 0, scene: scenes[i] });
+		backend.render({ width, height, timeMs: 0, scene: scenes[i], aaSamples: SEQUENCE_AA_SAMPLES });
 		if (compute) {
 			await nextFrame();
 			await nextFrame();

@@ -4,12 +4,66 @@
  * loop — pulling the live scene each frame. Framework-agnostic; a thin Svelte
  * wrapper mounts it (GpuCanvas).
  */
-import type { BackendType, EngineOptions, FractalRenderer, RenderBackend } from './types';
+import type {
+	BackendType,
+	EngineOptions,
+	FractalRenderer,
+	RenderBackend,
+	SceneState
+} from './types';
 import { chooseBackendType, detectSupport } from './capabilities';
 import { createWebGPUBackend } from './backends/webgpu';
 import { createWebGL2Backend } from './backends/webgl2';
 
 const DEFAULT_MAX_DIMENSION = 4096;
+
+/** How long the view must hold still before the high-quality refine pass fires. */
+const IDLE_REFINE_MS = 150;
+/** Supersampling grid (N×N) used for the idle refine pass. */
+const IDLE_AA_SAMPLES = 3;
+
+export interface RefineState {
+	/** Signature of the last frame's scene + buffer size. */
+	sig: string;
+	/** Timestamp (ms) when the signature last changed. */
+	changedAt: number;
+	/** Whether the high-quality pass has already been drawn for this signature. */
+	refined: boolean;
+}
+
+export interface FrameDecision {
+	render: boolean;
+	aaSamples: number;
+	state: RefineState;
+}
+
+/** Content signature of everything that affects a (time-independent) render. */
+export function sceneSignature(scene: SceneState, width: number, height: number): string {
+	return `${width}x${height}|${JSON.stringify(scene)}`;
+}
+
+/**
+ * Decide whether to draw this frame and at what supersampling level. For a
+ * renderer that refines on idle: while the signature keeps changing the view is
+ * "moving" → draw every frame at 1 sample (smooth interaction). Once it holds
+ * still for `idleMs`, draw one high-quality pass at `idleSamples`; afterwards
+ * skip redundant draws until the signature changes again. Renderers that don't
+ * refine draw every frame at 1 sample (unchanged behaviour). Pure & testable.
+ */
+export function decideFrame(
+	prev: RefineState,
+	sig: string,
+	now: number,
+	opts: { refineOnIdle: boolean; idleMs: number; idleSamples: number }
+): FrameDecision {
+	if (!opts.refineOnIdle || sig !== prev.sig) {
+		return { render: true, aaSamples: 1, state: { sig, changedAt: now, refined: false } };
+	}
+	if (!prev.refined && now - prev.changedAt >= opts.idleMs) {
+		return { render: true, aaSamples: opts.idleSamples, state: { ...prev, refined: true } };
+	}
+	return { render: false, aaSamples: 1, state: prev };
+}
 
 /**
  * Convert a CSS box + device pixel ratio into a clamped, integer drawing-buffer
@@ -78,6 +132,8 @@ export async function createEngine(
 	let observer: ResizeObserver | null = null;
 	let bufferWidth = 0;
 	let bufferHeight = 0;
+	let refineState: RefineState = { sig: '', changedAt: 0, refined: false };
+	const refineOnIdle = options.renderer.refineOnIdle === true;
 
 	function applySize() {
 		const rect = canvas.getBoundingClientRect();
@@ -94,12 +150,24 @@ export async function createEngine(
 
 	function frame() {
 		applySize();
-		active.render({
-			timeMs: performance.now() - startTime,
-			width: bufferWidth,
-			height: bufferHeight,
-			scene: options.getScene()
+		const scene = options.getScene();
+		const now = performance.now();
+		const sig = sceneSignature(scene, bufferWidth, bufferHeight);
+		const decision = decideFrame(refineState, sig, now, {
+			refineOnIdle,
+			idleMs: IDLE_REFINE_MS,
+			idleSamples: IDLE_AA_SAMPLES
 		});
+		refineState = decision.state;
+		if (decision.render) {
+			active.render({
+				timeMs: now - startTime,
+				width: bufferWidth,
+				height: bufferHeight,
+				scene,
+				aaSamples: decision.aaSamples
+			});
+		}
 		rafId = requestAnimationFrame(frame);
 	}
 

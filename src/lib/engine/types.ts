@@ -138,6 +138,13 @@ export interface RenderInput {
 	/** Milliseconds since the engine started. */
 	timeMs: number;
 	scene: SceneState;
+	/**
+	 * Supersampling grid dimension N (N×N sub-samples per pixel). 1 = off. Only
+	 * the Deep-Zoom 2D renderer reads it (its boundaries alias badly without AA);
+	 * other renderers ignore it. The engine sets it to 1 while the view is moving
+	 * and bumps it for the idle refine pass; export sets it high for crisp stills.
+	 */
+	aaSamples?: number;
 }
 
 /** Fields shared by every renderer regardless of pipeline. */
@@ -151,6 +158,13 @@ interface RendererBase {
 	uniformSize: number;
 	/** Fill the uniform buffer from the current input. */
 	packUniforms(view: DataView, input: RenderInput): void;
+	/**
+	 * When true, the engine renders 1 sample/pixel while the scene is changing
+	 * (smooth interaction) and re-renders once with high supersampling after the
+	 * view has been idle briefly. Only safe for renderers whose output depends
+	 * solely on the scene (not on per-frame time) — i.e. Deep-Zoom 2D.
+	 */
+	refineOnIdle?: boolean;
 }
 
 /**

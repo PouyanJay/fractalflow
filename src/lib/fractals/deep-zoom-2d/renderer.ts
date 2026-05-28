@@ -16,7 +16,8 @@
  *   20  maxIter    : f32        40  orbitLength : f32   44 pad : f32
  *   48  palA  64 palB  80 palC  96 palD : vec4f
  *   112 series0 : vec4f  (A1.x, A1.y, A2.x, A2.y)
- *   128 series1 : vec4f  (A3.x, A3.y, seriesSkip, pad)
+ *   128 series1 : vec4f  (A3.x, A3.y, seriesSkip, coloring)
+ *   144 render0 : vec4f  (aaSamples, pad, pad, pad)
  */
 import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL, COLORMAP_GLSL } from '$lib/fractals/colormaps';
@@ -41,7 +42,7 @@ import {
 import type { FormulaId, FractalRenderer, RenderInput, SceneState } from '$lib/engine/types';
 
 export const DEEP_ZOOM_2D_ID = 'deep-zoom-2d';
-const POST_BASE = 144;
+const POST_BASE = 160;
 export const UNIFORM_SIZE = POST_BASE + POST_SIZE;
 
 // Headroom for deep zoom: escape times climb with depth, so the reference orbit
@@ -185,6 +186,7 @@ struct Uniforms {
 	palD: vec4f,
 	series0: vec4f,
 	series1: vec4f,
+	render0: vec4f,
 ${POST_WGSL_FIELDS}
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -288,14 +290,9 @@ fn shade(mode: i32, escaped: bool, n: f32, z: vec2f, trap: f32, derivMag: f32, m
 	return INTERIOR; // smooth / distance interiors stay dark
 }
 
-@fragment
-fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
-	let uv = frag.xy / u.resolution;
-	let perPixel = u.scale / u.resolution.y;
-	let offset = ffWarp(vec2f(
-		(frag.x - u.resolution.x * 0.5) * perPixel,
-		-(frag.y - u.resolution.y * 0.5) * perPixel
-	));
+// Colour for one sub-pixel sample at the given world displacement. The @fragment
+// entry below calls this once (or N×N times for supersampling) and averages.
+fn sceneColor(offset: vec2f, perPixel: f32, uv: vec2f) -> vec4f {
 	let formula = i32(u.formula);
 	let maxI = i32(u.maxIter);
 
@@ -491,6 +488,37 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
 	}
 	return ffPost(shade(cmode, false, f32(maxI), zLast, trap, length(deriv), minZ, perPixel), uv);
 }
+
+@fragment
+fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
+	let uv = frag.xy / u.resolution;
+	let perPixel = u.scale / u.resolution.y;
+	let aa = max(1, i32(u.render0.x));
+	if (aa <= 1) {
+		let offset = ffWarp(vec2f(
+			(frag.x - u.resolution.x * 0.5) * perPixel,
+			-(frag.y - u.resolution.y * 0.5) * perPixel
+		));
+		return sceneColor(offset, perPixel, uv);
+	}
+	// Ordered-grid supersampling: average aa×aa sub-pixel samples. The dusty
+	// abs-variant boundaries have sub-pixel structure, so one sample per pixel
+	// aliases into speckle; averaging the grid resolves it to smooth bands.
+	let inv = 1.0 / f32(aa);
+	var acc = vec4f(0.0);
+	for (var sy = 0; sy < aa; sy = sy + 1) {
+		for (var sx = 0; sx < aa; sx = sx + 1) {
+			let jx = (f32(sx) + 0.5) * inv - 0.5;
+			let jy = (f32(sy) + 0.5) * inv - 0.5;
+			let off = ffWarp(vec2f(
+				(frag.x + jx - u.resolution.x * 0.5) * perPixel,
+				-(frag.y + jy - u.resolution.y * 0.5) * perPixel
+			));
+			acc = acc + sceneColor(off, perPixel, uv);
+		}
+	}
+	return acc * (inv * inv);
+}
 `;
 
 const GLSL = /* glsl */ `#version 300 es
@@ -511,6 +539,7 @@ layout(std140) uniform Uniforms {
 	vec4 uPalD;
 	vec4 uSeries0;
 	vec4 uSeries1;
+	vec4 uRender0;
 ${POST_GLSL_FIELDS}
 };
 uniform highp sampler2D uOrbit;
@@ -600,13 +629,9 @@ vec4 shade(int mode, bool escaped, float n, vec2 z, float trap, float derivMag, 
 	return INTERIOR;
 }
 
-void main() {
-	vec2 uv = gl_FragCoord.xy / uResolution;
-	float perPixel = uScale / uResolution.y;
-	vec2 offset = ffWarp(vec2(
-		(gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
-		(gl_FragCoord.y - uResolution.y * 0.5) * perPixel
-	));
+// Colour for one sub-pixel sample at the given world displacement; main() calls
+// this once (or aa×aa times for supersampling) and averages — mirrors the WGSL.
+vec4 sceneColor(vec2 offset, float perPixel, vec2 uv) {
 	int formula = int(uFormula);
 	int maxI = int(uMaxIter);
 
@@ -630,8 +655,7 @@ void main() {
 			if (dot(d2, d2) < 1e-6) { root = 2; iter = k; break; }
 			iter = k;
 		}
-		fragColor = ffPost(newtonColor(root, iter), uv);
-		return;
+		return ffPost(newtonColor(root, iter), uv);
 	}
 
 	// Phoenix: escape-time with a previous-z coupling term (c = seed.x, p = seed.y).
@@ -639,7 +663,7 @@ void main() {
 		vec2 z = uCenter + offset;
 		vec2 zp = vec2(0.0);
 		for (int i = 0; i < maxI; i++) {
-			if (z.x * z.x + z.y * z.y > 65536.0) { fragColor = ffPost(colorOf(float(i), z), uv); return; }
+			if (z.x * z.x + z.y * z.y > 65536.0) { return ffPost(colorOf(float(i), z), uv); }
 			vec2 zn = vec2(
 				z.x * z.x - z.y * z.y + uSeed.x + uSeed.y * zp.x,
 				2.0 * z.x * z.y + uSeed.y * zp.y
@@ -647,8 +671,7 @@ void main() {
 			zp = z;
 			z = zn;
 		}
-		fragColor = ffPost(INTERIOR, uv);
-		return;
+		return ffPost(INTERIOR, uv);
 	}
 
 	// Lyapunov (Markus) fractal: (a, b) = the world point; iterate the logistic
@@ -668,8 +691,7 @@ void main() {
 			x = r * x * (1.0 - x);
 			sum += log(max(1e-12, abs(r * (1.0 - 2.0 * x))));
 		}
-		fragColor = ffPost(lyapunovColor(sum / float(n)), uv);
-		return;
+		return ffPost(lyapunovColor(sum / float(n)), uv);
 	}
 
 	// Apollonian gasket net: fold into the [-1,1] cell and circle-invert, tracking
@@ -685,8 +707,7 @@ void main() {
 			p *= kk;
 			sc *= kk;
 		}
-		fragColor = ffPost(apollonianColor(length(p) / sc), uv);
-		return;
+		return ffPost(apollonianColor(length(p) / sc), uv);
 	}
 
 	// Direct f32 iteration: Burning Ship while shallow (its sign-form perturbation
@@ -702,7 +723,7 @@ void main() {
 		for (int i = 0; i < maxI; i++) {
 			float x2 = z.x * z.x;
 			float y2 = z.y * z.y;
-			if (x2 + y2 > 65536.0) { fragColor = ffPost(shade(cmode, true, float(i), z, trap, length(deriv), minZ, perPixel), uv); return; }
+			if (x2 + y2 > 65536.0) { return ffPost(shade(cmode, true, float(i), z, trap, length(deriv), minZ, perPixel), uv); }
 			if (cmode == 1 && i > 0) { trap = min(trap, min(abs(z.x), abs(z.y))); }
 			if (cmode == 2) { deriv = vec2(2.0 * (z.x * deriv.x - z.y * deriv.y) + 1.0, 2.0 * (z.x * deriv.y + z.y * deriv.x)); }
 			if (cmode == 4 && i > 0) { minZ = min(minZ, sqrt(x2 + y2)); }
@@ -726,8 +747,7 @@ void main() {
 				z = vec2(r * cos(theta) + c.x, r * sin(theta) + c.y);
 			}
 		}
-		fragColor = ffPost(shade(cmode, false, float(maxI), z, trap, length(deriv), minZ, perPixel), uv);
-		return;
+		return ffPost(shade(cmode, false, float(maxI), z, trap, length(deriv), minZ, perPixel), uv);
 	}
 
 	// Perturbation + rebasing for every formula (mirrors the WGSL + perturbation.ts).
@@ -776,13 +796,43 @@ void main() {
 		vec2 z = texelFetch(uOrbit, ivec2(refIdx, 0), 0).rg + dz;
 		zLast = z;
 		float zmag = z.x * z.x + z.y * z.y;
-		if (zmag > 65536.0) { fragColor = ffPost(shade(cmode, true, float(iter + 1), z, trap, length(deriv), minZ, perPixel), uv); return; }
+		if (zmag > 65536.0) { return ffPost(shade(cmode, true, float(iter + 1), z, trap, length(deriv), minZ, perPixel), uv); }
 		if (zmag < dz.x * dz.x + dz.y * dz.y || refIdx >= lim - 1) {
 			dz = z - z0;
 			refIdx = 0;
 		}
 	}
-	fragColor = ffPost(shade(cmode, false, float(maxI), zLast, trap, length(deriv), minZ, perPixel), uv);
+	return ffPost(shade(cmode, false, float(maxI), zLast, trap, length(deriv), minZ, perPixel), uv);
+}
+
+void main() {
+	vec2 uv = gl_FragCoord.xy / uResolution;
+	float perPixel = uScale / uResolution.y;
+	int aa = max(1, int(uRender0.x));
+	if (aa <= 1) {
+		vec2 offset = ffWarp(vec2(
+			(gl_FragCoord.x - uResolution.x * 0.5) * perPixel,
+			(gl_FragCoord.y - uResolution.y * 0.5) * perPixel
+		));
+		fragColor = sceneColor(offset, perPixel, uv);
+		return;
+	}
+	// Ordered-grid supersampling: average aa×aa sub-pixel samples to resolve the
+	// sub-pixel boundary structure that otherwise aliases into speckle.
+	float inv = 1.0 / float(aa);
+	vec4 acc = vec4(0.0);
+	for (int sy = 0; sy < aa; sy++) {
+		for (int sx = 0; sx < aa; sx++) {
+			float jx = (float(sx) + 0.5) * inv - 0.5;
+			float jy = (float(sy) + 0.5) * inv - 0.5;
+			vec2 off = ffWarp(vec2(
+				(gl_FragCoord.x + jx - uResolution.x * 0.5) * perPixel,
+				(gl_FragCoord.y + jy - uResolution.y * 0.5) * perPixel
+			));
+			acc += sceneColor(off, perPixel, uv);
+		}
+	}
+	fragColor = acc * (inv * inv);
 }`;
 
 export const mandelbrotRenderer: FractalRenderer = {
@@ -792,6 +842,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 	glsl: GLSL,
 	uniformSize: UNIFORM_SIZE,
 	dataBufferSize: DATA_BUFFER_SIZE,
+	refineOnIdle: true,
 	packData(input: RenderInput) {
 		return orbitFor(input).data;
 	},
@@ -834,6 +885,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(132, series.a3y);
 		f(136, series.skip);
 		f(140, COLORING_CODES[scene.coloring ?? DEFAULT_COLORING]); // was pad; now coloring mode
+		f(144, Math.max(1, Math.round(input.aaSamples ?? 1))); // render0.x: supersample grid N
 		packPost(view, POST_BASE, scene.post);
 	}
 };
