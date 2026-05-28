@@ -185,3 +185,100 @@ export function ifsBounds(system: IFSystem): IFSBounds {
 	}
 	return { min, max };
 }
+
+/** Where the attractor sits and how wide a square frames it (1 unit ≈ radius). */
+export interface IFSFraming {
+	cx: number;
+	cy: number;
+	/** Half-side of the square that frames (and seeds Formation from) the attractor. */
+	radius: number;
+}
+
+/** Centre + square half-extent that frames a system's attractor with a small margin. */
+export function ifsFraming(system: IFSystem): IFSFraming {
+	const b = ifsBounds(system);
+	const radius = (Math.max(b.max.x - b.min.x, b.max.y - b.min.y) / 2) * 1.08 || 1;
+	return { cx: (b.min.x + b.max.x) / 2, cy: (b.min.y + b.max.y) / 2, radius };
+}
+
+/**
+ * Largest singular value of the affine map's 2×2 linear part — the worst-case
+ * factor by which it shrinks distances. Governs how many times a map must be
+ * composed before its image is smaller than a target detail (a pixel-ish span).
+ */
+export function contractionRatio(m: Affine): number {
+	const [a, b, , d, e] = m; // linear part [[a,b],[d,e]]
+	const t = a * a + b * b + d * d + e * e;
+	const det = a * e - b * d;
+	const disc = Math.max(0, t * t - 4 * det * det);
+	return Math.sqrt((t + Math.sqrt(disc)) / 2);
+}
+
+/** The system's slowest-shrinking map — it dictates the recursion depth needed. */
+export function systemContraction(system: IFSystem): number {
+	return Math.max(...system.maps.map((m) => contractionRatio(m.affine)));
+}
+
+/** Detail span (fraction of the framing box) a Formation resolves down to. */
+export const FORMATION_TARGET_DETAIL = 1 / 512;
+export const FORMATION_MIN_DEPTH = 6;
+// Caps the deepest Formation frame's cost (each plot recomposes `depth` maps).
+// Slow contractors (the fern's 0.85) clamp here; they finish resolving when the
+// journey lands on the dense chaos game at formation = 1.
+export const FORMATION_MAX_DEPTH = 24;
+
+/**
+ * Recursion depth at which the depth-d approximation has shrunk to ~sub-pixel,
+ * so a Formation that ramps depth 0→this lands visually on the attractor. Driven
+ * by the system's slowest contraction (the fern's 0.85 frond needs far more
+ * depth than Sierpiński's 0.5), then clamped to a sane, affordable range.
+ */
+export function formationMaxDepth(system: IFSystem): number {
+	const r = Math.min(0.95, Math.max(0.05, systemContraction(system)));
+	const depth = Math.log(FORMATION_TARGET_DETAIL) / Math.log(r);
+	return Math.max(FORMATION_MIN_DEPTH, Math.min(FORMATION_MAX_DEPTH, Math.ceil(depth)));
+}
+
+/**
+ * The depth-`d` Hutchinson approximation Sᵈ = ⋃_{|w|=d} f_w(S₀): each sample is a
+ * random point of the framing box S₀ pushed through `d` random weighted maps.
+ * At d = 0 it's the solid box; as d grows the box collapses onto the attractor,
+ * so ramping d reads as the fractal growing out of a solid seed. A fractional
+ * depth blends d and d+1 per sample for a smooth ramp. This is the CPU reference
+ * the GPU Formation path mirrors (same framing, weighted picker and colour blend).
+ */
+export function formationApprox(
+	system: IFSystem,
+	depth: number,
+	steps: number,
+	seed = 1
+): IFSPoint[] {
+	const rng = mulberry32(seed);
+	const { cx, cy, radius } = ifsFraming(system);
+	const total = system.maps.reduce((s, m) => s + m.weight, 0);
+	const pick = (): IFSMap => {
+		let r = rng() * total;
+		for (const m of system.maps) {
+			r -= m.weight;
+			if (r <= 0) return m;
+		}
+		return system.maps[system.maps.length - 1];
+	};
+
+	const d0 = Math.max(0, Math.floor(depth));
+	const frac = depth - Math.floor(depth);
+	const pts: IFSPoint[] = new Array(steps);
+	for (let i = 0; i < steps; i++) {
+		let x = cx + (rng() - 0.5) * 2 * radius;
+		let y = cy + (rng() - 0.5) * 2 * radius;
+		let c = 0.5;
+		const d = d0 + (rng() < frac ? 1 : 0);
+		for (let k = 0; k < d; k++) {
+			const m = pick();
+			[x, y] = applyAffine(m.affine, x, y);
+			c = (c + m.color) / 2;
+		}
+		pts[i] = { x, y, c };
+	}
+	return pts;
+}

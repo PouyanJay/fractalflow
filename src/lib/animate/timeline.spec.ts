@@ -41,6 +41,21 @@ describe('interpolateScene', () => {
 		expect(m.maxIter).toBe(400);
 	});
 
+	it('lerps formation, defaulting an absent endpoint to fully formed (1)', () => {
+		const f0 = scene({ formation: 0 });
+		const f1 = scene({ formation: 1 });
+		const mid = interpolateScene(
+			[
+				{ id: 'a', t: 0, scene: f0 },
+				{ id: 'b', t: 1, scene: f1 }
+			],
+			0.5
+		);
+		expect(mid.formation).toBeCloseTo(0.5, 10);
+		// A keyframe with no formation reads as 1, so a plain timeline stays formed.
+		expect(interpolateScene([A, B], 0.5).formation).toBe(1);
+	});
+
 	it('interpolates zoom geometrically (log-lerp) for a smooth zoom', () => {
 		// scale 4 → 0.04 at u=0.5 should be the geometric mean sqrt(4*0.04)=0.4, not 2.02
 		expect(interpolateScene([A, B], 0.5).camera.scale).toBeCloseTo(0.4, 10);

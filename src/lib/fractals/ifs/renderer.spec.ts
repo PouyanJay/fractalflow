@@ -1,21 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { ifsRenderer, IFS_ID } from './renderer';
-import { IFS_SYSTEMS } from './ifs';
+import { IFS_SYSTEMS, formationMaxDepth, getIFS } from './ifs';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
-import type { RenderInput } from '$lib/engine/types';
+import type { RenderInput, SceneState } from '$lib/engine/types';
 
-const input = (ifs: string): RenderInput => ({
+const input = (ifs: string, over: Partial<SceneState> = {}): RenderInput => ({
 	width: 100,
 	height: 80,
 	timeMs: 0,
-	scene: { ...createDefaultScene(), ifs }
+	scene: { ...createDefaultScene(), ifs, ...over }
 });
 
-const pack = (ifs: string) => {
+const pack = (ifs: string, over: Partial<SceneState> = {}) => {
 	const view = new DataView(new ArrayBuffer(ifsRenderer.uniformSize));
-	ifsRenderer.packUniforms(view, input(ifs));
+	ifsRenderer.packUniforms(view, input(ifs, over));
 	return view;
 };
+
+const DEPTH_OFFSET = 44;
 
 describe('ifsRenderer', () => {
 	it('is the WebGPU compute renderer for the IFS art style', () => {
@@ -53,5 +55,40 @@ describe('ifsRenderer', () => {
 		expect(w).toContain('fn ifsPick');
 		// The fern's first cumulative weight threshold (0.01) appears in the picker.
 		expect(w).toContain('r < 0.01');
+		// Both Formation paths exist: a depth branch and the shared plotter.
+		expect(w).toContain('fn plot');
+		expect(w).toContain('u.depth');
+	});
+
+	describe('Formation depth', () => {
+		it('packs a negative depth (fully formed) when formation is absent or ≥1', () => {
+			expect(pack('sierpinski-triangle').getFloat32(DEPTH_OFFSET, true)).toBeLessThan(0);
+			expect(
+				pack('sierpinski-triangle', { formation: 1 }).getFloat32(DEPTH_OFFSET, true)
+			).toBeLessThan(0);
+			expect(
+				pack('sierpinski-triangle', { formation: 1.5 }).getFloat32(DEPTH_OFFSET, true)
+			).toBeLessThan(0);
+		});
+
+		it('ramps depth from 0 toward the system max as formation grows', () => {
+			const maxD = formationMaxDepth(getIFS('sierpinski-triangle'));
+			expect(pack('sierpinski-triangle', { formation: 0 }).getFloat32(DEPTH_OFFSET, true)).toBe(0);
+			expect(
+				pack('sierpinski-triangle', { formation: 0.5 }).getFloat32(DEPTH_OFFSET, true)
+			).toBeCloseTo(0.5 * maxD, 4);
+			expect(
+				pack('sierpinski-triangle', { formation: 0.999 }).getFloat32(DEPTH_OFFSET, true)
+			).toBeCloseTo(0.999 * maxD, 3);
+		});
+
+		it('uses each system’s own max depth (the fern needs more than Sierpiński)', () => {
+			const fernD = pack('barnsley-fern', { formation: 1 - 1e-6 }).getFloat32(DEPTH_OFFSET, true);
+			const sierD = pack('sierpinski-triangle', { formation: 1 - 1e-6 }).getFloat32(
+				DEPTH_OFFSET,
+				true
+			);
+			expect(fernD).toBeGreaterThan(sierD);
+		});
 	});
 });

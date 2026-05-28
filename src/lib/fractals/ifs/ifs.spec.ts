@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { IFS_SYSTEMS, getIFS, applyAffine, chaosGame, ifsBounds, type IFSystem } from './ifs';
+import {
+	IFS_SYSTEMS,
+	getIFS,
+	applyAffine,
+	chaosGame,
+	ifsBounds,
+	ifsFraming,
+	contractionRatio,
+	systemContraction,
+	formationMaxDepth,
+	formationApprox,
+	FORMATION_MIN_DEPTH,
+	FORMATION_MAX_DEPTH,
+	type IFSystem
+} from './ifs';
 
 describe('IFS systems table', () => {
 	it('exposes the classic families with unique ids', () => {
@@ -88,5 +102,78 @@ describe('chaos game', () => {
 		const onStem = pts.filter((p) => Math.abs(p.x) < 0.02 && p.y < 1.2).length;
 		// Uniform 1/4 selection would put ~25% here; weighted ~1% keeps it sparse.
 		expect(onStem / pts.length).toBeLessThan(0.12);
+	});
+});
+
+describe('contraction ratio', () => {
+	it('is the scale factor for a pure-scale map', () => {
+		// Sierpiński's three maps are all uniform 0.5 contractions.
+		for (const m of getIFS('sierpinski-triangle').maps) {
+			expect(contractionRatio(m.affine)).toBeCloseTo(0.5, 6);
+		}
+	});
+
+	it('captures rotation+scale: the dragon halves distances (1/√2 per axis ⇒ 0.5)', () => {
+		// [0.5,-0.5,..,0.5,0.5,..] is a √2-scaled 45° rotation ⇒ singular value √(0.5).
+		expect(contractionRatio([0.5, -0.5, 0, 0.5, 0.5, 0])).toBeCloseTo(Math.SQRT1_2, 6);
+	});
+
+	it("systemContraction is the slowest map — the fern's 0.85 frond dominates", () => {
+		expect(systemContraction(getIFS('barnsley-fern'))).toBeCloseTo(0.851, 2);
+		expect(systemContraction(getIFS('sierpinski-triangle'))).toBeCloseTo(0.5, 6);
+	});
+});
+
+describe('formationMaxDepth', () => {
+	it('needs more depth for slow contractions than fast ones', () => {
+		const fern = formationMaxDepth(getIFS('barnsley-fern'));
+		const sier = formationMaxDepth(getIFS('sierpinski-triangle'));
+		expect(fern).toBeGreaterThan(sier); // 0.85 resolves far slower than 0.5
+	});
+
+	it('stays within the affordable clamp for every system', () => {
+		for (const s of IFS_SYSTEMS) {
+			const d = formationMaxDepth(s);
+			expect(d).toBeGreaterThanOrEqual(FORMATION_MIN_DEPTH);
+			expect(d).toBeLessThanOrEqual(FORMATION_MAX_DEPTH);
+			expect(Number.isInteger(d)).toBe(true);
+		}
+	});
+});
+
+describe('formationApprox (depth-d growth)', () => {
+	it('at depth 0 is the solid framing box, not yet the attractor', () => {
+		const sier = getIFS('sierpinski-triangle');
+		const { cx, cy, radius } = ifsFraming(sier);
+		const pts = formationApprox(sier, 0, 3000, 11);
+		for (const p of pts) {
+			expect(Math.abs(p.x - cx)).toBeLessThanOrEqual(radius + 1e-9);
+			expect(Math.abs(p.y - cy)).toBeLessThanOrEqual(radius + 1e-9);
+		}
+		// The box overfills the attractor: points appear below the triangle (y<0).
+		expect(pts.some((p) => p.y < -0.02)).toBe(true);
+	});
+
+	it('collapses onto the attractor as depth grows', () => {
+		const sier = getIFS('sierpinski-triangle');
+		const b = ifsBounds(sier);
+		const outside = (pts: { x: number; y: number }[]) =>
+			pts.filter((p) => p.y < b.min.y - 0.02 || p.y > b.max.y + 0.02).length / pts.length;
+		const shallow = outside(formationApprox(sier, 1, 4000, 5));
+		const deep = outside(formationApprox(sier, 12, 4000, 5));
+		expect(deep).toBeLessThan(shallow);
+		expect(deep).toBeLessThan(0.02); // essentially landed on the attractor
+	});
+
+	it('is deterministic and yields colour coordinates in [0,1]', () => {
+		const a = formationApprox(getIFS('dragon-curve'), 6, 200, 9);
+		const b = formationApprox(getIFS('dragon-curve'), 6, 200, 9);
+		expect(a[100]).toEqual(b[100]);
+		for (const p of a) {
+			expect(p.c).toBeGreaterThanOrEqual(0);
+			expect(p.c).toBeLessThanOrEqual(1);
+			expect(Number.isFinite(p.x)).toBe(true);
+			expect(Number.isFinite(p.y)).toBe(true);
+		}
 	});
 });

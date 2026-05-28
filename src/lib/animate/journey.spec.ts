@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	JOURNEYS,
 	journeyKeyframes,
-	FORMATION_START_ITER,
+	FORMATION_START,
 	SHOWCASE_DIVES,
 	MIN_DIVE_FACTOR,
 	DIVE_PAN_FRACTION
@@ -64,15 +64,24 @@ describe('SHOWCASE_DIVES', () => {
 });
 
 describe('journeyKeyframes — Formation', () => {
-	it('ramps detail up from the start iteration, camera fixed, ends at current', () => {
+	it('ramps formation 0→1 with every other field held, camera fixed', () => {
 		const ks = journeyKeyframes('formation', scene);
 		expect(ks).toHaveLength(2);
 		const [start, end] = ks;
 		expect(start.t).toBe(0);
 		expect(end.t).toBe(1);
-		expect(start.scene.maxIter).toBe(FORMATION_START_ITER);
+		expect(start.scene.formation).toBe(FORMATION_START); // the bare seed
+		expect(end.scene.formation).toBe(1); // fully grown
 		expect(start.scene.camera).toEqual(scene.camera); // no camera move
-		expect(end.scene).toEqual(scene); // ends at current
+		expect(start.scene.maxIter).toBe(scene.maxIter); // detail held — only growth animates
+		expect(end.scene).toEqual({ ...scene, formation: 1 }); // ends at the live scene, formed
+	});
+
+	it('interpolates formation across the clip for a smooth grow-in', () => {
+		const ks = journeyKeyframes('formation', scene);
+		expect(interpolateScene(ks, 0).formation).toBe(FORMATION_START);
+		expect(interpolateScene(ks, 0.5).formation).toBeCloseTo(0.5, 10);
+		expect(interpolateScene(ks, 1).formation).toBe(1);
 	});
 
 	it('ignores waypoints (camera stays fixed)', () => {

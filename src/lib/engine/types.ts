@@ -120,6 +120,15 @@ export interface SceneState {
 	/** Coloring algorithm for the Deep-Zoom 2D escape-time formulas. Optional,
 	 * default 'smooth'; only read by the deep-zoom renderer (codes 0–9). */
 	coloring?: ColoringId;
+	/**
+	 * Formation progress in [0,1]: how fully the fractal has grown into being.
+	 * A *transient* animation parameter the Formation journey ramps 0→1 — it is
+	 * not part of the artwork's identity, so it is never serialized (a loaded
+	 * `.fflow`/share link is always fully formed) and absent means 1. Each
+	 * renderer maps it to its own growth lever: Deep-Zoom scales the iteration
+	 * count; IFS grows the recursion depth out of a solid seed.
+	 */
+	formation?: number;
 }
 
 export interface RenderInput {

@@ -68,6 +68,18 @@ export function effectiveMaxIter(scene: SceneState): number {
 	return Math.min(MAX_ITER_CAP, Math.max(scene.maxIter, autoMaxIter(scene.camera.scale)));
 }
 
+/**
+ * Iteration count to actually render, scaled by Formation progress: a Formation
+ * journey ramps `formation` 0→1, so the escape-time boundary detail resolves in
+ * from a near-flat interior to the full structure. Absent formation (or ≥1) is
+ * fully formed and unchanged; the floor of 1 keeps the shader's loop guarded.
+ */
+export function formationIter(scene: SceneState): number {
+	const formation = scene.formation ?? 1;
+	if (formation >= 1) return effectiveMaxIter(scene);
+	return Math.max(1, Math.round(effectiveMaxIter(scene) * formation));
+}
+
 export function createDefaultScene(): SceneState {
 	return {
 		formula: 'mandelbrot',
@@ -791,7 +803,7 @@ export const mandelbrotRenderer: FractalRenderer = {
 		f(8, scene.camera.centerX);
 		f(12, scene.camera.centerY);
 		f(16, scene.camera.scale);
-		f(20, effectiveMaxIter(scene));
+		f(20, formationIter(scene));
 		f(24, timeMs);
 		f(28, FORMULA_CODES[scene.formula]);
 		f(32, scene.juliaSeed.x);

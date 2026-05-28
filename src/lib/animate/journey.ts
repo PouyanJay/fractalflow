@@ -4,9 +4,10 @@
  * animates, so playback and Movie export both build on the tested
  * interpolation/sequence engine. Pure and framework-free.
  *
- *  - Formation: detail/iterations ramp up from almost nothing, so the fractal
- *    resolves into being (for attractors/flames this brightens the accumulated
- *    density; for Deep-Zoom/Geometric it sharpens the structure).
+ *  - Formation: a `formation` progress ramps 0→1 so the fractal grows into being.
+ *    Each renderer maps it to its own growth lever (Deep-Zoom sharpens detail by
+ *    raising the iteration count; IFS grows the recursion depth out of a solid
+ *    seed), so the same keyframe clip drives every art style.
  *  - Zoom: with no waypoints, a curated showcase dive — from the live view
  *    *into* a hand-picked beautiful spot for the chosen fractal, ending deep
  *    inside it. With ≥2 waypoints, the camera flies through them in order.
@@ -28,8 +29,8 @@ export const JOURNEYS: readonly JourneyMeta[] = [
 	{ id: 'zoom', label: 'Zoom', blurb: 'Dive into a beautiful corner of the fractal.' }
 ] as const;
 
-/** Detail/iteration count a Formation journey starts from before ramping up. */
-export const FORMATION_START_ITER = 1;
+/** Formation progress a journey starts from: 0 = the bare seed, before growth. */
+export const FORMATION_START = 0;
 
 /** Destination of an auto Zoom dive: a centre to pin and a depth to reach. */
 export interface DiveTarget {
@@ -138,7 +139,8 @@ function showcaseDive(scene: SceneState, styleId?: ArtStyleId): Keyframe[] {
 /**
  * The keyframes for a journey of `type` ending in the scene to be shown.
  *
- *  - Formation: two keyframes — low detail → current — camera fixed.
+ *  - Formation: two keyframes — formation 0 → 1 — every other field (camera,
+ *    detail, family) held at the live scene's, so only the growth animates.
  *  - Zoom with ≥2 `waypoints`: one keyframe per waypoint (camera path through
  *    them in order), every other scene field taken from the live scene.
  *  - Zoom otherwise: the curated showcase dive from the live view into a
@@ -166,7 +168,8 @@ export function journeyKeyframes(
 
 	const start = cloneScene(scene);
 	const end = cloneScene(scene);
-	start.maxIter = Math.min(FORMATION_START_ITER, scene.maxIter);
+	start.formation = FORMATION_START;
+	end.formation = 1;
 	return [
 		{ id: 'journey-start', t: 0, scene: start },
 		{ id: 'journey-end', t: 1, scene: end }

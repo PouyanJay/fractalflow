@@ -76,6 +76,9 @@ function blend(a: SceneState, b: SceneState, u: number): SceneState {
 		},
 		// Multibrot exponent interpolates so a power sweep morphs smoothly.
 		power: lerp(a.power ?? 2, b.power ?? 2, u),
+		// Formation progress interpolates so the fractal grows in smoothly; absent
+		// means fully formed (1), so a non-Formation timeline is unaffected.
+		formation: lerp(a.formation ?? 1, b.formation ?? 1, u),
 		// Warp snaps to the earlier keyframe; the grade and bloom amounts interpolate.
 		post: {
 			warp: a.post.warp,
@@ -127,6 +130,7 @@ export function cloneScene(scene: SceneState): SceneState {
 		post: { ...scene.post },
 		...(scene.geometricShape ? { geometricShape: scene.geometricShape } : {}),
 		...(scene.power !== undefined ? { power: scene.power } : {}),
+		...(scene.formation !== undefined ? { formation: scene.formation } : {}),
 		...(scene.paletteCoeffs
 			? {
 					paletteCoeffs: {

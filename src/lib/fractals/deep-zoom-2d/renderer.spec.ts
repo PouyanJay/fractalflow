@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	autoMaxIter,
 	effectiveMaxIter,
+	formationIter,
 	createDefaultScene,
 	mandelbrotRenderer,
 	UNIFORM_SIZE
@@ -61,6 +62,22 @@ describe('effectiveMaxIter (manual setting floored by the zoom curve)', () => {
 			camera: { centerX: -0.5, centerY: 0, scale: 3e-6 }
 		};
 		expect(effectiveMaxIter(s)).toBe(8000);
+	});
+});
+
+describe('formationIter (Formation-scaled iteration count)', () => {
+	const base = createDefaultScene(); // effectiveMaxIter 300
+
+	it('is unchanged when fully formed (absent or ≥1)', () => {
+		expect(formationIter(base)).toBe(300);
+		expect(formationIter({ ...base, formation: 1 })).toBe(300);
+		expect(formationIter({ ...base, formation: 2 })).toBe(300);
+	});
+
+	it('ramps the iteration count up with formation, never below 1', () => {
+		expect(formationIter({ ...base, formation: 0 })).toBe(1); // the bare seed, loop stays guarded
+		expect(formationIter({ ...base, formation: 0.5 })).toBe(150);
+		expect(formationIter({ ...base, formation: 0.99 })).toBe(297);
 	});
 });
 

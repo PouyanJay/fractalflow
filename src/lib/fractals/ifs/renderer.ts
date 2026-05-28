@@ -17,13 +17,16 @@
  *   0  resolution : vec2f
  *   8  system : u32     12 steps : u32
  *   16 centerX : f32  20 centerY : f32  24 scale : f32  28 exposure : f32
- *   32 cx : f32  36 cy : f32  40 radius : f32  44 time : f32
+ *   32 cx : f32  36 cy : f32  40 radius : f32  44 depth : f32
  *   48 palA  64 palB  80 palC  96 palD : vec4f
+ *
+ * `depth` < 0 renders the fully-formed dense chaos game; depth ≥ 0 renders the
+ * depth-d Formation approximation (a solid frame growing into the attractor).
  */
 import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
-import { IFS_SYSTEMS, ifsBounds } from './ifs';
+import { IFS_SYSTEMS, ifsFraming, formationMaxDepth, type IFSFraming } from './ifs';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
 export const IFS_ID = 'ifs';
@@ -35,23 +38,21 @@ const STEPS_PER_PARTICLE = 256;
 const COLOR_FIXED = 1024;
 const EXPOSURE_SCALE = 4.5e-4; // maxIter (50–1200) → log-density gain
 const TRANSIENT = 30;
+// Depth sentinel: a negative `depth` uniform means "fully formed" → the dense
+// chaos game. A Formation journey ramps depth 0→maxDepth as it grows in.
+const FORMED = -1;
 
 const SYSTEM_INDEX: Record<string, number> = Object.fromEntries(
 	IFS_SYSTEMS.map((s, i) => [s.id, i])
 );
 
-interface Framing {
-	cx: number;
-	cy: number;
-	radius: number;
-}
-
-const FRAMINGS: Record<string, Framing> = Object.fromEntries(
-	IFS_SYSTEMS.map((s) => {
-		const b = ifsBounds(s);
-		const radius = (Math.max(b.max.x - b.min.x, b.max.y - b.min.y) / 2) * 1.08 || 1;
-		return [s.id, { cx: (b.min.x + b.max.x) / 2, cy: (b.min.y + b.max.y) / 2, radius }];
-	})
+// Framing + Formation depth are derived from the (expensive) reference chaos
+// game, so precompute them once per system rather than every packUniforms frame.
+const FRAMINGS: Record<string, IFSFraming> = Object.fromEntries(
+	IFS_SYSTEMS.map((s) => [s.id, ifsFraming(s)])
+);
+const MAX_DEPTH: Record<string, number> = Object.fromEntries(
+	IFS_SYSTEMS.map((s) => [s.id, formationMaxDepth(s)])
 );
 
 // WGSL float literal that always carries a decimal point.
@@ -130,7 +131,7 @@ struct U {
 	cx: f32,
 	cy: f32,
 	radius: f32,
-	time: f32,
+	depth: f32,
 	palA: vec4f,
 	palB: vec4f,
 	palC: vec4f,
@@ -159,31 +160,61 @@ fn project(p: vec2f) -> vec2f {
 	);
 }
 
+fn plot(p: vec2f, c: f32, w: u32, h: u32) {
+	let sc = project(p);
+	let x = i32(floor(sc.x));
+	let y = i32(floor(sc.y));
+	if (x >= 0 && y >= 0 && x < i32(w) && y < i32(h)) {
+		let base = (u32(y) * w + u32(x)) * 2u;
+		atomicAdd(&grid[base], 1u);
+		atomicAdd(&grid[base + 1u], u32(c * ${lit(COLOR_FIXED)}));
+	}
+}
+
 @compute @workgroup_size(64)
 fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let i = gid.x;
 	var rng = i * 747796405u + 2891336453u;
-	var p = vec2f(rngNext(&rng) * 0.2 - 0.1, rngNext(&rng) * 0.2 - 0.1);
-	var c = rngNext(&rng);
-	for (var s = 0u; s < ${TRANSIENT}u; s = s + 1u) {
-		let k = ifsPick(u.system, rngNext(&rng));
-		p = ifsStep(u.system, k, p);
-		c = (c + ifsColor(u.system, k)) * 0.5;
-	}
 	let w = u32(u.resolution.x);
 	let h = u32(u.resolution.y);
-	for (var s = 0u; s < u.steps; s = s + 1u) {
-		let k = ifsPick(u.system, rngNext(&rng));
-		p = ifsStep(u.system, k, p);
-		c = (c + ifsColor(u.system, k)) * 0.5;
-		let sc = project(p);
-		let x = i32(floor(sc.x));
-		let y = i32(floor(sc.y));
-		if (x >= 0 && y >= 0 && x < i32(w) && y < i32(h)) {
-			let base = (u32(y) * w + u32(x)) * 2u;
-			atomicAdd(&grid[base], 1u);
-			atomicAdd(&grid[base + 1u], u32(c * ${lit(COLOR_FIXED)}));
+
+	if (u.depth < 0.0) {
+		// Fully formed: the dense chaos game — skip a transient onto the attractor,
+		// then plot the orbit.
+		var p = vec2f(rngNext(&rng) * 0.2 - 0.1, rngNext(&rng) * 0.2 - 0.1);
+		var c = rngNext(&rng);
+		for (var s = 0u; s < ${TRANSIENT}u; s = s + 1u) {
+			let k = ifsPick(u.system, rngNext(&rng));
+			p = ifsStep(u.system, k, p);
+			c = (c + ifsColor(u.system, k)) * 0.5;
 		}
+		for (var s = 0u; s < u.steps; s = s + 1u) {
+			let k = ifsPick(u.system, rngNext(&rng));
+			p = ifsStep(u.system, k, p);
+			c = (c + ifsColor(u.system, k)) * 0.5;
+			plot(p, c, w, h);
+		}
+		return;
+	}
+
+	// Forming: the depth-d Hutchinson approximation. Each plotted point is a
+	// random sample of the solid framing square pushed through d random maps,
+	// so at d near 0 it's the solid frame and as d grows it collapses onto the
+	// attractor — the fractal grows out of one shape. A fractional depth blends
+	// d and d+1 per sample for a smooth ramp.
+	let d0 = u32(floor(u.depth));
+	let frac = u.depth - floor(u.depth);
+	for (var s = 0u; s < u.steps; s = s + 1u) {
+		var p = vec2f(u.cx, u.cy) + (vec2f(rngNext(&rng), rngNext(&rng)) - vec2f(0.5)) * (2.0 * u.radius);
+		var c = 0.5;
+		var d = d0;
+		if (rngNext(&rng) < frac) { d = d + 1u; }
+		for (var k = 0u; k < d; k = k + 1u) {
+			let mi = ifsPick(u.system, rngNext(&rng));
+			p = ifsStep(u.system, mi, p);
+			c = (c + ifsColor(u.system, mi)) * 0.5;
+		}
+		plot(p, c, w, h);
 	}
 }
 
@@ -230,7 +261,7 @@ export const ifsRenderer: ComputeRenderer = {
 	particleCount: PARTICLE_COUNT,
 	stepsPerParticle: STEPS_PER_PARTICLE,
 	packUniforms(view: DataView, input: RenderInput) {
-		const { width, height, timeMs, scene } = input;
+		const { width, height, scene } = input;
 		const f = (offset: number, value: number) => view.setFloat32(offset, value, true);
 		const u32 = (offset: number, value: number) => view.setUint32(offset, value, true);
 		f(0, width);
@@ -245,7 +276,11 @@ export const ifsRenderer: ComputeRenderer = {
 		f(32, fr.cx);
 		f(36, fr.cy);
 		f(40, fr.radius);
-		f(44, timeMs);
+		// Fully formed (≥1 or absent) → the dense chaos game; otherwise ramp the
+		// recursion depth so the fractal grows out of the solid frame.
+		const formation = scene.formation ?? 1;
+		const maxDepth = MAX_DEPTH[scene.ifs] ?? MAX_DEPTH[IFS_SYSTEMS[0].id];
+		f(44, formation >= 1 ? FORMED : formation * maxDepth);
 		const { coeffs: c, colormap } = resolvePalette(scene);
 		f(48, c.a[0]);
 		f(52, c.a[1]);
