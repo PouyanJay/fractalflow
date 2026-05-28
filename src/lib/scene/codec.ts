@@ -7,8 +7,6 @@
  * are clamped to valid ranges.
  */
 import type { FormulaId, GeometricShapeId, SceneState } from '$lib/engine/types';
-import { isValidArtStyle } from '$lib/stores/ui-logic';
-import { isBlendMode, makeLayer, singleStack, type LayerStack } from './layers';
 import { PALETTES } from '$lib/fractals/palette';
 import { createDefaultScene } from '$lib/fractals/deep-zoom-2d/renderer';
 import { ATTRACTORS } from '$lib/fractals/glowing-attractors/attractors';
@@ -222,46 +220,4 @@ export function decodeScene(token: string): SceneState {
 		...(geometricShape ? { geometricShape } : {}),
 		...(coloring ? { coloring } : {})
 	};
-}
-
-// --- Multi-layer stack codec (the `?l=` document param) ---
-// A layer is `style_blend_opacity_visible_<sceneToken>` and the stack is
-// `activeIndex!layer0!layer1!…`. The field separator `_` and layer separator `!`
-// never occur in a scene token or an art-style/blend id, and both survive
-// encodeURIComponent unescaped (like `~`). Decoding is defensive: any malformed
-// part falls back, and an unparseable stack yields null (caller uses one layer).
-const LAYER_FIELD_SEP = '_';
-const LAYER_SEP = '!';
-
-export function encodeLayers(stack: LayerStack): string {
-	const activeIndex = Math.max(
-		0,
-		stack.layers.findIndex((l) => l.id === stack.activeId)
-	);
-	const parts = stack.layers.map((l) =>
-		[l.style, l.blend, l.opacity, l.visible ? 1 : 0, encodeScene(l.scene)].join(LAYER_FIELD_SEP)
-	);
-	return [activeIndex, ...parts].join(LAYER_SEP);
-}
-
-export function decodeLayers(token: string): LayerStack | null {
-	const groups = token.split(LAYER_SEP);
-	if (groups.length < 2) return null;
-	const activeIndex = Number(groups[0]);
-	const layers = groups.slice(1).map((g) => {
-		const [style, blend, op, vis, ...rest] = g.split(LAYER_FIELD_SEP);
-		const sceneToken = rest.join(LAYER_FIELD_SEP);
-		return makeLayer(isValidArtStyle(style) ? style : 'deep-zoom-2d', decodeScene(sceneToken), {
-			blend: isBlendMode(blend) ? blend : 'normal',
-			opacity: Number.isFinite(Number(op)) ? clamp01(Number(op)) : 1,
-			visible: vis !== '0'
-		});
-	});
-	if (layers.length === 0) return null;
-	const idx = Number.isInteger(activeIndex)
-		? Math.max(0, Math.min(activeIndex, layers.length - 1))
-		: 0;
-	// One layer behaves exactly like a plain scene — let the caller keep it simple.
-	if (layers.length === 1) return singleStack(layers[0].style, layers[0].scene);
-	return { layers, activeId: layers[idx].id };
 }
