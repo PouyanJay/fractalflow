@@ -34,14 +34,16 @@ export const GEOMETRIC_SHAPES: { id: GeometricShapeId; label: string }[] = [
 	{ id: 'mandelbox', label: 'Mandelbox' },
 	{ id: 'menger', label: 'Menger Sponge' },
 	{ id: 'juliabulb', label: 'Juliabulb' },
-	{ id: 'quaternion-julia', label: 'Quaternion Julia' }
+	{ id: 'quaternion-julia', label: 'Quaternion Julia' },
+	{ id: 'sierpinski-tetrahedron', label: 'Sierpiński Tetrahedron' }
 ];
 const SHAPE_CODE: Record<GeometricShapeId, number> = {
 	mandelbulb: 0,
 	mandelbox: 1,
 	menger: 2,
 	juliabulb: 3,
-	'quaternion-julia': 4
+	'quaternion-julia': 4,
+	'sierpinski-tetrahedron': 5
 };
 
 const WGSL = /* wgsl */ `
@@ -161,12 +163,35 @@ fn deQuat(pos: vec3f) -> vec2f {
 	return vec2f(0.5 * r * log(max(r, 1e-6)) / max(length(dz), 1e-6), trap);
 }
 
+// Sierpiński tetrahedron: fold the point toward the nearest of the four tetra
+// vertices, scale about it, and track the contraction — the classic folding DE.
+fn deTetra(p0: vec3f) -> vec2f {
+	let scale = 2.0;
+	let a1 = vec3f(1.0, 1.0, 1.0);
+	let a2 = vec3f(-1.0, -1.0, 1.0);
+	let a3 = vec3f(1.0, -1.0, -1.0);
+	let a4 = vec3f(-1.0, 1.0, -1.0);
+	var z = p0;
+	var trap = 1e10;
+	for (var i = 0; i < 12; i = i + 1) {
+		var c = a1;
+		var dist = length(z - a1);
+		var d = length(z - a2); if (d < dist) { c = a2; dist = d; }
+		d = length(z - a3); if (d < dist) { c = a3; dist = d; }
+		d = length(z - a4); if (d < dist) { c = a4; dist = d; }
+		z = z * scale - c * (scale - 1.0);
+		trap = min(trap, length(z));
+	}
+	return vec2f(length(z) * pow(scale, -12.0), trap);
+}
+
 fn de(pos: vec3f) -> vec2f {
 	let shape = i32(u.palD.w);
 	if (shape == 1) { let d = deMandelbox(pos * 2.4); return vec2f(d.x / 2.4, d.y); }
 	if (shape == 2) { return deMenger(pos); }
 	if (shape == 3) { return bulbDE(pos, vec3f(0.4, 0.3, 0.2)); }
 	if (shape == 4) { return deQuat(pos); }
+	if (shape == 5) { return deTetra(pos); }
 	return bulbDE(pos, pos); // mandelbulb
 }
 
@@ -337,12 +362,34 @@ vec2 deQuat(vec3 pos) {
 	return vec2(0.5 * r * log(max(r, 1e-6)) / max(length(dz), 1e-6), trap);
 }
 
+// Sierpiński tetrahedron: fold toward the nearest tetra vertex, scale, repeat.
+vec2 deTetra(vec3 p0) {
+	float scale = 2.0;
+	vec3 a1 = vec3(1.0, 1.0, 1.0);
+	vec3 a2 = vec3(-1.0, -1.0, 1.0);
+	vec3 a3 = vec3(1.0, -1.0, -1.0);
+	vec3 a4 = vec3(-1.0, 1.0, -1.0);
+	vec3 z = p0;
+	float trap = 1e10;
+	for (int i = 0; i < 12; i++) {
+		vec3 c = a1;
+		float dist = length(z - a1);
+		float d = length(z - a2); if (d < dist) { c = a2; dist = d; }
+		d = length(z - a3); if (d < dist) { c = a3; dist = d; }
+		d = length(z - a4); if (d < dist) { c = a4; dist = d; }
+		z = z * scale - c * (scale - 1.0);
+		trap = min(trap, length(z));
+	}
+	return vec2(length(z) * pow(scale, -12.0), trap);
+}
+
 vec2 de(vec3 pos) {
 	int shape = int(uPalD.w);
 	if (shape == 1) { vec2 d = deMandelbox(pos * 2.4); return vec2(d.x / 2.4, d.y); }
 	if (shape == 2) return deMenger(pos);
 	if (shape == 3) return bulbDE(pos, vec3(0.4, 0.3, 0.2));
 	if (shape == 4) return deQuat(pos);
+	if (shape == 5) return deTetra(pos);
 	return bulbDE(pos, pos);
 }
 

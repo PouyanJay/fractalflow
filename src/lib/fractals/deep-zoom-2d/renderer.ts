@@ -380,6 +380,30 @@ fn sceneColor(offset: vec2f, perPixel: f32, uv: vec2f) -> vec4f {
 		return ffPost(apollonianColor(length(p) / sc), uv);
 	}
 
+	// Nova (cubic): Newton's method for z³ − 1 with a +c term every step, from
+	// z₀ = 1 (c = the pixel). Converged pixels are banded by their convergence
+	// count; escaped pixels take the smooth exterior shading; the rest stay dark.
+	if (formula == 14) {
+		var z = vec2f(1.0, 0.0);
+		let c = u.center + offset;
+		var i = 0;
+		loop {
+			if (i >= maxI) { break; }
+			let z2 = cmul(z, z);
+			let f = cmul(z2, z) - vec2f(1.0, 0.0); // z³ − 1
+			let fp = 3.0 * z2;                       // 3z²
+			let d = fp.x * fp.x + fp.y * fp.y + 1e-12;
+			let q = vec2f((f.x * fp.x + f.y * fp.y) / d, (f.y * fp.x - f.x * fp.y) / d);
+			let zn = z - q + c;
+			let dz = zn - z;
+			z = zn;
+			if (z.x * z.x + z.y * z.y > 1e6) { return ffPost(color(f32(i), z), uv); }
+			if (dz.x * dz.x + dz.y * dz.y < 1e-12) { return ffPost(vec4f(palette(fract(f32(i) * 0.04)), 1.0), uv); }
+			i = i + 1;
+		}
+		return ffPost(INTERIOR, uv);
+	}
+
 	// Direct f32 iteration. Burning Ship's sign-form perturbation glitches when the
 	// per-pixel delta is large (zoomed out), so iterate it directly until deep enough
 	// that direct f32 would itself break down (~scale 0.002 ≈ 1500×); below that, fall
@@ -708,6 +732,25 @@ vec4 sceneColor(vec2 offset, float perPixel, vec2 uv) {
 			sc *= kk;
 		}
 		return ffPost(apollonianColor(length(p) / sc), uv);
+	}
+
+	// Nova (cubic): Newton z³−1 with a +c term from z₀ = 1 (mirrors the WGSL).
+	if (formula == 14) {
+		vec2 z = vec2(1.0, 0.0);
+		vec2 c = uCenter + offset;
+		for (int i = 0; i < maxI; i++) {
+			vec2 z2 = cmul(z, z);
+			vec2 f = cmul(z2, z) - vec2(1.0, 0.0); // z³ − 1
+			vec2 fp = 3.0 * z2;                     // 3z²
+			float d = fp.x * fp.x + fp.y * fp.y + 1e-12;
+			vec2 q = vec2((f.x * fp.x + f.y * fp.y) / d, (f.y * fp.x - f.x * fp.y) / d);
+			vec2 zn = z - q + c;
+			vec2 dz = zn - z;
+			z = zn;
+			if (z.x * z.x + z.y * z.y > 1e6) { return ffPost(colorOf(float(i), z), uv); }
+			if (dz.x * dz.x + dz.y * dz.y < 1e-12) { return ffPost(vec4(palette(fract(float(i) * 0.04)), 1.0), uv); }
+		}
+		return ffPost(INTERIOR, uv);
 	}
 
 	// Direct f32 iteration: Burning Ship while shallow (its sign-form perturbation

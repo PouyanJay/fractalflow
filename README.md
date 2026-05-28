@@ -75,8 +75,8 @@ Each milestone is a coherent theme rather than a fixed date.
 
 ### v0.1 — Creative studio (current)
 
-- 14 Deep-Zoom 2D formulas, Glowing Attractors, Painterly Flames, Geometric 3D,
-  and IFS curves — one shared, GPU-native engine.
+- 15 Deep-Zoom 2D formulas, 11 strange attractors, Painterly Flames, 6 Geometric
+  3D shapes, and 8 IFS systems — one shared, GPU-native engine.
 - Compose node graph, Animate timeline + Formation journeys, multi-layer
   compositing, 21 palettes and 5 coloring algorithms.
 - Cinematic deep zoom (perturbation + series approximation, ~10²⁸×) with
@@ -84,30 +84,48 @@ Each milestone is a coherent theme rather than a fixed date.
 - Export PNG stills, frame sequences, and MP4/WebM video; every view round-trips
   through a reproducible share URL.
 
-### v0.2 — Export everywhere
+### v0.2 — More fractals
+
+Famous fractals that don't fit the current chaos-game / escape-time / raymarch
+models and need new construction methods or renderers:
+
+- **Koch snowflake & T-square** — closed / additive constructions (a union of
+  three Koch curves; overlapping square growth) that need a deterministic IFS
+  path rather than the chaos game. (The Koch _curve_, Cantor dust and Vicsek
+  already ship in v0.1.)
+- **Space-filling curves** — Hilbert, Peano, Moore, and Gosper, via a new
+  recursive-curve / L-system renderer.
+- **L-system plants** — Pythagoras tree, H-tree, and fractal canopies.
+- **Function fractals** — the Takagi (blancmange) and Weierstrass curves.
+- **Buddhabrot / Anti-Buddhabrot** — a density-accumulation render mode of the
+  Mandelbrot.
+- **Kaleidoscopic IFS (KIFS)** — folded 3D fractals in the Geometric 3D style.
+- **Procedural terrain & plasma** — midpoint-displacement / diamond-square noise.
+
+### v0.3 — Export everywhere
 
 - **GLSL shader export** — copy the live shader (Shadertoy-ready) for any 2D view.
 - **SVG export** for the vector-native fractals (IFS, Koch, dragon, Sierpiński),
   for crisp print and design work.
 
-### v0.3 — Prompt-to-Fractal
+### v0.4 — Prompt-to-Fractal
 
 - A natural-language assistant ("a golden Mandelbulb cathedral with volumetric
   fog") that generates editable scene parameters. Local-first / bring-your-own
   API key, built on the serializable `Scene`.
 
-### v0.4 — Motion & sound
+### v0.5 — Motion & sound
 
 - **Audio-reactive animation** — map FFT bands to scene parameters on the Animate
   timeline for music-reactive visuals.
 - Saved, editable **3D camera paths**.
 
-### v0.5 — Textures & 3D assets
+### v0.6 — Textures & 3D assets
 
 - **Seamless / tileable texture mode** plus texture-map export for game and 3D work.
 - **STL / OBJ export** from the 3D distance fields, for 3D printing and DCC tools.
 
-### v0.6 — Cinematic 3D
+### v0.7 — Cinematic 3D
 
 - Configurable lighting, soft shadows, fog, and depth of field for the raymarched
   fractals — toward Mandelbulb-3D-class output and a true 3D world builder.

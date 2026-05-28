@@ -1,8 +1,8 @@
 /**
  * Strange-attractor reference math for the Glowing Attractors art style.
  *
- * Each family is a pure step function `p → p'`. The 2D maps (Clifford, de Jong)
- * are discrete iterated functions; the 3D flows (Lorenz, Thomas) advance one
+ * Each family is a pure step function `p → p'`. The 2D maps (Clifford, de Jong,
+ * Hénon, Ikeda) are discrete iterated functions; the 3D flows (Lorenz, Thomas) advance one
  * fixed step of classic RK4 over their vector field. RK4 (not Euler) matters:
  * forward Euler diverges for Lorenz over a long transient, so particles never
  * settle onto the manifold. This module is the CPU reference — the WGSL compute
@@ -46,7 +46,9 @@ export type AttractorId =
 	| 'rossler'
 	| 'halvorsen'
 	| 'chen'
-	| 'dadras';
+	| 'dadras'
+	| 'henon'
+	| 'ikeda';
 
 export interface Attractor {
 	id: AttractorId;
@@ -227,6 +229,32 @@ export const ATTRACTORS: readonly Attractor[] = [
 		seed: { x: 1.1, y: 2.1, z: -2 },
 		step(p) {
 			return rk4(p, FLOW_DT.dadras!, dadrasDeriv);
+		}
+	},
+	{
+		// Hénon map: the canonical (a, b) = (1.4, 0.3) — a folded, banded attractor.
+		id: 'henon',
+		label: 'Hénon',
+		dims: 2,
+		seed: { x: 0, y: 0, z: 0 },
+		step({ x, y }) {
+			const a = 1.4,
+				b = 0.3;
+			return { x: 1 - a * x * x + y, y: b * x, z: 0 };
+		}
+	},
+	{
+		// Ikeda map: u = 0.918, with the orbit-angle t = 0.4 − 6/(1 + x² + y²).
+		id: 'ikeda',
+		label: 'Ikeda',
+		dims: 2,
+		seed: { x: 0.1, y: 0.1, z: 0 },
+		step({ x, y }) {
+			const u = 0.918;
+			const t = 0.4 - 6 / (1 + x * x + y * y);
+			const ct = Math.cos(t),
+				st = Math.sin(t);
+			return { x: 1 + u * (x * ct - y * st), y: u * (x * st + y * ct), z: 0 };
 		}
 	}
 ];

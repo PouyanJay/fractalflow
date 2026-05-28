@@ -221,7 +221,8 @@ describe('formula metadata', () => {
 			'newton',
 			'phoenix',
 			'lyapunov',
-			'apollonian'
+			'apollonian',
+			'nova'
 		]);
 		expect(FORMULA_CODES.mandelbrot).toBe(0);
 		expect(FORMULA_CODES.julia).toBe(1);
@@ -237,5 +238,6 @@ describe('formula metadata', () => {
 		expect(FORMULA_CODES.phoenix).toBe(11);
 		expect(FORMULA_CODES.lyapunov).toBe(12);
 		expect(FORMULA_CODES.apollonian).toBe(13);
+		expect(FORMULA_CODES.nova).toBe(14);
 	});
 });

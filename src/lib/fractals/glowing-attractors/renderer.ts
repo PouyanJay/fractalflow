@@ -90,11 +90,16 @@ ${POST_WGSL_FIELDS}
 @group(0) @binding(1) var<storage, read_write> density: array<atomic<u32>>;
 ${POST_WGSL_FN}
 
-// Discrete maps (Clifford, de Jong) collapse onto the attractor within a few
-// iterations; the integrated flows (Lorenz, Thomas) need many small steps to
-// leave the transient and settle onto the manifold before we accumulate.
+// Families 2..8 are integrated 3D flows; 0,1 and 9,10 are discrete 2D maps.
+fn isFlow(fam: u32) -> bool {
+	return fam >= 2u && fam <= 8u;
+}
+
+// Discrete maps (Clifford, de Jong, Hénon, Ikeda) collapse onto the attractor
+// within a few iterations; the integrated flows (Lorenz, Thomas) need many small
+// steps to leave the transient and settle onto the manifold before we accumulate.
 fn skipFor(fam: u32) -> u32 {
-	return select(32u, 512u, fam >= 2u);
+	return select(32u, 512u, isFlow(fam));
 }
 
 // Vector field of the 3D flows. Constants mirror attractors.ts exactly.
@@ -160,6 +165,14 @@ fn stepAttractor(p: vec3f, fam: u32) -> vec3f {
 	} else if (fam == 1u) { // de Jong
 		let a = 1.4; let b = -2.3; let c = 2.4; let d = -2.1;
 		return vec3f(sin(a * p.y) - cos(b * p.x), sin(c * p.x) - cos(d * p.y), 0.0);
+	} else if (fam == 9u) { // Hénon (a = 1.4, b = 0.3)
+		let a = 1.4; let b = 0.3;
+		return vec3f(1.0 - a * p.x * p.x + p.y, b * p.x, 0.0);
+	} else if (fam == 10u) { // Ikeda (u = 0.918)
+		let uu = 0.918;
+		let t = 0.4 - 6.0 / (1.0 + p.x * p.x + p.y * p.y);
+		let ct = cos(t); let st = sin(t);
+		return vec3f(1.0 + uu * (p.x * ct - p.y * st), uu * (p.x * st + p.y * ct), 0.0);
 	}
 	// Every other family is an integrated 3D flow.
 	return rk4(p, dtFor(fam), fam);
@@ -224,9 +237,10 @@ fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let h = u32(u.resolution.y);
 	let skip = skipFor(u.family);
 
-	// Flows (family ≥ 2) trace a connected curve, so while forming the lead lanes
-	// sweep the reference orbit in index order — a pen drawing the attractor out.
-	if (progress < 1.0 && u.family >= 2u) {
+	// Flows trace a connected curve, so while forming the lead lanes sweep the
+	// reference orbit in index order — a pen drawing the attractor out. Discrete
+	// maps (incl. Hénon/Ikeda) fall through to the scattered birth-phase reveal.
+	if (progress < 1.0 && isFlow(u.family)) {
 		let head = u32(progress * ${SWEEP_LANES}.0);
 		if (i >= ${SWEEP_LANES}u || i > head) { return; }
 		var q = vec3f(u.cx, u.cy, u.cz); // all lanes share one seed → one orbit

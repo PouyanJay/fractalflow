@@ -30,7 +30,8 @@ const FORMULA_IDS: readonly FormulaId[] = [
 	'newton',
 	'phoenix',
 	'lyapunov',
-	'apollonian'
+	'apollonian',
+	'nova'
 ];
 const ATTRACTOR_IDS: readonly string[] = ATTRACTORS.map((a) => a.id);
 const SHAPE_IDS: readonly string[] = GEOMETRIC_SHAPES.map((s) => s.id);

@@ -129,6 +129,14 @@ const FORMULA_TEXT: Record<FormulaId, SceneDescription> = {
 		applications:
 			'Apollonian packings link geometry to number theory (integer curvatures via Descartes’ Circle Theorem) and model foams, granular packing and conformal tilings.',
 		tips: 'Zoom into any triple of kissing circles — the same packing recurs at every scale. A touch of Bloom makes the net glow; cool palettes read it as fine filigree.'
+	},
+	nova: {
+		title: 'Nova',
+		body: 'The Nova fractal — Newton’s root-finder for z³ − 1 with a constant added each step. The extra term breaks Newton’s clean symmetry into Mandelbrot-like bands braided around the three root-basins.',
+		math: 'From z₀ = 1, iterate zₙ₊₁ = zₙ − (zₙ³ − 1) / (3·zₙ²) + c, where c is the pixel. Pixels are shaded by how quickly the orbit settles onto a root; orbits that diverge take the smooth exterior shading.',
+		applications:
+			'A relaxation-with-feedback variant of the Newton fractal (Paul Derbyshire’s “Nova”), used to explore how a forcing term reshapes a root-finding map’s basins.',
+		tips: 'Stay near the origin where the three basins meet — that seam carries the richest structure. Raise iterations to sharpen the bands; warm palettes make the braided basins read clearly.'
 	}
 };
 
@@ -206,6 +214,14 @@ const SHAPE_TEXT: Record<NonNullable<SceneState['geometricShape']>, SceneDescrip
 		applications:
 			'The historic first “true 3D” fractal (Norton, 1982); a standard demonstration of hypercomplex dynamics.',
 		tips: 'Orbit to read the folds; pair with a metallic palette and a little Bloom for a chrome look.'
+	},
+	'sierpinski-tetrahedron': {
+		title: 'Sierpiński Tetrahedron',
+		body: 'The Sierpiński tetrahedron — the 3D cousin of the Sierpiński triangle. A tetrahedron is replaced by four half-size copies at its corners, recursively, leaving a self-similar lattice of voids.',
+		math: 'Raymarched as a folding distance estimator: each step folds the point toward the nearest of the four tetrahedron vertices, scales about it by 2, and the contraction is tracked to recover the distance.',
+		applications:
+			'A canonical 3D self-similar fractal for teaching recursion and Hausdorff dimension (log 4 / log 2 = 2), and a staple test object for distance-field raymarchers.',
+		tips: 'Orbit to catch the four-fold symmetry; raise Detail to resolve deeper recursion. Strong side lighting reads the nested voids best.'
 	}
 };
 

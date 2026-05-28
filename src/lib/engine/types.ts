@@ -34,7 +34,8 @@ export type GeometricShapeId =
 	| 'mandelbox'
 	| 'menger'
 	| 'juliabulb'
-	| 'quaternion-julia';
+	| 'quaternion-julia'
+	| 'sierpinski-tetrahedron';
 
 export type FormulaId =
 	| 'mandelbrot'
@@ -50,7 +51,8 @@ export type FormulaId =
 	| 'newton'
 	| 'phoenix'
 	| 'lyapunov'
-	| 'apollonian';
+	| 'apollonian'
+	| 'nova';
 
 /** Screen-space post-processing applied at the end of every renderer. */
 export interface PostSettings {

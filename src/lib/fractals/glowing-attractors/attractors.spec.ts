@@ -15,7 +15,9 @@ describe('ATTRACTORS catalog', () => {
 			'rossler',
 			'halvorsen',
 			'chen',
-			'dadras'
+			'dadras',
+			'henon',
+			'ikeda'
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
 		for (const a of ATTRACTORS) {
@@ -68,6 +70,26 @@ describe('attractor step (CPU reference, matched by the WGSL integrator)', () =>
 		expect(p.y).toBeCloseTo(p.z, 12);
 		expect(p.x).toBeGreaterThan(1); // sin(1) − b·1 > 0
 	});
+
+	it('Hénon maps points by its closed form (a=1.4, b=0.3)', () => {
+		const h = getAttractor('henon');
+		// (0,0) → (1 − a·0 + 0, b·0) = (1, 0)
+		expect(h.step({ x: 0, y: 0, z: 0 })).toEqual({ x: 1, y: 0, z: 0 });
+		// (1,0) → (1 − 1.4 + 0, 0.3) = (−0.4, 0.3)
+		const p = h.step({ x: 1, y: 0, z: 0 });
+		expect(p.x).toBeCloseTo(-0.4, 10);
+		expect(p.y).toBeCloseTo(0.3, 10);
+		expect(p.z).toBe(0);
+	});
+
+	it('Ikeda maps points by its closed form (u=0.918)', () => {
+		// (1,0): t = 0.4 − 6/2 = −2.6; x' = 1 + u·cos(t), y' = u·sin(t)
+		const t = 0.4 - 6 / 2;
+		const p = getAttractor('ikeda').step({ x: 1, y: 0, z: 0 });
+		expect(p.x).toBeCloseTo(1 + 0.918 * Math.cos(t), 10);
+		expect(p.y).toBeCloseTo(0.918 * Math.sin(t), 10);
+		expect(p.z).toBe(0);
+	});
 });
 
 describe('orbit', () => {
@@ -98,6 +120,22 @@ describe('new strange-attractor flows settle onto a non-degenerate manifold', ()
 			expect(Number.isFinite(sx + sy + sz)).toBe(true);
 			expect(Math.max(sx, sy, sz)).toBeGreaterThan(0.5); // not a fixed point
 			expect(Math.max(sx, sy, sz)).toBeLessThan(500); // not diverging
+		});
+	}
+});
+
+describe('discrete 2D maps fill a finite plane (Hénon, Ikeda)', () => {
+	for (const id of ['henon', 'ikeda'] as const) {
+		it(`${id} settles onto a bounded, non-degenerate 2D attractor`, () => {
+			const a = getAttractor(id);
+			expect(a.dims).toBe(2);
+			const pts = orbit(a, 6000);
+			expect(pts.every((p) => p.z === 0)).toBe(true); // planar
+			const b = boundsOf(pts);
+			const sx = b.max.x - b.min.x;
+			const sy = b.max.y - b.min.y;
+			expect(Math.min(sx, sy)).toBeGreaterThan(0.1); // genuine 2D extent, not a point/line
+			expect(Math.max(sx, sy)).toBeLessThan(10); // bounded, not diverging
 		});
 	}
 });

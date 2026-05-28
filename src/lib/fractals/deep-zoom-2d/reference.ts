@@ -377,6 +377,49 @@ export function apollonianValue(x: number, y: number, iters: number): number {
 	return Math.hypot(px, py) / scale;
 }
 
+/** A Nova-fractal pixel: it either converges onto a root, escapes, or neither. */
+export interface NovaResult {
+	converged: boolean;
+	escaped: boolean;
+	iter: number;
+}
+
+/**
+ * Nova fractal (cubic): Newton's method for z³ − 1 with relaxation 1 and a
+ * constant c added every step, started at z₀ = 1; each pixel is c. Unlike the
+ * pure Newton fractal the +c term breaks the symmetry into Mandelbrot-like
+ * structure. A pixel converges onto a root (|Δz| → 0, coloured by the
+ * convergence count), escapes (|z| blows up), or does neither within maxIter.
+ * Mirrors the WGSL/GLSL `formula == 14` branch.
+ */
+export function novaEscape(cx: number, cy: number, maxIter: number, bailout = 1e3): NovaResult {
+	let zx = 1;
+	let zy = 0;
+	const b2 = bailout * bailout;
+	for (let i = 0; i < maxIter; i++) {
+		const x2 = zx * zx - zy * zy; // z²
+		const y2 = 2 * zx * zy;
+		const z3x = x2 * zx - y2 * zy; // z³
+		const z3y = x2 * zy + y2 * zx;
+		const fx = z3x - 1; // f = z³ − 1
+		const fy = z3y;
+		const fpx = 3 * x2; // f' = 3z²
+		const fpy = 3 * y2;
+		const d = fpx * fpx + fpy * fpy + 1e-12;
+		const qx = (fx * fpx + fy * fpy) / d; // q = f / f'
+		const qy = (fy * fpx - fx * fpy) / d;
+		const nzx = zx - qx + cx;
+		const nzy = zy - qy + cy;
+		const dx = nzx - zx;
+		const dy = nzy - zy;
+		zx = nzx;
+		zy = nzy;
+		if (zx * zx + zy * zy > b2) return { converged: false, escaped: true, iter: i };
+		if (dx * dx + dy * dy < 1e-12) return { converged: true, escaped: false, iter: i };
+	}
+	return { converged: false, escaped: false, iter: maxIter };
+}
+
 export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'mandelbrot', label: 'Mandelbrot' },
 	{ id: 'julia', label: 'Julia' },
@@ -391,7 +434,8 @@ export const FORMULAS: { id: FormulaId; label: string }[] = [
 	{ id: 'newton', label: 'Newton' },
 	{ id: 'phoenix', label: 'Phoenix' },
 	{ id: 'lyapunov', label: 'Lyapunov' },
-	{ id: 'apollonian', label: 'Apollonian' }
+	{ id: 'apollonian', label: 'Apollonian' },
+	{ id: 'nova', label: 'Nova' }
 ];
 
 /** Stable integer codes passed to the shaders to select the iteration. */
@@ -409,7 +453,8 @@ export const FORMULA_CODES: Record<FormulaId, number> = {
 	newton: 10,
 	phoenix: 11,
 	lyapunov: 12,
-	apollonian: 13
+	apollonian: 13,
+	nova: 14
 };
 
 /**
@@ -424,7 +469,8 @@ export const FORMULA_HOME: Partial<
 	Record<FormulaId, { centerX: number; centerY: number; scale: number }>
 > = {
 	lyapunov: { centerX: 3.2, centerY: 3.2, scale: 1.9 },
-	apollonian: { centerX: 0, centerY: 0, scale: 2.4 }
+	apollonian: { centerX: 0, centerY: 0, scale: 2.4 },
+	nova: { centerX: 0, centerY: 0, scale: 2.6 }
 };
 
 export interface ComplexPoint {

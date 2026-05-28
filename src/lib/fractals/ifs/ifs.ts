@@ -92,6 +92,26 @@ for (let j = 0; j < 3; j++) {
 }
 const sierpinskiCarpet = uniform('sierpinski-carpet', 'Sierpiński Carpet', carpetCells);
 
+// Cantor dust: the 2D product of the Cantor set — four 1/3-scale copies at the
+// corners of the unit square (the middle row and column are removed at every
+// level), leaving a totally disconnected dust.
+const cantorDust = uniform('cantor-dust', 'Cantor Dust', [
+	[THIRD, 0, 0, 0, THIRD, 0],
+	[THIRD, 0, 2 / 3, 0, THIRD, 0],
+	[THIRD, 0, 0, 0, THIRD, 2 / 3],
+	[THIRD, 0, 2 / 3, 0, THIRD, 2 / 3]
+]);
+
+// Vicsek (box) fractal: five 1/3-scale copies forming a plus — the centre cell
+// plus the four edge-midpoint cells of a 3×3 grid (the corners are removed).
+const vicsek = uniform('vicsek', 'Vicsek Fractal', [
+	[THIRD, 0, THIRD, 0, THIRD, THIRD], // centre
+	[THIRD, 0, 0, 0, THIRD, THIRD], // left
+	[THIRD, 0, 2 / 3, 0, THIRD, THIRD], // right
+	[THIRD, 0, THIRD, 0, THIRD, 0], // bottom
+	[THIRD, 0, THIRD, 0, THIRD, 2 / 3] // top
+]);
+
 // Barnsley fern: the canonical four maps with their famous weights. The stem
 // (map 0, p≈0.01) is degenerate (collapses to the y-axis); the dominant map
 // (p≈0.85) grows the self-similar frond. Colour separates stem/leaflets.
@@ -106,13 +126,17 @@ const barnsleyFern: IFSystem = {
 	]
 };
 
+// Order is the codec's index space — append new systems at the end so existing
+// share URLs keep resolving to the same fractal.
 export const IFS_SYSTEMS: readonly IFSystem[] = [
 	barnsleyFern,
 	sierpinskiTriangle,
 	dragon,
 	koch,
 	levyC,
-	sierpinskiCarpet
+	sierpinskiCarpet,
+	cantorDust,
+	vicsek
 ];
 
 export function getIFS(id: string): IFSystem {

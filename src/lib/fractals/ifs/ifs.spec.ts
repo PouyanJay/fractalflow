@@ -25,6 +25,8 @@ describe('IFS systems table', () => {
 		expect(ids).toContain('sierpinski-triangle');
 		expect(ids).toContain('dragon-curve');
 		expect(ids).toContain('koch-curve');
+		expect(ids).toContain('cantor-dust');
+		expect(ids).toContain('vicsek');
 		expect(new Set(ids).size).toBe(ids.length);
 	});
 
@@ -96,6 +98,35 @@ describe('chaos game', () => {
 				expect(Number.isFinite(p.y)).toBe(true);
 			}
 		}
+	});
+
+	it('keeps Cantor dust inside the unit square, clustered in the four corners', () => {
+		const dust = getIFS('cantor-dust');
+		const pts = chaosGame(dust, 3000, 4);
+		for (const p of pts) {
+			expect(p.x).toBeGreaterThan(-0.01);
+			expect(p.x).toBeLessThan(1.01);
+			expect(p.y).toBeGreaterThan(-0.01);
+			expect(p.y).toBeLessThan(1.01);
+		}
+		// The middle third of each axis is removed at every level, so no point lands
+		// in the central band (1/3, 2/3) on either axis.
+		const inMiddle = pts.filter((p) => p.x > 0.34 && p.x < 0.66 && p.y > 0.34 && p.y < 0.66);
+		expect(inMiddle.length).toBe(0);
+	});
+
+	it('keeps the Vicsek fractal inside the unit square with an empty diagonal corner', () => {
+		const v = getIFS('vicsek');
+		const pts = chaosGame(v, 3000, 4);
+		for (const p of pts) {
+			expect(p.x).toBeGreaterThan(-0.01);
+			expect(p.x).toBeLessThan(1.01);
+			expect(p.y).toBeGreaterThan(-0.01);
+			expect(p.y).toBeLessThan(1.01);
+		}
+		// The plus shape leaves the four corner thirds (e.g. bottom-left) empty.
+		const inCorner = pts.filter((p) => p.x < 0.32 && p.y < 0.32);
+		expect(inCorner.length).toBe(0);
 	});
 
 	it('respects map weights: the fern stem map (p≈0.01) is rarely chosen', () => {

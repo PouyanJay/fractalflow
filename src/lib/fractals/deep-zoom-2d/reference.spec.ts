@@ -4,6 +4,7 @@ import {
 	pixelToComplex,
 	lyapunovExponent,
 	apollonianValue,
+	novaEscape,
 	FORMULA_CODES,
 	FORMULA_HOME
 } from './reference';
@@ -90,6 +91,38 @@ describe('apollonianValue', () => {
 
 	it('is registered as formula code 13', () => {
 		expect(FORMULA_CODES.apollonian).toBe(13);
+	});
+});
+
+describe('novaEscape', () => {
+	it('converges immediately at c = 0 (z₀ = 1 is already a root of z³ − 1)', () => {
+		const r = novaEscape(0, 0, 100);
+		expect(r.converged).toBe(true);
+		expect(r.escaped).toBe(false);
+		expect(r.iter).toBe(0);
+	});
+
+	it('classifies every pixel as exactly one of converged / escaped / interior', () => {
+		for (const [x, y] of [
+			[0, 0],
+			[0.3, -0.2],
+			[-0.7, 0.5],
+			[1.5, 1.5],
+			[0.1, 0.9]
+		]) {
+			const r = novaEscape(x, y, 200);
+			expect(Number.isFinite(r.iter)).toBe(true);
+			expect(r.iter).toBeGreaterThanOrEqual(0);
+			expect(r.converged && r.escaped).toBe(false); // never both
+		}
+	});
+
+	it('is deterministic for a given point and iteration count', () => {
+		expect(novaEscape(0.42, -0.13, 64)).toEqual(novaEscape(0.42, -0.13, 64));
+	});
+
+	it('is registered as formula code 14', () => {
+		expect(FORMULA_CODES.nova).toBe(14);
 	});
 });
 

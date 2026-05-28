@@ -57,8 +57,10 @@ describe('attractorsRenderer', () => {
 
 	it('flows get an orbit-ordered pen sweep; discrete maps the materialise reveal', () => {
 		const w = attractorsRenderer.wgsl;
-		// Lead lanes share one seed and trace the reference orbit in index order.
-		expect(w).toContain('u.family >= 2u'); // flows only
+		// Lead lanes share one seed and trace the reference orbit in index order;
+		// the sweep is gated to flows (isFlow), so 2D maps fall through to the reveal.
+		expect(w).toContain('isFlow(u.family)'); // flows only
+		expect(w).toContain('fn isFlow'); // flow vs discrete-map predicate
 		expect(w).toContain('i * '); // lane-indexed advance along the orbit
 		expect(w).toContain('fn plotDensity');
 		expect(w).toContain('fn birthPhase'); // discrete/full path kept
