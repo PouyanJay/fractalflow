@@ -26,14 +26,16 @@ describe('mandelbulbRenderer', () => {
 		expect(glsl).toBeTruthy(); // has a WebGL2 path
 	});
 
-	it('grows the DE iteration count: both shader paths ramp formationIters', () => {
-		expect(mandelbulbRenderer.wgsl).toContain('fn formationIters');
-		expect(glsl).toContain('int formationIters');
-		// Each DE loop is bounded by the ramped count, not a literal.
-		expect(mandelbulbRenderer.wgsl).toContain('formationIters(8)'); // bulb
-		expect(mandelbulbRenderer.wgsl).toContain('formationIters(11)'); // mandelbox
-		expect(mandelbulbRenderer.wgsl).toContain('formationIters(4)'); // menger
-		expect(mandelbulbRenderer.wgsl).toContain('formationIters(10)'); // quaternion julia
+	it('grows the DE iteration count, blending n→n+1 for a smooth ramp', () => {
+		// The DE is evaluated at a parameterised iteration count, and the fractional
+		// part blends adjacent depths (mix) so detail emerges smoothly, not in pops.
+		for (const src of [mandelbulbRenderer.wgsl, glsl]) {
+			expect(src).toContain('deAt');
+			expect(src).toContain('maxItersFor');
+			expect(src).toMatch(/mix\(\s*deAt/);
+		}
+		expect(mandelbulbRenderer.wgsl).toContain('u.formation'); // WGSL drives it from formation
+		expect(glsl).toContain('uFormation'); // GLSL drives it from formation
 	});
 
 	it('packs formation (default fully formed), separate from raymarch quality', () => {
