@@ -32,6 +32,12 @@ const PARTICLE_COUNT = 1 << 16; // 65 536 particles per frame
 const STEPS_PER_PARTICLE = 256;
 // maxIter (50–1200) → gain on the log-density tone curve.
 const EXPOSURE_SCALE = 4.5e-4;
+// Flow "pen sweep": lead lanes trace the reference orbit in index order while
+// forming. Lane i plots a SWEEP_ARC arc starting SWEEP_STRIDE·i steps in, so the
+// SWEEP_LANES lanes together draw ~SWEEP_LANES·SWEEP_STRIDE steps of one orbit.
+const SWEEP_LANES = 4096;
+const SWEEP_STRIDE = 10;
+const SWEEP_ARC = 32;
 
 const FAMILY_INDEX: Record<string, number> = Object.fromEntries(
 	ATTRACTORS.map((a, i) => [a.id, i])
@@ -200,27 +206,47 @@ fn project(p: vec3f) -> vec2f {
 	return vec2f(u.resolution.x * 0.5 + r.x * s, u.resolution.y * 0.5 - r.y * s);
 }
 
+fn plotDensity(p: vec3f, w: u32, h: u32) {
+	let sc = project(p);
+	let x = i32(floor(sc.x));
+	let y = i32(floor(sc.y));
+	if (x >= 0 && y >= 0 && x < i32(w) && y < i32(h)) {
+		atomicAdd(&density[u32(y) * w + u32(x)], 1u);
+	}
+}
+
 @compute @workgroup_size(64)
 fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let i = gid.x;
 	// Formation progress, recovered from the revealed step count (full = ${STEPS_PER_PARTICLE}).
-	// u.steps is the growing arc length each particle traces; while forming we
-	// also stagger which particles are active so the orbit sweeps out gradually.
 	let progress = f32(u.steps) / ${STEPS_PER_PARTICLE}.0;
-	if (progress < 1.0 && birthPhase(i) > progress) { return; }
-	var p = seedFor(i);
-	let skip = skipFor(u.family);
-	for (var s = 0u; s < skip; s = s + 1u) { p = stepAttractor(p, u.family); }
 	let w = u32(u.resolution.x);
 	let h = u32(u.resolution.y);
+	let skip = skipFor(u.family);
+
+	// Flows (family ≥ 2) trace a connected curve, so while forming the lead lanes
+	// sweep the reference orbit in index order — a pen drawing the attractor out.
+	if (progress < 1.0 && u.family >= 2u) {
+		let head = u32(progress * ${SWEEP_LANES}.0);
+		if (i >= ${SWEEP_LANES}u || i > head) { return; }
+		var q = vec3f(u.cx, u.cy, u.cz); // all lanes share one seed → one orbit
+		let advance = skip + i * ${SWEEP_STRIDE}u;
+		for (var s = 0u; s < advance; s = s + 1u) { q = stepAttractor(q, u.family); }
+		for (var s = 0u; s < ${SWEEP_ARC}u; s = s + 1u) {
+			q = stepAttractor(q, u.family);
+			plotDensity(q, w, h);
+		}
+		return;
+	}
+
+	// Discrete maps (and the fully-formed view): materialise growing per-particle
+	// arcs, staggered by a hashed birth phase so they build from a sparse scatter.
+	if (progress < 1.0 && birthPhase(i) > progress) { return; }
+	var p = seedFor(i);
+	for (var s = 0u; s < skip; s = s + 1u) { p = stepAttractor(p, u.family); }
 	for (var s = 0u; s < u.steps; s = s + 1u) {
 		p = stepAttractor(p, u.family);
-		let sc = project(p);
-		let x = i32(floor(sc.x));
-		let y = i32(floor(sc.y));
-		if (x >= 0 && y >= 0 && x < i32(w) && y < i32(h)) {
-			atomicAdd(&density[u32(y) * w + u32(x)], 1u);
-		}
+		plotDensity(p, w, h);
 	}
 }
 

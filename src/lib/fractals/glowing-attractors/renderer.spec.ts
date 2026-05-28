@@ -54,4 +54,13 @@ describe('attractorsRenderer', () => {
 		expect(pack('lorenz', 0.5).getUint32(12, true)).toBe(Math.round(0.5 * full));
 		expect(pack('lorenz', 0).getUint32(12, true)).toBe(1); // a leading point, never blank
 	});
+
+	it('flows get an orbit-ordered pen sweep; discrete maps the materialise reveal', () => {
+		const w = attractorsRenderer.wgsl;
+		// Lead lanes share one seed and trace the reference orbit in index order.
+		expect(w).toContain('u.family >= 2u'); // flows only
+		expect(w).toContain('i * '); // lane-indexed advance along the orbit
+		expect(w).toContain('fn plotDensity');
+		expect(w).toContain('fn birthPhase'); // discrete/full path kept
+	});
 });
