@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="static/apple-touch-icon.png" alt="FractalFlow logo" width="84" height="84" />
+<img src="static/logo.svg" alt="FractalFlow logo" width="84" height="84" />
 
 # FractalFlow Studio
 
