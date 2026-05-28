@@ -21,6 +21,7 @@
 import { resolvePalette } from '$lib/fractals/palette';
 import { COLORMAP_WGSL } from '$lib/fractals/colormaps';
 import { POST_SIZE, packPost, POST_WGSL_FIELDS, POST_WGSL_FN } from '$lib/fractals/post';
+import { revealedSteps } from '$lib/fractals/formation';
 import { ATTRACTORS, orbit, boundsOf } from './attractors';
 import type { ComputeRenderer, RenderInput } from '$lib/engine/types';
 
@@ -176,6 +177,15 @@ fn seedFor(i: u32) -> vec3f {
 	return vec3f(u.cx, u.cy, u.cz) + h * (u.radius * 1.5);
 }
 
+// A per-particle "birth phase" in [0,1), decorrelated from its seed, so the
+// Formation trace builds from a sparse scatter of strokes rather than a faint
+// full ghost: a particle only joins once progress passes its birth phase.
+fn birthPhase(i: u32) -> f32 {
+	var h = (i ^ 0x9e3779b9u) * 2654435761u;
+	h = h ^ (h >> 16u);
+	return f32(h & 0xffffffu) / 16777216.0;
+}
+
 fn rotate(p: vec3f) -> vec3f {
 	let cy = cos(u.yaw); let sy = sin(u.yaw);
 	let cx = cos(u.pitch); let sx = sin(u.pitch);
@@ -193,6 +203,11 @@ fn project(p: vec3f) -> vec2f {
 @compute @workgroup_size(64)
 fn integrate(@builtin(global_invocation_id) gid: vec3u) {
 	let i = gid.x;
+	// Formation progress, recovered from the revealed step count (full = ${STEPS_PER_PARTICLE}).
+	// u.steps is the growing arc length each particle traces; while forming we
+	// also stagger which particles are active so the orbit sweeps out gradually.
+	let progress = f32(u.steps) / ${STEPS_PER_PARTICLE}.0;
+	if (progress < 1.0 && birthPhase(i) > progress) { return; }
 	var p = seedFor(i);
 	let skip = skipFor(u.family);
 	for (var s = 0u; s < skip; s = s + 1u) { p = stepAttractor(p, u.family); }
@@ -259,7 +274,9 @@ export const attractorsRenderer: ComputeRenderer = {
 		f(0, width);
 		f(4, height);
 		u32(8, FAMILY_INDEX[scene.attractor] ?? 0);
-		u32(12, STEPS_PER_PARTICLE);
+		// Formation "traces the orbit": plot only a growing prefix of each
+		// particle's contiguous trajectory so strokes lengthen into the attractor.
+		u32(12, revealedSteps(scene.formation, STEPS_PER_PARTICLE));
 		f(16, scene.camera.centerX); // yaw
 		f(20, scene.camera.centerY); // pitch
 		f(24, scene.camera.scale); // zoom

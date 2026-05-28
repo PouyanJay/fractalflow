@@ -10,9 +10,10 @@ const input = (attractor: string): RenderInput => ({
 	scene: { ...createDefaultScene(), attractor }
 });
 
-const pack = (attractor: string) => {
+const pack = (attractor: string, formation?: number) => {
 	const view = new DataView(new ArrayBuffer(attractorsRenderer.uniformSize));
-	attractorsRenderer.packUniforms(view, input(attractor));
+	const base = input(attractor);
+	attractorsRenderer.packUniforms(view, { ...base, scene: { ...base.scene, formation } });
 	return view;
 };
 
@@ -44,5 +45,13 @@ describe('attractorsRenderer', () => {
 		expect(attractorsRenderer.wgsl).toContain('fn integrate');
 		expect(attractorsRenderer.wgsl).toContain('fn vs');
 		expect(attractorsRenderer.wgsl).toContain('fn fs');
+	});
+
+	it('Formation traces the orbit: the step count reveals a growing prefix', () => {
+		const full = attractorsRenderer.stepsPerParticle;
+		expect(pack('lorenz').getUint32(12, true)).toBe(full); // absent → fully formed
+		expect(pack('lorenz', 1).getUint32(12, true)).toBe(full);
+		expect(pack('lorenz', 0.5).getUint32(12, true)).toBe(Math.round(0.5 * full));
+		expect(pack('lorenz', 0).getUint32(12, true)).toBe(1); // a leading point, never blank
 	});
 });
