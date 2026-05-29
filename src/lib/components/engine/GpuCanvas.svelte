@@ -1,7 +1,16 @@
+<script module lang="ts">
+	// Hold the startup splash for at least this long so it reads as an intentional
+	// "loading the studio" moment rather than a flash. Applied once per page load
+	// (the flag below), so switching art styles or panels doesn't re-trigger it.
+	const MIN_SPLASH_MS = 5000;
+	let initialLoadShown = false;
+</script>
+
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { createEngine, type Engine } from '$lib/engine/engine';
 	import type { BackendType, FractalRenderer, SceneState } from '$lib/engine/types';
+	import { SPIRAL_PETAL } from '$lib/components/brand';
 
 	interface Props {
 		renderer: FractalRenderer;
@@ -16,6 +25,9 @@
 
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let failed = $state(false);
+	// False until the engine has drawn its first frame — gates the loading overlay
+	// so the blank canvas during backend init / first render reads as "loading".
+	let ready = $state(false);
 
 	// Compute-pipeline art styles are WebGPU-only; on a WebGL2-only browser the
 	// engine can't initialise, so we explain that rather than claim "no GPU".
@@ -33,8 +45,28 @@
 		const activeRenderer = renderer;
 		if (!el) return;
 
-		const opts = untrack(() => ({ getScene, prefer, onBackend: onbackend }));
+		// Hold the very first load on the splash for a beat; later (re)inits clear
+		// as soon as the first frame paints.
+		const enforceMinSplash = !initialLoadShown;
+		const mountAt = performance.now();
+		let splashTimer: ReturnType<typeof setTimeout> | undefined;
+
+		const opts = untrack(() => ({
+			getScene,
+			prefer,
+			onBackend: onbackend,
+			onFirstFrame: () => {
+				if (!enforceMinSplash) {
+					ready = true;
+					return;
+				}
+				initialLoadShown = true;
+				const wait = Math.max(0, MIN_SPLASH_MS - (performance.now() - mountAt));
+				splashTimer = setTimeout(() => (ready = true), wait);
+			}
+		}));
 		failed = false;
+		ready = false;
 		let engine: Engine | null = null;
 		let disposed = false;
 
@@ -60,6 +92,7 @@
 
 		return () => {
 			disposed = true;
+			clearTimeout(splashTimer);
 			lifecycle = lifecycle.then(() => engine?.destroy());
 		};
 	});
@@ -67,6 +100,18 @@
 
 <div class="gpu">
 	<canvas bind:this={canvas} aria-label="Fractal viewport" data-testid="fractal-viewport"></canvas>
+	{#if !ready && !failed && !needsWebGPU}
+		<div class="loading" role="status" aria-live="polite" data-testid="viewport-loading">
+			<svg class="loading-mark" viewBox="0 0 24 24" aria-hidden="true">
+				<g fill="currentColor">
+					<path d={SPIRAL_PETAL} />
+					<path d={SPIRAL_PETAL} transform="rotate(120 12 12)" />
+					<path d={SPIRAL_PETAL} transform="rotate(240 12 12)" />
+				</g>
+			</svg>
+			<p class="loading-label">Initializing renderer…</p>
+		</div>
+	{/if}
 	{#if needsWebGPU}
 		<div class="error" role="alert">
 			<p class="error-title">This art style needs WebGPU</p>
@@ -100,6 +145,39 @@
 		/* The drawing-buffer size must not contribute to layout (hi-DPR feedback). */
 		min-width: 0;
 		min-height: 0;
+	}
+	.loading {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--ff-space-5);
+		background: var(--ff-bg);
+	}
+	.loading-mark {
+		width: clamp(96px, 18vmin, 168px);
+		height: clamp(96px, 18vmin, 168px);
+		color: var(--ff-accent);
+		transform-origin: 50% 50%;
+		animation: ff-spin 1.6s linear infinite;
+	}
+	.loading-label {
+		font-size: var(--ff-text-lg);
+		font-weight: var(--ff-weight-medium);
+		color: var(--ff-text-muted);
+		letter-spacing: 0.04em;
+	}
+	@keyframes ff-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.loading-mark {
+			animation: none;
+		}
 	}
 	.error {
 		position: absolute;

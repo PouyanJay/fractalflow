@@ -232,4 +232,6 @@ export interface EngineOptions {
 	maxDimension?: number;
 	/** Called once the engine knows which backend is actually active. */
 	onBackend?: (type: BackendType) => void;
+	/** Called once, after the first frame has been drawn — for hiding a loader. */
+	onFirstFrame?: () => void;
 }

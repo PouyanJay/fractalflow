@@ -134,6 +134,7 @@ export async function createEngine(
 	let bufferHeight = 0;
 	let refineState: RefineState = { sig: '', changedAt: 0, refined: false };
 	const refineOnIdle = options.renderer.refineOnIdle === true;
+	let firstFrameDrawn = false;
 
 	function applySize() {
 		const rect = canvas.getBoundingClientRect();
@@ -167,6 +168,10 @@ export async function createEngine(
 				scene,
 				aaSamples: decision.aaSamples
 			});
+			if (!firstFrameDrawn) {
+				firstFrameDrawn = true;
+				options.onFirstFrame?.();
+			}
 		}
 		rafId = requestAnimationFrame(frame);
 	}
